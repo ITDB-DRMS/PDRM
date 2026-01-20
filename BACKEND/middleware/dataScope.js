@@ -8,7 +8,7 @@ import Team from '../models/Team.js';
  */
 export const applyScopeFilter = async (req, res, next) => {
     try {
-        const user = await User.findById(req.user.id)
+        const user = await User.findById(req.user._id)
             .populate('organization')
             .populate('sector')
             .populate('department')
@@ -92,7 +92,7 @@ export const applyScopeFilter = async (req, res, next) => {
  */
 export const canAccessUser = async (req, res, next) => {
     try {
-        const currentUser = await User.findById(req.user.id)
+        const currentUser = await User.findById(req.user._id)
             .populate('organization')
             .populate('sector')
             .populate('department')

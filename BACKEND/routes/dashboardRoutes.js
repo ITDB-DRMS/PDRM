@@ -1,9 +1,11 @@
 import express from 'express';
 import { getStats } from '../controllers/dashboardController.js';
-import { protect } from '../middleware/authMiddleware.js'; // Assuming auth is needed
+import { protect } from '../middleware/authMiddleware.js';
+import { checkPermission } from '../middleware/permissionMiddleware.js';
 
 const router = express.Router();
 
-router.get('/stats', protect, getStats); // Protect the route if necessary, assume yes given the context
+// Protect the route and check for dashboard view permission
+router.get('/stats', protect, checkPermission('dashboard', 'view'), getStats);
 
 export default router;

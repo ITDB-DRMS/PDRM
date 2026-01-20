@@ -42,6 +42,7 @@ type NavItem = {
   path?: string;
   subItems?: SubItem[];
   permission?: string;
+  superAdminOnly?: boolean;
 };
 
 const navItems: NavItem[] = [
@@ -96,8 +97,9 @@ const adminItems: NavItem[] = [
   {
     icon: <BoxCubeIcon />,
     name: "Structure",
+    superAdminOnly: true,
     subItems: [
-     
+
       {
         name: "Organizations",
         path: "/admin/organizations",
@@ -122,7 +124,7 @@ const adminItems: NavItem[] = [
         icon: <GroupIcon />,
         permission: "view_team",
       },
-       {
+      {
         name: "Graph",
         path: "/admin/structure-graph",
         icon: <GridIcon />,
@@ -133,6 +135,7 @@ const adminItems: NavItem[] = [
   {
     icon: <LockIcon />,
     name: "Auth",
+    superAdminOnly: true,
     subItems: [
       {
         name: "Permissions",
@@ -163,6 +166,7 @@ const adminItems: NavItem[] = [
   {
     icon: <ListIcon />,
     name: "Audit",
+    superAdminOnly: true,
     subItems: [
       {
         name: "Audit Logs",
@@ -216,7 +220,14 @@ const AppSidebar: React.FC = () => {
 
   // Filter items based on permissions
   const filterItems = (items: NavItem[]) => {
+    const isSuperAdmin = user?.roles?.some(r => ['superadmin', 'super admin', 'super_admin', "admin", "Admin", "branch_admin", "Branch Admin", "manager", "Manager"].includes(r.name.toLowerCase()));
+
     return items.map(item => {
+      // Check super admin restriction first
+      if (item.superAdminOnly && !isSuperAdmin) {
+        return null;
+      }
+
       // If item has subItems, filter them
       if (item.subItems) {
         const filteredSub = item.subItems.filter(sub => checkPermission(sub.permission));

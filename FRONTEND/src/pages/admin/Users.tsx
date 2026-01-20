@@ -6,7 +6,6 @@ import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
-import Alert from "../../components/ui/alert/Alert";
 
 
 import api from '../../api/axios';
@@ -246,17 +245,20 @@ export default function Users() {
                 await api.put(`/users/${editUser.id}`, data, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
+                closeModal();
                 setAlertState({ show: true, variant: 'success', title: 'Success', message: 'User updated successfully' });
             } else {
                 await api.post('/users', data, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
+                closeModal();
                 setAlertState({ show: true, variant: 'success', title: 'Success', message: 'User created successfully' });
             }
-            closeModal();
             fetchData();
         } catch (error: any) {
             console.error("Failed to save user", error);
+            // Close the form modal and show error popup
+            closeModal();
             setAlertState({ show: true, variant: 'error', title: 'Error', message: error.response?.data?.message || 'Failed to save user' });
         }
     };
@@ -306,14 +308,19 @@ export default function Users() {
             />
             <PageBreadcrumb pageTitle="Users" />
 
+            {/* Alert popup modal for success / error */}
             {alertState?.show && (
-                <div className="mb-6">
-                    <Alert
-                        variant={alertState.variant}
-                        title={alertState.title}
-                        message={alertState.message}
-                    />
-                </div>
+                <Modal isOpen={true} onClose={() => setAlertState(null)} className="max-w-[480px] m-4">
+                    <div className="relative w-full overflow-y-auto rounded-3xl bg-white p-6 dark:bg-gray-900">
+                        <div className="mb-4">
+                            <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">{alertState.title}</h4>
+                            <p className={`mt-2 text-sm ${alertState.variant === 'success' ? 'text-green-600' : 'text-red-600'}`}>{alertState.message}</p>
+                        </div>
+                        <div className="flex justify-end">
+                            <Button size="sm" variant="outline" onClick={() => setAlertState(null)} type="button">Close</Button>
+                        </div>
+                    </div>
+                </Modal>
             )}
 
             <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] lg:p-6">
