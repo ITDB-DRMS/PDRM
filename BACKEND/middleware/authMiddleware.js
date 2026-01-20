@@ -3,6 +3,7 @@ import * as userService from '../services/userService.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
+// Middleware to protect routes 
 export const protect = async (req, res, next) => {
     let token;
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
