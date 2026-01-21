@@ -34,9 +34,12 @@ export const protect = async (req, res, next) => {
 };
 
 export const admin = (req, res, next) => {
-    if (req.user && req.user.roles && req.user.roles.some(r => r.name === 'Admin' || r.name === 'Super Admin')) {
+    if (req.user && req.user.roles && req.user.roles.some(r =>
+        ['Admin', 'Super Admin', 'superadmin', 'Branch Admin', 'branch_admin', 'branch admin'].includes(r.name) ||
+        ['admin', 'super_admin', 'branch_admin'].includes(r.name.toLowerCase())
+    )) {
         next();
     } else {
-        res.status(401).json({ message: 'Not authorized as an admin' });
+        res.status(403).json({ message: 'Not authorized as an admin' });
     }
 };

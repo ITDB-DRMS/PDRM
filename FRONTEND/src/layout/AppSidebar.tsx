@@ -155,12 +155,12 @@ const adminItems: NavItem[] = [
         icon: <UserIcon />,
         permission: "view_user",
       },
-      {
+      /* {
         name: "Hierarchy",
         path: "/admin/hierarchy",
         icon: <BoxIconLine />,
         permission: "view_user",
-      },
+      }, */
     ],
   },
   {
@@ -209,7 +209,7 @@ const AppSidebar: React.FC = () => {
   // Helper to check permissions
   const checkPermission = (permission?: string) => {
     // Super Admin has full access
-    if (user?.roles?.some(r => ['superadmin', 'super admin'].includes(r.name.toLowerCase()))) {
+    if (user?.roles?.some(r => ['superadmin', 'super admin', 'super_admin'].includes(r.name.toLowerCase()))) {
       return true;
     }
     // If no permission requirement, it's public (to auth users)
@@ -220,26 +220,46 @@ const AppSidebar: React.FC = () => {
 
   // Filter items based on permissions
   const filterItems = (items: NavItem[]) => {
-    const isSuperAdmin = user?.roles?.some(r => ['superadmin', 'super admin', 'super_admin', "admin", "Admin", "branch_admin", "Branch Admin", "manager", "Manager"].includes(r.name.toLowerCase()));
+    const isSuperAdmin = user?.roles?.some(r => ['superadmin', 'super admin', 'super_admin'].includes(r.name.toLowerCase()));
 
     return items.map(item => {
-      // Check super admin restriction first
-      if (item.superAdminOnly && !isSuperAdmin) {
-        return null;
+      // If superAdminOnly, ONLY Super Admin sees it unless we want to open it for permitted subitems
+      // BUT user request says "branch admin... only the part given by role".
+      // This means we should IGNORE superAdminOnly flag if the user has permissions for subItems? 
+      // OR we should remove superAdminOnly from the parent and rely on subItems?
+      // Let's interpret: "superAdminOnly" really means "Hidden from general public, but visible if you have permission".
+      // Actually, standard practice: If I have permission for a child, I should see the parent.
+
+      // Calculate valid subItems first
+      let filteredSub: SubItem[] = [];
+      if (item.subItems) {
+        filteredSub = item.subItems.filter(sub => checkPermission(sub.permission));
       }
 
-      // If item has subItems, filter them
+      // Logic:
+      // 1. If Super Admin -> Show everything.
+      // 2. If NOT Super Admin:
+      //    a. If item has subItems: Show item ONLY if there are valid subItems (permissions match).
+      //    b. If item has NO subItems: Show item ONLY if checkPermission returns true.
+
+      if (isSuperAdmin) {
+        return item;
+      }
+
       if (item.subItems) {
-        const filteredSub = item.subItems.filter(sub => checkPermission(sub.permission));
-        // If subItems exist after filter, keep the item with filtered subItems
+        // If regular user (even branch admin) has access to some children, show the parent
         if (filteredSub.length > 0) {
           return { ...item, subItems: filteredSub };
         }
-        // If no subItems match, don't show the parent
-        return null;
+        return null; // No access to any children
       }
-      // If no subItems, just check permission on the item itself
+
+      // No subItems, check direct permission
+      // Also respect superAdminOnly check for leaf nodes if any (though usually for parents)
+      if (item.superAdminOnly) return null; // Hard block for leaf nodes marked superAdminOnly if not super admin
+
       return checkPermission(item.permission) ? item : null;
+
     }).filter(Boolean) as NavItem[];
   };
 
