@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../../hooks/useToast';
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { useModal } from "../../hooks/useModal";
@@ -53,14 +54,13 @@ export default function Users() {
     const [loading, setLoading] = useState(true);
     const [editUser, setEditUser] = useState<User | null>(null);
     const [isViewMode, setIsViewMode] = useState(false);
-    const [alertState, setAlertState] = useState<{ show: boolean; variant: "success" | "error" | "warning" | "info"; title: string; message: string } | null>(null);
 
     // Form State
     const [formData, setFormData] = useState({
         fullname: '',
         email: '',
         phone: '',
-        password: '',
+
         roles: [] as string[],
         organization: '',
         sector: '',
@@ -71,6 +71,11 @@ export default function Users() {
         accessLevel: 'expert',
         organizationType: 'branch'
     });
+
+
+
+    // Use the toast hook
+    const toast = useToast();
 
     const { isOpen, openModal, closeModal } = useModal();
 
@@ -135,15 +140,7 @@ export default function Users() {
     }, [formData.department, allTeams]);
 
 
-    // Auto-dismiss alert
-    useEffect(() => {
-        if (alertState?.show) {
-            const timer = setTimeout(() => {
-                setAlertState(null);
-            }, 3000);
-            return () => clearTimeout(timer);
-        }
-    }, [alertState]);
+
 
     const fetchData = async () => {
         setLoading(true);
@@ -184,12 +181,12 @@ export default function Users() {
                 fullname: user.fullname,
                 email: user.email,
                 phone: user.phone || '',
-                password: '',
-                roles: user.roles?.map(r => r.id) || [],
-                organization: user.organization?.id || '',
-                sector: user.sector?.id || '',
-                department: user.department?.id || '',
-                team: user.team?.id || '',
+
+                roles: user.roles?.map((r: any) => r._id || r.id) || [],
+                organization: (user.organization as any)?._id || user.organization?.id || '',
+                sector: (user.sector as any)?._id || user.sector?.id || '',
+                department: (user.department as any)?._id || user.department?.id || '',
+                team: (user.team as any)?._id || user.team?.id || '',
                 status: user.status,
                 profileImage: null,
                 accessLevel: user.accessLevel || 'expert',
@@ -201,7 +198,7 @@ export default function Users() {
                 fullname: '',
                 email: '',
                 phone: '',
-                password: '',
+
                 roles: [],
                 organization: '',
                 sector: '',
@@ -227,7 +224,7 @@ export default function Users() {
             data.append('accessLevel', formData.accessLevel);
             data.append('organizationType', formData.organizationType);
 
-            if (formData.password) data.append('password', formData.password);
+
             formData.roles.forEach(role => data.append('roles', role));
 
             // Append hierarchical fields if they have values
@@ -246,20 +243,20 @@ export default function Users() {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
                 closeModal();
-                setAlertState({ show: true, variant: 'success', title: 'Success', message: 'User updated successfully' });
+                toast.success('User updated successfully');
             } else {
                 await api.post('/users', data, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
                 closeModal();
-                setAlertState({ show: true, variant: 'success', title: 'Success', message: 'User created successfully' });
+                toast.success('User created successfully');
             }
             fetchData();
         } catch (error: any) {
             console.error("Failed to save user", error);
             // Close the form modal and show error popup
             closeModal();
-            setAlertState({ show: true, variant: 'error', title: 'Error', message: error.response?.data?.message || 'Failed to save user' });
+            toast.error(error.response?.data?.message || 'Failed to save user');
         }
     };
 
@@ -267,11 +264,11 @@ export default function Users() {
         if (confirm("Are you sure you want to delete this user?")) {
             try {
                 await api.delete(`/users/${id}`);
-                setAlertState({ show: true, variant: 'success', title: 'Success', message: 'User deleted successfully' });
+                toast.success('User deleted successfully');
                 fetchData();
             } catch (error: any) {
                 console.error("Failed to delete user", error);
-                setAlertState({ show: true, variant: 'error', title: 'Error', message: 'Failed to delete user' });
+                toast.error('Failed to delete user');
             }
         }
     };
@@ -308,20 +305,7 @@ export default function Users() {
             />
             <PageBreadcrumb pageTitle="Users" />
 
-            {/* Alert popup modal for success / error */}
-            {alertState?.show && (
-                <Modal isOpen={true} onClose={() => setAlertState(null)} className="max-w-[480px] m-4">
-                    <div className="relative w-full overflow-y-auto rounded-3xl bg-white p-6 dark:bg-gray-900">
-                        <div className="mb-4">
-                            <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">{alertState.title}</h4>
-                            <p className={`mt-2 text-sm ${alertState.variant === 'success' ? 'text-green-600' : 'text-red-600'}`}>{alertState.message}</p>
-                        </div>
-                        <div className="flex justify-end">
-                            <Button size="sm" variant="outline" onClick={() => setAlertState(null)} type="button">Close</Button>
-                        </div>
-                    </div>
-                </Modal>
-            )}
+
 
             <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] lg:p-6">
                 <div className="flex justify-between items-center mb-5">
@@ -384,11 +368,28 @@ export default function Users() {
                                             </span>
                                         </td>
                                         <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
-                                            <span className={`inline-flex rounded-full bg-opacity-10 py-1 px-3 text-sm font-medium ${user.status === 'active' ? 'bg-success text-success' :
-                                                user.status === 'pending' ? 'bg-warning text-warning' : 'bg-danger text-danger'
-                                                }`}>
-                                                {user.status}
-                                            </span>
+                                            <button
+                                                onClick={async () => {
+                                                    const newStatus = user.status === 'active' ? 'suspended' : 'active';
+                                                    if (confirm(`Are you sure you want to change status to ${newStatus}?`)) {
+                                                        try {
+                                                            await api.put(`/users/${user.id}`, { status: newStatus });
+
+                                                            toast.success(`User marked as ${newStatus}`);
+                                                            fetchData();
+                                                        } catch (error: any) {
+                                                            console.error("Failed to update status", error);
+                                                            toast.error('Failed to update status');
+                                                        }
+                                                    }
+                                                }}
+                                                className={`inline-flex rounded-full py-1 px-3 text-sm font-medium transition-all cursor-pointer text-white ${user.status === 'active' ? 'bg-green-500 hover:bg-green-600' :
+                                                    user.status === 'pending' ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-red-500 hover:bg-red-600'
+                                                    }`}
+                                                title="Click to toggle status"
+                                            >
+                                                {user.status === 'active' ? 'Active' : user.status === 'pending' ? 'Pending' : 'Inactive'}
+                                            </button>
                                         </td>
                                         <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
                                             <div className="flex items-center space-x-3.5">
@@ -623,18 +624,7 @@ export default function Users() {
                                     </div>
                                 </div>
 
-                                {!editUser && (
-                                    <div>
-                                        <Label>Password</Label>
-                                        <Input
-                                            type="password"
-                                            value={formData.password}
-                                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                            required={!editUser}
-                                            disabled={isViewMode}
-                                        />
-                                    </div>
-                                )}
+
 
                                 <div>
                                     <Label>Status</Label>

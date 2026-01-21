@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../../hooks/useToast';
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { useModal } from "../../hooks/useModal";
@@ -20,6 +21,11 @@ export default function DepartmentList() {
     const [editDept, setEditDept] = useState<Department | null>(null);
     const [isViewMode, setIsViewMode] = useState(false);
     const [orgMap, setOrgMap] = useState<Record<string, string>>({});
+
+
+
+    // Use the toast hook
+    const toast = useToast();
 
     const { isOpen, openModal, closeModal } = useModal();
 
@@ -63,10 +69,11 @@ export default function DepartmentList() {
                 await createDepartment(data);
             }
             closeModal();
+            toast.success(editDept ? 'Department updated successfully' : 'Department created successfully');
             fetchData();
         } catch (error) {
             console.error("Failed to save department", error);
-            alert("Failed to save department");
+            toast.error("Failed to save department");
         }
     };
 
@@ -74,9 +81,11 @@ export default function DepartmentList() {
         if (confirm("Are you sure you want to delete this department?")) {
             try {
                 await deleteDepartment(id);
+                toast.success('Department deleted successfully');
                 fetchData();
             } catch (error) {
                 console.error("Failed to delete department", error);
+                toast.error("Failed to delete department");
             }
         }
     };

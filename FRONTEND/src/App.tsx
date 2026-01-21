@@ -45,6 +45,8 @@ import Blank from "./pages/Blank";
 import AppLayout from "./layout/AppLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import Home from "./pages/Dashboard/Home";
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 export default function App() {
   return (
@@ -53,6 +55,12 @@ export default function App() {
         <HierarchyProvider>
           <Router>
             <ScrollToTop />
+            <ToastContainer
+              position="top-right"
+              autoClose={3000}
+              theme="colored"
+              className="!z-[9999999]"
+            />
             <Routes>
               {/* Protected Dashboard Routes */}
               <Route element={<ProtectedRoute />}>

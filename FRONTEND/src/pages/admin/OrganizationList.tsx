@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../../hooks/useToast';
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { useModal } from "../../hooks/useModal";
@@ -22,6 +23,11 @@ export default function OrganizationList() {
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(10);
+
+
+
+    // Use the toast hook
+    const toast = useToast();
 
     const { isOpen, openModal, closeModal } = useModal();
 
@@ -75,10 +81,11 @@ export default function OrganizationList() {
                 await createOrganization(data);
             }
             closeModal();
+            toast.success(editOrg ? 'Organization updated successfully' : 'Organization created successfully');
             fetchData();
         } catch (error) {
             console.error("Failed to save organization", error);
-            alert("Failed to save organization");
+            toast.error("Failed to save organization");
         }
     };
 
@@ -86,10 +93,11 @@ export default function OrganizationList() {
         if (confirm("Are you sure you want to delete this organization?")) {
             try {
                 await deleteOrganization(id);
+                toast.success('Organization deleted successfully');
                 fetchData();
             } catch (error) {
                 console.error("Failed to delete organization", error);
-                alert("Failed to delete organization. Ensure it has no dependencies.");
+                toast.error("Failed to delete organization. Ensure it has no dependencies.");
             }
         }
     };

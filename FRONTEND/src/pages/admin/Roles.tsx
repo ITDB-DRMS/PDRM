@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../../hooks/useToast';
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { useModal } from "../../hooks/useModal";
@@ -23,6 +24,11 @@ export default function Roles() {
     const [viewRole, setViewRole] = useState<Role | null>(null);
     const [viewPermissions, setViewPermissions] = useState<Permission[]>([]);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+
+
+
+    // Use the toast hook
+    const toast = useToast();
 
     const { isOpen, openModal, closeModal } = useModal();
 
@@ -50,29 +56,18 @@ export default function Roles() {
         if (role) {
             setEditRole(role);
             setFormData({ name: role.name, description: role.description });
-            // Fetch current permissions for the role to pre-select them
             try {
-                // We use your existing getRolePermissions service method here!
-                // Assuming it was imported. If not, make sure it is imported from api/roleService
-                // (It looks like it's not imported at the top, I should fix imports too if needed)
-                // Actually, looking at imports line 9, getRolePermissions is NOT imported.
-                // I will need to update imports first. But wait, I can do it in this block? No, imports are at top.
-                // I'll assume they meant to fix imports separately or I should do a multi-replace.
-                // Let's rely on the previous logic which was:
-                // const rolePermIds = role.permissions ? role.permissions.map((p: any) => p._id || p.id) : [];
-                // But we know role.permissions is likely undefined from getRoles().
-                // So we MUST fetch them.
-
-                // Let's use the actual api here. 
-                // Wait, I cannot change imports in this block nicely without replacing the whole file or using multi-replace.
-                // It is better to use multi-replace to add the import and the rest.
+                const roleId = role.id || role._id;
+                const perms = await getRolePermissions(roleId);
+                const permIds = perms.map((p: any) => p.id || p._id);
+                setSelectedPermissions(permIds);
+                setInitialPermissions(permIds);
             } catch (e) {
-                console.error(e);
+                console.error("Failed to fetch permissions for role", e);
+                toast.error("Could not load role permissions");
+                setSelectedPermissions([]);
+                setInitialPermissions([]);
             }
-
-            // For now, let's just stick to the plan of View Role.
-            // The user wants "Add view the role".
-            // So let's focus on the View part.
         } else {
             setEditRole(null);
             setFormData({ name: '', description: '' });
@@ -115,10 +110,11 @@ export default function Roles() {
             await Promise.all(promises);
 
             closeModal();
+            toast.success(editRole ? 'Role updated successfully' : 'Role created successfully');
             fetchData();
         } catch (error) {
             console.error("Failed to save role", error);
-            alert("Failed to save role");
+            toast.error("Failed to save role");
         }
     };
 
@@ -126,9 +122,11 @@ export default function Roles() {
         if (confirm("Are you sure you want to delete this role?")) {
             try {
                 await deleteRole(id);
+                toast.success('Role deleted successfully');
                 fetchData();
             } catch (error) {
                 console.error("Failed to delete role", error);
+                toast.error("Failed to delete role");
             }
         }
     };

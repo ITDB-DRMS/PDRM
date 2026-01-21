@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../../hooks/useToast';
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { useModal } from "../../hooks/useModal";
@@ -37,6 +38,11 @@ export default function SectorList() {
         description: '',
         status: 'active'
     });
+
+
+
+    // Use the toast hook
+    const toast = useToast();
 
     const { isOpen, openModal, closeModal } = useModal();
 
@@ -102,6 +108,7 @@ export default function SectorList() {
                 await api.post('/sectors', formData);
             }
             closeModal();
+            toast.success(editSector ? 'Sector updated successfully' : 'Sector created successfully');
             fetchSectors();
         } catch (error: any) {
             console.error('Failed to save sector:', error);
@@ -111,9 +118,9 @@ export default function SectorList() {
             const errors = error.response?.data?.errors;
 
             if (errors && Array.isArray(errors)) {
-                alert(`${errorMessage}\n\n${errors.join('\n')}`);
+                toast.error(`${errorMessage}: ${errors.join(', ')}`);
             } else {
-                alert(errorMessage);
+                toast.error(errorMessage);
             }
         }
     };
@@ -122,11 +129,12 @@ export default function SectorList() {
         if (confirm('Are you sure you want to delete this sector?')) {
             try {
                 await api.delete(`/sectors/${id}`);
+                toast.success('Sector deleted successfully');
                 fetchSectors();
             } catch (error: any) {
                 console.error('Failed to delete sector', error);
                 const errorMessage = error.response?.data?.message || 'Failed to delete sector';
-                alert(errorMessage);
+                toast.error(errorMessage);
             }
         }
     };

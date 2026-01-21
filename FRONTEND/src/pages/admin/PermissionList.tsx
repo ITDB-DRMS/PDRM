@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../../hooks/useToast';
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { useModal } from "../../hooks/useModal";
@@ -17,6 +18,11 @@ export default function PermissionList() {
     const [permissions, setPermissions] = useState<Permission[]>([]);
     const [loading, setLoading] = useState(true);
     const [editPerm, setEditPerm] = useState<Permission | null>(null);
+
+
+
+    // Use the toast hook
+    const toast = useToast();
 
     const { isOpen, openModal, closeModal } = useModal();
 
@@ -49,10 +55,11 @@ export default function PermissionList() {
                 await createPermission(data);
             }
             closeModal();
+            toast.success(editPerm ? 'Permission updated successfully' : 'Permission created successfully');
             fetchData();
         } catch (error) {
             console.error("Failed to save permission", error);
-            alert("Failed to save permission");
+            toast.error("Failed to save permission");
         }
     };
 
@@ -60,9 +67,11 @@ export default function PermissionList() {
         if (confirm("Are you sure you want to delete this permission?")) {
             try {
                 await deletePermission(id);
+                toast.success('Permission deleted successfully');
                 fetchData();
             } catch (error) {
                 console.error("Failed to delete permission", error);
+                toast.error("Failed to delete permission");
             }
         }
     };

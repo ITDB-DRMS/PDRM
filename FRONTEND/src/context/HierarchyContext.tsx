@@ -75,7 +75,12 @@ export const HierarchyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     useEffect(() => {
-        fetchHierarchyData();
+        const token = localStorage.getItem('token');
+        if (token) {
+            fetchHierarchyData();
+        } else {
+            setHierarchyData(prev => ({ ...prev, loading: false }));
+        }
     }, []);
 
     return (

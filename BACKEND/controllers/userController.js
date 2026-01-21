@@ -7,6 +7,11 @@ import { sendVerificationEmail, sendAccountSetupEmail } from '../services/emailS
 export const createUser = async (req, res) => {
     try {
         const transformed = transformUserInput(req.body);
+
+        // Use default password if not provided
+        if (!transformed.password) {
+            transformed.password = process.env.DEFAULT_PASSWORD;
+        }
         if (req.file) {
             transformed.profileImage = req.file;
         }

@@ -15,6 +15,11 @@ export const protect = async (req, res, next) => {
             if (!user) {
                 return res.status(401).json({ message: 'Not authorized, user not found' });
             }
+
+            // Check if user is active
+            if (user.status !== 'active') {
+                return res.status(401).json({ message: 'Not authorized, user account is inactive' });
+            }
             // Avoid attaching passwordHash to request
             user.passwordHash = undefined;
             // ... existing code ...

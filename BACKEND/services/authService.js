@@ -14,7 +14,7 @@ export const registerUser = async ({ fullname, email, phone, password }) => {
     userId: user._id,
     type: 'email',
     code,
-    expiresAt: new Date(Date.now() + 15*60*1000)
+    expiresAt: new Date(Date.now() + 15 * 60 * 1000)
   });
   return user;
 };
@@ -22,6 +22,7 @@ export const registerUser = async ({ fullname, email, phone, password }) => {
 export const loginUser = async ({ email, password }) => {
   const user = await User.findOne({ email });
   if (!user) throw new Error('User not found');
+  if (user.status !== 'active') throw new Error('Account is not active');
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) throw new Error('Invalid credentials');
   const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });

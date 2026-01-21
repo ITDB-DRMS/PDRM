@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../../hooks/useToast';
 import PageMeta from '../../components/common/PageMeta';
 import PageBreadcrumb from '../../components/common/PageBreadCrumb';
 import { useModal } from '../../hooks/useModal';
@@ -11,9 +12,6 @@ import {
     createTeam,
     updateTeam,
     deleteTeam,
-    assignTeamLeader,
-    addTeamMember,
-    removeTeamMember,
     Team
 } from '../../api/teamService';
 import { getDepartments, Department } from '../../api/departmentService';
@@ -27,6 +25,11 @@ export default function Teams() {
     const [editTeam, setEditTeam] = useState<Team | null>(null);
     const [isViewMode, setIsViewMode] = useState(false);
     const [formData, setFormData] = useState({ name: '', description: '', department: '' });
+
+
+
+    // Use the toast hook
+    const toast = useToast();
 
     const { isOpen, openModal, closeModal } = useModal();
     const { accessLevel } = useHierarchy();
@@ -76,10 +79,11 @@ export default function Teams() {
                 await createTeam(formData);
             }
             closeModal();
+            toast.success(editTeam ? 'Team updated successfully' : 'Team created successfully');
             fetchData();
         } catch (error) {
             console.error('Failed to save team', error);
-            alert('Failed to save team');
+            toast.error('Failed to save team');
         }
     };
 
@@ -87,9 +91,11 @@ export default function Teams() {
         if (confirm('Are you sure you want to delete this team?')) {
             try {
                 await deleteTeam(id);
+                toast.success('Team deleted successfully');
                 fetchData();
             } catch (error) {
                 console.error('Failed to delete team', error);
+                toast.error('Failed to delete team');
             }
         }
     };
@@ -153,7 +159,7 @@ export default function Teams() {
                                     </td>
                                     <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
                                         <p className="text-black dark:text-white">
-                                            {typeof team.department === 'object' ? (team.department as any).name : 'N/A'}
+                                            {team.department && typeof team.department === 'object' ? (team.department as any).name : 'N/A'}
                                         </p>
                                     </td>
                                     <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
