@@ -39,8 +39,6 @@ interface Option {
 
 export default function Users() {
     const { user } = useAuth();
-    console.log('DEBUG: Current User in Users.tsx:', user);
-    console.log('DEBUG: User Permissions:', user?.permissions);
 
     const [users, setUsers] = useState<User[]>([]);
     const [roles, setRoles] = useState<Option[]>([]);
