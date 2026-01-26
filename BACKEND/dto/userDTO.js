@@ -54,7 +54,6 @@ export const transformUserInput = (data) => {
 };
 
 // Format user response for API
-// Format user response for API
 export const formatUserResponse = (user, permissions = []) => {
     if (!user) return null;
     return {
@@ -63,9 +62,13 @@ export const formatUserResponse = (user, permissions = []) => {
         email: user.email,
         phone: user.phone,
         status: user.status,
+        accessLevel: user.accessLevel,
+        organizationType: user.organizationType,
         roles: Array.isArray(user.roles) ? user.roles.map(formatRoleResponse) : user.roles,
         organization: formatOrganizationResponse(user.organization),
+        sector: user.sector ? { id: user.sector._id, name: user.sector.name } : null,
         department: formatDepartmentResponse(user.department),
+        team: user.team ? { id: user.team._id, name: user.team.name } : null,
         permissions: permissions,
         lastLogin: user.lastLogin,
         profileImage: user.profileImage ? `http://localhost:5000/${user.profileImage}` : null,

@@ -8,9 +8,7 @@ const Register: React.FC = () => {
         email: '',
         phone: '',
         password: '',
-        confirmPassword: '',
-        accessLevel: 'expert',
-        organizationType: 'branch'
+        confirmPassword: ''
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -36,9 +34,7 @@ const Register: React.FC = () => {
                 fullname: formData.fullname,
                 email: formData.email,
                 phone: formData.phone,
-                password: formData.password,
-                accessLevel: formData.accessLevel,
-                organizationType: formData.organizationType
+                password: formData.password
             });
             // Redirect to Verify page, passing email state for convenience
             navigate('/verify', { state: { email: formData.email } });
@@ -100,38 +96,7 @@ const Register: React.FC = () => {
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Organization Type</label>
-                            <select
-                                name="organizationType"
-                                className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                onChange={handleChange}
-                                value={formData.organizationType}
-                            >
-                                <option value="branch">Branch</option>
-                                <option value="head_office">Head Office</option>
-                            </select>
-                        </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Access Level</label>
-                            <select
-                                name="accessLevel"
-                                className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                onChange={handleChange}
-                                value={formData.accessLevel}
-                            >
-                                <option value="expert">Expert</option>
-                                <option value="team_leader">Team Leader</option>
-                                <option value="directorate">Directorate</option>
-                                <option value="branch_admin">Branch Admin</option>
-                                <option value="deputy">Deputy</option>
-                                <option value="manager">Manager</option>
-                                <option value="super_admin">Super Admin</option>
-                            </select>
-                        </div>
-                    </div>
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Password</label>

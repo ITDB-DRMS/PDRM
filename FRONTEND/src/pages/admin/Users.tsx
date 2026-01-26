@@ -7,8 +7,7 @@ import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
-
-
+import { Can } from '../../components/auth/PermissionGuard';
 
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
@@ -40,6 +39,9 @@ interface Option {
 
 export default function Users() {
     const { user } = useAuth();
+    console.log('DEBUG: Current User in Users.tsx:', user);
+    console.log('DEBUG: User Permissions:', user?.permissions);
+
     const [users, setUsers] = useState<User[]>([]);
     const [roles, setRoles] = useState<Option[]>([]);
 
@@ -76,7 +78,7 @@ export default function Users() {
         team: '',
         status: 'active',
         profileImage: null as File | null,
-        accessLevel: 'expert',
+        accessLevel: 'public',
         organizationType: 'branch'
     });
 
@@ -227,7 +229,7 @@ export default function Users() {
                 team: '',
                 status: 'active',
                 profileImage: null,
-                accessLevel: 'expert',
+                accessLevel: 'public',
                 organizationType: userOrgId ? 'branch' : 'branch'
             });
         }
@@ -377,9 +379,11 @@ export default function Users() {
                     <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
                         All Users
                     </h3>
-                    <Button size="sm" onClick={() => handleOpenModal()}>
-                        + Add User
-                    </Button>
+                    <Can resource="User" action="create">
+                        <Button size="sm" onClick={() => handleOpenModal()}>
+                            + Add User
+                        </Button>
+                    </Can>
                 </div>
 
                 <div className="max-w-full overflow-x-auto">
@@ -433,15 +437,36 @@ export default function Users() {
                                         <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
                                             <button
                                                 onClick={() => handleOpenRoleModal(user)}
-                                                className="text-sm font-medium text-primary hover:underline flex items-center gap-2"
+                                                className={`hover:text-primary ${user.roles && user.roles.length > 0 ? 'text-green-500' : 'text-blue-500'}`}
+                                                title={user.roles && user.roles.length > 0
+                                                    ? `Assigned Roles: ${user.roles.map((r: any) => r.name).join(', ')}`
+                                                    : "No roles assigned - Click to assign"}
                                             >
-                                                <svg className="fill-current w-4 h-4" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path d="M13.753 2.475a1.74 1.74 0 0 0-2.463 0l-9.15 9.15A2.45 2.45 0 0 0 2 13v2.531c0 .414.336.75.75.75H5.28c.4 0 .783-.158 1.065-.44l9.15-9.15a1.74 1.74 0 0 0 0-2.463z" /></svg>
-                                                Assign Role
+                                                {user.roles && user.roles.length > 0 ? (
+                                                    // Check Circle Icon
+                                                    <svg className="fill-current" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <path d="M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM11.0026 16L18.0737 8.92893L16.6595 7.51472L11.0026 13.1716L8.17421 10.3431L6.75999 11.7574L11.0026 16Z" />
+                                                    </svg>
+                                                ) : (
+                                                    // Info Icon
+                                                    <svg className="fill-current" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <path d="M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM11 15H13V17H11V15ZM11 7H13V13H11V7Z" />
+                                                    </svg>
+                                                )}
                                             </button>
                                         </td>
                                         <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
-                                            <span className="inline-block px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-800">
-                                                {user.accessLevel?.replace('_', ' ') || 'N/A'}
+                                            <span className={`inline-block px-3 py-1 text-sm font-medium rounded-full ${user.accessLevel === 'super_admin' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+                                                user.accessLevel === 'manager' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' :
+                                                    user.accessLevel === 'deputy' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300' :
+                                                        user.accessLevel === 'branch_admin' ? 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300' :
+                                                            user.accessLevel === 'sector_lead' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' :
+                                                                user.accessLevel === 'directorate' ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300' :
+                                                                    user.accessLevel === 'team_leader' ? 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300' :
+                                                                        user.accessLevel === 'expert' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
+                                                                            'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
+                                                }`}>
+                                                {user.accessLevel?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'N/A'}
                                             </span>
                                         </td>
                                         <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
@@ -470,34 +495,40 @@ export default function Users() {
                                         </td>
                                         <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
                                             <div className="flex items-center space-x-3.5">
-                                                <button
-                                                    onClick={() => handleOpenModal(user, 'view')}
-                                                    className="hover:text-primary text-gray-600 dark:text-gray-300"
-                                                    title="View"
-                                                >
-                                                    <svg className="fill-current" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                        <path d="M9 13.5C6.075 13.5 3.51563 11.6437 2.475 9C3.51563 6.35625 6.075 4.5 9 4.5C11.925 4.5 14.4844 6.35625 15.525 9C14.4844 11.6437 11.925 13.5 9 13.5ZM9 5.625C7.14375 5.625 5.625 7.14375 5.625 9C5.625 10.8562 7.14375 12.375 9 12.375C10.8562 12.375 12.375 10.8562 12.375 9C12.375 7.14375 10.8562 5.625 9 5.625ZM9 10.5C8.15625 10.5 7.5 9.84375 7.5 9C7.5 8.15625 8.15625 7.5 9 7.5C9.84375 7.5 10.5 8.15625 10.5 9C10.5 9.84375 9.84375 10.5 9 10.5Z" fill="" />
-                                                    </svg>
-                                                </button>
-                                                <button
-                                                    onClick={() => handleOpenModal(user, 'edit')}
-                                                    className="hover:text-primary text-gray-600 dark:text-gray-300"
-                                                    title="Edit"
-                                                >
-                                                    <svg className="fill-current" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                        <path d="M13.7531 2.475C13.2469 1.96875 12.4312 1.96875 11.925 2.475L10.3781 4.02188L13.9781 7.62188L15.525 6.075C16.0312 5.56875 16.0312 4.75313 15.525 4.24688L13.7531 2.475ZM9.225 5.175L2.69999 11.7C2.53124 11.8688 2.44687 12.0938 2.44687 12.3188V15.525C2.44687 15.6938 2.58749 15.8344 2.75624 15.8344H5.96249C6.18749 15.8344 6.41249 15.75 6.58124 15.5813L13.1062 9.05625L9.225 5.175Z" fill="" />
-                                                    </svg>
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(user.id)}
-                                                    className="hover:text-red-500 text-gray-600 dark:text-gray-300"
-                                                    title="Delete"
-                                                >
-                                                    <svg className="fill-current" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                        <path d="M13.7531 2.47502H11.3062V1.9969C11.3062 1.15315 10.6312 0.478149 9.78749 0.478149H8.21249C7.36874 0.478149 6.69374 1.15315 6.69374 1.9969V2.47502H4.24687C3.74062 2.47502 3.37499 2.8969 3.37499 3.40315V3.9094C3.37499 4.07815 3.51561 4.21877 3.68436 4.21877H14.3156C14.4844 4.21877 14.625 4.07815 14.625 3.9094V3.40315C14.625 2.8969 14.2594 2.47502 13.7531 2.47502ZM7.67811 1.9969C7.67811 1.68752 7.93124 1.4344 8.21249 1.4344H9.78749C10.0687 1.4344 10.3219 1.68752 10.3219 1.9969V2.47502H7.70624V1.9969H7.67811Z" fill="" />
-                                                        <path d="M14.2312 5.20313H3.76874C3.59999 5.20313 3.45936 5.34375 3.48749 5.5125L4.41561 16.4812C4.47186 17.2406 5.11874 17.8031 5.87811 17.8031H12.1219C12.8812 17.8031 13.5281 17.2406 13.5844 16.4812L14.5125 5.5125C14.5406 5.34375 14.4 5.20313 14.2312 5.20313ZM8.21249 14.9906H7.22811C6.94686 14.9906 6.72186 14.4844V8.52188C6.72186 8.24063 6.94686 8.01563 7.22811 8.01563H8.21249C8.49374 8.01563 8.71874 8.24063 8.71874 8.52188V14.4844C8.71874 14.7656 8.49374 14.9906 8.21249 14.9906ZM11.2781 14.4844C11.2781 14.7656 11.0531 14.9906 10.7719 14.9906H9.78749C9.50624 14.9906 9.28124 14.7656 9.28124 14.4844V8.52188C9.28124 8.24063 9.50624 8.01563 9.78749 8.01563H10.7719C11.0531 8.01563 11.2781 8.24063 11.2781 8.52188V14.4844Z" fill="" />
-                                                    </svg>
-                                                </button>
+                                                <Can resource="User" action="view">
+                                                    <button
+                                                        onClick={() => handleOpenModal(user, 'view')}
+                                                        className="hover:text-primary text-gray-600 dark:text-gray-300"
+                                                        title="View"
+                                                    >
+                                                        <svg className="fill-current" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M9 13.5C6.075 13.5 3.51563 11.6437 2.475 9C3.51563 6.35625 6.075 4.5 9 4.5C11.925 4.5 14.4844 6.35625 15.525 9C14.4844 11.6437 11.925 13.5 9 13.5ZM9 5.625C7.14375 5.625 5.625 7.14375 5.625 9C5.625 10.8562 7.14375 12.375 9 12.375C10.8562 12.375 12.375 10.8562 12.375 9C12.375 7.14375 10.8562 5.625 9 5.625ZM9 10.5C8.15625 10.5 7.5 9.84375 7.5 9C7.5 8.15625 8.15625 7.5 9 7.5C9.84375 7.5 10.5 8.15625 10.5 9C10.5 9.84375 9.84375 10.5 9 10.5Z" fill="" />
+                                                        </svg>
+                                                    </button>
+                                                </Can>
+                                                <Can resource="User" action="update">
+                                                    <button
+                                                        onClick={() => handleOpenModal(user, 'edit')}
+                                                        className="hover:text-primary text-gray-600 dark:text-gray-300"
+                                                        title="Edit"
+                                                    >
+                                                        <svg className="fill-current" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M13.7531 2.475C13.2469 1.96875 12.4312 1.96875 11.925 2.475L10.3781 4.02188L13.9781 7.62188L15.525 6.075C16.0312 5.56875 16.0312 4.75313 15.525 4.24688L13.7531 2.475ZM9.225 5.175L2.69999 11.7C2.53124 11.8688 2.44687 12.0938 2.44687 12.3188V15.525C2.44687 15.6938 2.58749 15.8344 2.75624 15.8344H5.96249C6.18749 15.8344 6.41249 15.75 6.58124 15.5813L13.1062 9.05625L9.225 5.175Z" fill="" />
+                                                        </svg>
+                                                    </button>
+                                                </Can>
+                                                <Can resource="User" action="delete">
+                                                    <button
+                                                        onClick={() => handleDelete(user.id)}
+                                                        className="hover:text-red-500 text-gray-600 dark:text-gray-300"
+                                                        title="Delete"
+                                                    >
+                                                        <svg className="fill-current" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M13.7531 2.47502H11.3062V1.9969C11.3062 1.15315 10.6312 0.478149 9.78749 0.478149H8.21249C7.36874 0.478149 6.69374 1.15315 6.69374 1.9969V2.47502H4.24687C3.74062 2.47502 3.37499 2.8969 3.37499 3.40315V3.9094C3.37499 4.07815 3.51561 4.21877 3.68436 4.21877H14.3156C14.4844 4.21877 14.625 4.07815 14.625 3.9094V3.40315C14.625 2.8969 14.2594 2.47502 13.7531 2.47502ZM7.67811 1.9969C7.67811 1.68752 7.93124 1.4344 8.21249 1.4344H9.78749C10.0687 1.4344 10.3219 1.68752 10.3219 1.9969V2.47502H7.70624V1.9969H7.67811Z" fill="" />
+                                                            <path d="M14.2312 5.20313H3.76874C3.59999 5.20313 3.45936 5.34375 3.48749 5.5125L4.41561 16.4812C4.47186 17.2406 5.11874 17.8031 5.87811 17.8031H12.1219C12.8812 17.8031 13.5281 17.2406 13.5844 16.4812L14.5125 5.5125C14.5406 5.34375 14.4 5.20313 14.2312 5.20313ZM8.21249 14.9906H7.22811C6.94686 14.9906 6.72186 14.4844V8.52188C6.72186 8.24063 6.94686 8.01563 7.22811 8.01563H8.21249C8.49374 8.01563 8.71874 8.24063 8.71874 8.52188V14.4844C8.71874 14.7656 8.49374 14.9906 8.21249 14.9906ZM11.2781 14.4844C11.2781 14.7656 11.0531 14.9906 10.7719 14.9906H9.78749C9.50624 14.9906 9.28124 14.7656 9.28124 14.4844V8.52188C9.28124 8.24063 9.50624 8.01563 9.78749 8.01563H10.7719C11.0531 8.01563 11.2781 8.24063 11.2781 8.52188V14.4844Z" fill="" />
+                                                        </svg>
+                                                    </button>
+                                                </Can>
                                             </div>
                                         </td>
                                     </tr>
@@ -563,14 +594,15 @@ export default function Users() {
                                                 className="relative z-20 w-full appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-gray-800 dark:text-white dark:focus:border-primary disabled:cursor-default disabled:bg-whiter"
                                                 disabled={isViewMode}
                                             >
-                                                <option value="super_admin">Super Admin</option>
-                                                <option value="manager">Manager</option>
-                                                <option value="deputy">Deputy</option>
-                                                <option value="sector_lead">Sector Lead</option>
-                                                <option value="directorate">Directorate (Department Lead)</option>
-                                                <option value="branch_admin">Branch Admin</option>
-                                                <option value="team_leader">Team Leader</option>
+                                                <option value="public">Public</option>
                                                 <option value="expert">Expert</option>
+                                                <option value="team_leader">Team Leader</option>
+                                                <option value="directorate">Directorate (Department Lead)</option>
+                                                <option value="sector_lead">Sector Lead</option>
+                                                <option value="branch_admin">Branch Admin</option>
+                                                <option value="deputy">Deputy</option>
+                                                <option value="manager">Manager</option>
+                                                <option value="super_admin">Super Admin</option>
                                             </select>
                                         </div>
                                     </div>

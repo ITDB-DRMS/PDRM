@@ -25,8 +25,14 @@ export const register = async (req, res) => {
         const existingUser = await User.findOne({ email: transformed.email });
         if (existingUser) return res.status(400).json({ message: 'User already exists' });
 
+        // Set default access level for public registration
+        const userData = {
+            ...transformed,
+            accessLevel: 'public' // Default access level for self-registered users
+        };
+
         // userService.createUser handles password hashing
-        const user = await userService.createUser(transformed);
+        const user = await userService.createUser(userData);
 
         // create Verification code and save to verification collection
         const code = Math.floor(100000 + Math.random() * 900000).toString();
