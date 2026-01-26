@@ -12,6 +12,7 @@ interface User {
     organization?: { id: string; name: string };
     permissions?: string[];
     profileImage?: string;
+    accessLevel?: string;
     onboarding?: {
         welcomeShown: boolean;
     }

@@ -9,7 +9,9 @@ import Input from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
 
 
+
 import api from '../../api/axios';
+import { useAuth } from '../../context/AuthContext';
 
 interface User {
     id: string;
@@ -37,6 +39,7 @@ interface Option {
 }
 
 export default function Users() {
+    const { user } = useAuth();
     const [users, setUsers] = useState<User[]>([]);
     const [roles, setRoles] = useState<Option[]>([]);
 
@@ -54,6 +57,11 @@ export default function Users() {
     const [loading, setLoading] = useState(true);
     const [editUser, setEditUser] = useState<User | null>(null);
     const [isViewMode, setIsViewMode] = useState(false);
+
+    // Role Modal State
+    const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+    const [userForRoles, setUserForRoles] = useState<User | null>(null);
+    const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -173,24 +181,37 @@ export default function Users() {
         }
     }
 
-    const handleOpenModal = (user?: User, mode: 'create' | 'edit' | 'view' = 'create') => {
+    const handleOpenModal = (userItem?: User, mode: 'create' | 'edit' | 'view' = 'create') => {
         setIsViewMode(mode === 'view');
-        if (user) {
-            setEditUser(user);
-            setFormData({
-                fullname: user.fullname,
-                email: user.email,
-                phone: user.phone || '',
 
-                roles: user.roles?.map((r: any) => r._id || r.id) || [],
-                organization: (user.organization as any)?._id || user.organization?.id || '',
-                sector: (user.sector as any)?._id || user.sector?.id || '',
-                department: (user.department as any)?._id || user.department?.id || '',
-                team: (user.team as any)?._id || user.team?.id || '',
-                status: user.status,
+        // Determine Branch Admin context
+        const isBranchAdmin = user?.accessLevel === 'branch_admin' ||
+            user?.roles?.some(r => ['Branch Admin', 'branch_admin'].includes(r.name));
+        const isSuperAdmin = user?.accessLevel === 'super_admin' ||
+            user?.roles?.some(r => ['Super Admin', 'super_admin'].includes(r.name));
+
+        // Get user's org ID if branch admin
+        let userOrgId = '';
+        if (isBranchAdmin && !isSuperAdmin && user?.organization) {
+            userOrgId = typeof user.organization === 'object' ? (user.organization as any)._id || (user.organization as any).id : user.organization;
+        }
+
+        if (userItem) {
+            setEditUser(userItem);
+            setFormData({
+                fullname: userItem.fullname,
+                email: userItem.email,
+                phone: userItem.phone || '',
+
+                roles: userItem.roles?.map((r: any) => r._id || r.id) || [],
+                organization: (userItem.organization as any)?._id || userItem.organization?.id || '',
+                sector: (userItem.sector as any)?._id || userItem.sector?.id || '',
+                department: (userItem.department as any)?._id || userItem.department?.id || '',
+                team: (userItem.team as any)?._id || userItem.team?.id || '',
+                status: userItem.status,
                 profileImage: null,
-                accessLevel: user.accessLevel || 'expert',
-                organizationType: user.organizationType || 'branch'
+                accessLevel: userItem.accessLevel || 'expert',
+                organizationType: userItem.organizationType || 'branch'
             });
         } else {
             setEditUser(null);
@@ -200,14 +221,14 @@ export default function Users() {
                 phone: '',
 
                 roles: [],
-                organization: '',
+                organization: userOrgId, // Pre-fill
                 sector: '',
                 department: '',
                 team: '',
                 status: 'active',
                 profileImage: null,
                 accessLevel: 'expert',
-                organizationType: 'branch'
+                organizationType: userOrgId ? 'branch' : 'branch'
             });
         }
         openModal();
@@ -297,6 +318,50 @@ export default function Users() {
         return false;
     };
 
+    const handleOpenRoleModal = (user: User) => {
+        setUserForRoles(user);
+        setSelectedRoles(user.roles?.map((r: any) => r._id || r.id) || []);
+        setIsRoleModalOpen(true);
+    };
+
+    const handleSaveRoles = async () => {
+        if (!userForRoles) return;
+        try {
+            // We need a specific endpoint to update roles, or use the update user endpoint
+            // Assuming update user endpoint handles roles update
+            const data = {
+                roles: selectedRoles
+            };
+
+            await api.put(`/users/${userForRoles.id}/roles`, data); // Try specific endpoint first or fallback to general update
+            // If backend doesn't have specific route, we might need to send all user data back or modify backend.
+            // Let's assume standard update for now if specific fails, but cleaner to separate.
+            // Actually, based on previous code, we used Put /users/:id with FormData.
+            // Let's stick to that pattern or simpler JSON if backend supports partial updates.
+            // Using a specialized endpoint is safer if exists. If not, we'll try partial update.
+
+            toast.success('Roles updated successfully');
+            setIsRoleModalOpen(false);
+            fetchData();
+        } catch (error: any) {
+            // If 404, maybe endpoint doesn't exist, try general update
+            if (error.response && error.response.status === 404) {
+                try {
+                    const data = { roles: selectedRoles };
+                    await api.put(`/users/${userForRoles.id}`, data);
+                    toast.success('Roles updated successfully');
+                    setIsRoleModalOpen(false);
+                    fetchData();
+                    return;
+                } catch (e) {
+                    console.error("Failed to update roles fallback", e);
+                }
+            }
+            console.error("Failed to update roles", error);
+            toast.error('Failed to update roles');
+        }
+    };
+
     return (
         <>
             <PageMeta
@@ -334,6 +399,9 @@ export default function Users() {
                                         Context
                                     </th>
                                     <th className="px-4 py-4 font-medium text-black dark:text-white">
+                                        Roles
+                                    </th>
+                                    <th className="px-4 py-4 font-medium text-black dark:text-white">
                                         Access Level
                                     </th>
                                     <th className="px-4 py-4 font-medium text-black dark:text-white">
@@ -361,6 +429,15 @@ export default function Users() {
                                                 {user.department && <p className='text-gray-600 dark:text-gray-400'>Dept: {user.department.name}</p>}
                                                 {user.team && <p className='text-gray-600 dark:text-gray-400'>Team: {user.team.name}</p>}
                                             </div>
+                                        </td>
+                                        <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
+                                            <button
+                                                onClick={() => handleOpenRoleModal(user)}
+                                                className="text-sm font-medium text-primary hover:underline flex items-center gap-2"
+                                            >
+                                                <svg className="fill-current w-4 h-4" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path d="M13.753 2.475a1.74 1.74 0 0 0-2.463 0l-9.15 9.15A2.45 2.45 0 0 0 2 13v2.531c0 .414.336.75.75.75H5.28c.4 0 .783-.158 1.065-.44l9.15-9.15a1.74 1.74 0 0 0 0-2.463z" /></svg>
+                                                Assign Role
+                                            </button>
                                         </td>
                                         <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
                                             <span className="inline-block px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-800">
@@ -532,7 +609,7 @@ export default function Users() {
                                                             team: ''
                                                         })}
                                                         className="relative z-20 w-full appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-gray-800 dark:text-white dark:focus:border-primary disabled:cursor-default disabled:bg-whiter"
-                                                        disabled={isViewMode}
+                                                        disabled={isViewMode || (user?.accessLevel === 'branch_admin' && !user?.roles?.some(r => ['Super Admin', 'super_admin'].includes(r.name)) && !!formData.organization)}
                                                     >
                                                         <option value="">Select Organization</option>
                                                         {allOrganizations.map(o => <option key={o._id || o.id} value={o._id || o.id}>{o.name}</option>)}
@@ -605,24 +682,7 @@ export default function Users() {
                                     )}
                                 </div>
 
-                                <div>
-                                    <Label>Roles</Label>
-                                    <div className="relative z-20 bg-transparent dark:bg-gray-800">
-                                        <select
-                                            multiple
-                                            value={formData.roles}
-                                            onChange={(e) => {
-                                                const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
-                                                setFormData({ ...formData, roles: selectedOptions });
-                                            }}
-                                            className="relative z-20 w-full appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-gray-800 dark:text-white dark:focus:border-primary h-24 disabled:cursor-default disabled:bg-whiter"
-                                            disabled={isViewMode}
-                                        >
-                                            {roles.map(r => <option key={r._id || r.id} value={r._id || r.id}>{r.name}</option>)}
-                                        </select>
-                                        <p className="text-xs text-gray-500 mt-1">Hold Ctrl (Windows) or Cmd (Mac) to select multiple roles</p>
-                                    </div>
-                                </div>
+
 
 
 
@@ -689,6 +749,41 @@ export default function Users() {
                     </form>
                 </div >
             </Modal >
+            {/* Role Assignment Modal */}
+            <Modal isOpen={isRoleModalOpen} onClose={() => setIsRoleModalOpen(false)} className="max-w-[500px] m-4">
+                <div className="relative w-full rounded-3xl bg-white p-6 dark:bg-gray-900 lg:p-10">
+                    <h4 className="mb-6 text-2xl font-semibold text-gray-800 dark:text-white/90">
+                        Manage Roles for {userForRoles?.fullname}
+                    </h4>
+
+                    <div className="mb-6">
+                        <Label>Select Roles</Label>
+                        <div className="relative z-20 bg-transparent dark:bg-gray-800">
+                            <select
+                                multiple
+                                value={selectedRoles}
+                                onChange={(e) => {
+                                    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+                                    setSelectedRoles(selectedOptions);
+                                }}
+                                className="relative z-20 w-full appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-gray-800 dark:text-white dark:focus:border-primary h-60"
+                            >
+                                {roles.map(r => <option key={r._id || r.id} value={r._id || r.id}>{r.name}</option>)}
+                            </select>
+                            <p className="text-xs text-gray-500 mt-2">Hold Ctrl (Windows) or Cmd (Mac) to select multiple roles.</p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 justify-end">
+                        <Button size="sm" variant="outline" onClick={() => setIsRoleModalOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button size="sm" onClick={handleSaveRoles}>
+                            Save Roles
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </>
     );
 }

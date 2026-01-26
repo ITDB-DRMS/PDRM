@@ -25,6 +25,21 @@ export const createUser = async (req, res) => {
         const validation = validateUser(transformed);
         if (!validation.isValid) return res.status(400).json({ errors: validation.errors });
 
+        // Access Control: Branch Admin can only create users for their branch
+        const isBranchAdmin = req.user.accessLevel === 'branch_admin' ||
+            (req.user.roles && req.user.roles.some(r => ['Branch Admin', 'branch_admin'].includes(r.name)));
+
+        const isSuperAdmin = req.user.accessLevel === 'super_admin' ||
+            (req.user.roles && req.user.roles.some(r => ['Super Admin', 'super_admin', 'superadmin'].includes(r.name)));
+
+        if (isBranchAdmin && !isSuperAdmin) {
+            const userOrgId = req.user.organization?._id || req.user.organization;
+            if (transformed.organization && String(transformed.organization) !== String(userOrgId)) {
+                return res.status(403).json({ message: "Branch Admins can only create users for their own branch." });
+            }
+            transformed.organization = userOrgId;
+        }
+
         const user = await userService.createUser(transformed);
 
         // Send Account Setup Email

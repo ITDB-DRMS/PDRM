@@ -5,6 +5,7 @@ import Label from "../../components/form/Label";
 import { Department } from '../../api/departmentService';
 import { Organization, getOrganizations } from '../../api/organizationService';
 import api from '../../api/axios';
+import { useAuth } from '../../context/AuthContext';
 
 interface Sector {
     id: string;
@@ -20,6 +21,7 @@ interface DepartmentFormProps {
 }
 
 export const DepartmentForm: React.FC<DepartmentFormProps> = ({ initialData, isViewMode = false, onSave, onCancel }) => {
+    const { user } = useAuth();
     const [formData, setFormData] = useState({
         name: '',
         organizationId: '',
@@ -46,9 +48,21 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({ initialData, isV
             if ((initialData as any).organization) {
                 setSelectedOrgType((initialData as any).organization.type);
             }
+        } else {
+            // NEW: If creating new and user is Branch Admin, pre-fill
+            const isBranchAdmin = user?.accessLevel === 'branch_admin' ||
+                user?.roles?.some(r => ['Branch Admin', 'branch_admin'].includes(r.name));
+
+            const isSuperAdmin = user?.accessLevel === 'super_admin' ||
+                user?.roles?.some(r => ['Super Admin', 'super_admin'].includes(r.name));
+
+            if (isBranchAdmin && !isSuperAdmin && user?.organization) {
+                // Pre-fill organization logic handled in fetchOrganizations primarily to ensure it's in the list
+                // But we can set formData here if we trust user.organization id
+            }
         }
         fetchOrganizations();
-    }, [initialData]);
+    }, [initialData, user]);
 
     useEffect(() => {
         if (formData.organizationId) {
@@ -61,7 +75,29 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({ initialData, isV
     const fetchOrganizations = async () => {
         try {
             const data = await getOrganizations();
-            setOrganizations(data);
+
+            const isBranchAdmin = user?.accessLevel === 'branch_admin' ||
+                user?.roles?.some(r => ['Branch Admin', 'branch_admin'].includes(r.name));
+
+            const isSuperAdmin = user?.accessLevel === 'super_admin' ||
+                user?.roles?.some(r => ['Super Admin', 'super_admin'].includes(r.name));
+
+            if (isBranchAdmin && !isSuperAdmin && user?.organization) {
+                const orgId = (user.organization as any)._id || (user.organization as any).id || user.organization;
+                const filtered = data.filter((o: any) => o.id === orgId || o._id === orgId);
+                setOrganizations(filtered);
+
+                // Auto-select if not editing existing
+                if (!initialData) {
+                    const myOrg = filtered[0];
+                    if (myOrg) {
+                        setFormData(prev => ({ ...prev, organizationId: myOrg.id }));
+                        setSelectedOrgType(myOrg.type);
+                    }
+                }
+            } else {
+                setOrganizations(data);
+            }
         } catch (error) {
             console.error("Failed to fetch organizations", error);
         }
@@ -130,7 +166,7 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({ initialData, isV
                     value={formData.organizationId}
                     onChange={handleChange}
                     required
-                    disabled={isViewMode}
+                    disabled={isViewMode || (organizations.length === 1 && !isViewMode && user?.accessLevel === 'branch_admin')}
                     className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-5 py-3 font-medium text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-gray-800 dark:text-white dark:focus:border-primary"
                 >
                     <option value="">Select Organization</option>

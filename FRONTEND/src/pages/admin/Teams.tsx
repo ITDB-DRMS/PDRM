@@ -18,15 +18,17 @@ import { getDepartments, Department } from '../../api/departmentService';
 import { DirectorateAndAbove } from '../../components/auth/AccessControl';
 import { useHierarchy } from '../../context/HierarchyContext';
 
+import { useAuth } from '../../context/AuthContext';
+
 export default function Teams() {
+    const { user } = useAuth();
+    // ... existing state
     const [teams, setTeams] = useState<Team[]>([]);
     const [departments, setDepartments] = useState<Department[]>([]);
     const [loading, setLoading] = useState(true);
     const [editTeam, setEditTeam] = useState<Team | null>(null);
     const [isViewMode, setIsViewMode] = useState(false);
     const [formData, setFormData] = useState({ name: '', description: '', department: '' });
-
-
 
     // Use the toast hook
     const toast = useToast();
@@ -36,7 +38,7 @@ export default function Teams() {
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [user]); // Add user dependence
 
     const fetchData = async () => {
         setLoading(true);
@@ -46,7 +48,26 @@ export default function Teams() {
                 getDepartments()
             ]);
             setTeams(teamsData || []);
-            setDepartments(depsData || []);
+
+            // Filter Departments if Branch Admin
+            const isBranchAdmin = user?.accessLevel === 'branch_admin' ||
+                user?.roles?.some(r => ['Branch Admin', 'branch_admin'].includes(r.name));
+
+            const isSuperAdmin = user?.accessLevel === 'super_admin' ||
+                user?.roles?.some(r => ['Super Admin', 'super_admin'].includes(r.name));
+
+            if (isBranchAdmin && !isSuperAdmin && user?.organization && depsData) {
+                const orgId = typeof user.organization === 'object' ? (user.organization as any)._id || (user.organization as any).id : user.organization;
+
+                const filteredDeps = depsData.filter((d: any) => {
+                    const dOrgId = typeof d.organizationId === 'object' ? d.organizationId._id || d.organizationId.id : d.organizationId;
+                    return dOrgId === orgId;
+                });
+                setDepartments(filteredDeps);
+            } else {
+                setDepartments(depsData || []);
+            }
+
         } catch (error) {
             console.error('Failed to fetch data', error);
         } finally {
