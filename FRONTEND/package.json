@@ -22,6 +22,8 @@
     "axios": "^1.13.2",
     "clsx": "^2.1.1",
     "flatpickr": "^4.6.13",
+    "framer-motion": "^12.33.0",
+    "lucide-react": "^0.563.0",
     "react": "^19.0.0",
     "react-apexcharts": "^1.7.0",
     "react-dnd": "^16.0.1",
