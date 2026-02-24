@@ -8,6 +8,43 @@ import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
 import api from '../../api/axios';
+import { motion, AnimatePresence } from 'framer-motion';
+import { LayoutGrid, List, Search, Plus, Eye, Edit2, Trash2, Box } from 'lucide-react';
+
+const DiamondBackground = () => (
+    <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+        {/* Mesh Gradient Base */}
+        <div className="absolute inset-0 bg-slate-100 dark:bg-[#0A0A0B]" />
+
+        {/* Floating Glassy Diamonds */}
+        {[...Array(10)].map((_, i) => (
+            <motion.div
+                key={i}
+                initial={{
+                    opacity: 0,
+                    rotate: 45,
+                    x: Math.random() * 100 + "%",
+                    y: Math.random() * 100 + "%"
+                }}
+                animate={{
+                    opacity: [0.15, 0.45, 0.15],
+                    y: ["-20%", "120%"],
+                    rotate: [45, 225],
+                }}
+                transition={{
+                    duration: 20 + Math.random() * 20,
+                    repeat: Infinity,
+                    ease: "linear",
+                    delay: i * -4
+                }}
+                className="absolute h-64 w-64 rounded-[48px] border border-white/40 bg-white/10 backdrop-blur-3xl dark:border-white/10 dark:bg-white/[0.04]"
+                style={{
+                    left: `${(i * 12) % 95}%`,
+                }}
+            />
+        ))}
+    </div>
+);
 
 interface Organization {
     id: string;
@@ -29,9 +66,10 @@ interface Sector {
 export default function SectorList() {
     const [sectors, setSectors] = useState<Sector[]>([]);
     const [organizations, setOrganizations] = useState<Organization[]>([]);
-    const [loading, setLoading] = useState(true);
     const [editSector, setEditSector] = useState<Sector | null>(null);
     const [isViewMode, setIsViewMode] = useState(false);
+    const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
+    const [searchTerm, setSearchTerm] = useState('');
     const [formData, setFormData] = useState({
         name: '',
         organizationId: '',
@@ -52,14 +90,11 @@ export default function SectorList() {
     }, []);
 
     const fetchSectors = async () => {
-        setLoading(true);
         try {
             const response = await api.get('/sectors');
             setSectors(response.data);
         } catch (error) {
             console.error('Failed to fetch sectors', error);
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -143,6 +178,15 @@ export default function SectorList() {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
+    const filteredSectors = sectors.filter(sector => {
+        const term = searchTerm.toLowerCase();
+        return (
+            sector.name.toLowerCase().includes(term) ||
+            (sector.organization?.name || '').toLowerCase().includes(term) ||
+            (sector.description || '').toLowerCase().includes(term)
+        );
+    });
+
     return (
         <>
             <PageMeta
@@ -151,96 +195,184 @@ export default function SectorList() {
             />
             <PageBreadcrumb pageTitle="Sectors" />
 
-            <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] lg:p-6">
-                <div className="flex justify-between items-center mb-5">
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-                        Sectors
-                    </h3>
-                    <Button size="sm" onClick={() => handleOpenModal()}>
-                        + Add Sector
-                    </Button>
-                </div>
+            <div className="relative space-y-8 pb-10">
+                <DiamondBackground />
 
-                <div className="max-w-full overflow-x-auto">
-                    <table className="w-full table-auto">
-                        <thead>
-                            <tr className="bg-gray-2 text-left dark:bg-meta-4">
-                                <th className="min-w-[220px] px-4 py-4 font-medium text-black dark:text-white xl:pl-11">
-                                    Name
-                                </th>
-                                <th className="min-w-[150px] px-4 py-4 font-medium text-black dark:text-white">
-                                    Organization
-                                </th>
-                                <th className="min-w-[200px] px-4 py-4 font-medium text-black dark:text-white">
-                                    Description
-                                </th>
-                                <th className="min-w-[120px] px-4 py-4 font-medium text-black dark:text-white">
-                                    Status
-                                </th>
-                                <th className="px-4 py-4 font-medium text-black dark:text-white">
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={5} className="text-center py-4">Loading...</td>
-                                </tr>
-                            ) : sectors.map((sector) => (
-                                <tr key={sector.id}>
-                                    <td className="border-b border-[#eee] px-4 py-5 pl-9 dark:border-strokedark xl:pl-11">
-                                        <h5 className="font-medium text-black dark:text-white">{sector.name}</h5>
-                                    </td>
-                                    <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
-                                        <p className="text-black dark:text-white">
-                                            {sector.organization?.name || 'N/A'}
-                                        </p>
-                                    </td>
-                                    <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
-                                        <p className="text-black dark:text-white">
-                                            {sector.description || '-'}
-                                        </p>
-                                    </td>
-                                    <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
-                                        <span className={`inline-flex rounded-full bg-opacity-10 px-3 py-1 text-sm font-medium ${sector.status === 'active'
-                                            ? 'bg-success text-success'
-                                            : 'bg-danger text-danger'
-                                            }`}>
-                                            {sector.status}
-                                        </span>
-                                    </td>
-                                    <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
-                                        <div className="flex items-center space-x-3.5">
-                                            <button className="hover:text-primary text-gray-600 dark:text-gray-300" onClick={() => handleOpenModal(sector, 'view')} title="View">
-                                                <svg className="fill-current" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                    <path d="M9 13.5C6.075 13.5 3.51563 11.6437 2.475 9C3.51563 6.35625 6.075 4.5 9 4.5C11.925 4.5 14.4844 6.35625 15.525 9C14.4844 11.6437 11.925 13.5 9 13.5ZM9 5.625C7.14375 5.625 5.625 7.14375 5.625 9C5.625 10.8562 7.14375 12.375 9 12.375C10.8562 12.375 12.375 10.8562 12.375 9C12.375 7.14375 10.8562 5.625 9 5.625ZM9 10.5C8.15625 10.5 7.5 9.84375 7.5 9C7.5 8.15625 8.15625 7.5 9 7.5C9.84375 7.5 10.5 8.15625 10.5 9C10.5 9.84375 9.84375 10.5 9 10.5Z" fill="" />
-                                                </svg>
-                                            </button>
-                                            <button className="hover:text-primary text-gray-600 dark:text-gray-300" onClick={() => handleOpenModal(sector, 'edit')} title="Edit">
-                                                <svg className="fill-current" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                    <path d="M13.7531 2.475C13.2469 1.96875 12.4312 1.96875 11.925 2.475L10.3781 4.02188L13.9781 7.62188L15.525 6.075C16.0312 5.56875 16.0312 4.75313 15.525 4.24688L13.7531 2.475ZM9.225 5.175L2.69999 11.7C2.53124 11.8688 2.44687 12.0938 2.44687 12.3188V15.525C2.44687 15.6938 2.58749 15.8344 2.75624 15.8344H5.96249C6.18749 15.8344 6.41249 15.75 6.58124 15.5813L13.1062 9.05625L9.225 5.175Z" fill="" />
-                                                </svg>
-                                            </button>
-                                            <button className="hover:text-red-500 text-gray-600 dark:text-gray-300" onClick={() => handleDelete(sector.id)} title="Delete">
-                                                <svg className="fill-current" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                    <path d="M13.7531 2.47502H11.3062V1.9969C11.3062 1.15315 10.6312 0.478149 9.78749 0.478149H8.21249C7.36874 0.478149 6.69374 1.15315 6.69374 1.9969V2.47502H4.24687C3.74062 2.47502 3.37499 2.8969 3.37499 3.40315V3.9094C3.37499 4.07815 3.51561 4.21877 3.68436 4.21877H14.3156C14.4844 4.21877 14.625 4.07815 14.625 3.9094V3.40315C14.625 2.8969 14.2594 2.47502 13.7531 2.47502ZM7.67811 1.9969C7.67811 1.68752 7.93124 1.4344 8.21249 1.4344H9.78749C10.0687 1.4344 10.3219 1.68752 10.3219 1.9969V2.47502H7.70624V1.9969H7.67811Z" fill="" />
-                                                    <path d="M14.2312 5.20313H3.76874C3.59999 5.20313 3.45936 5.34375 3.48749 5.5125L4.41561 16.4812C4.47186 17.2406 5.11874 17.8031 5.87811 17.8031H12.1219C12.8812 17.8031 13.5281 17.2406 13.5844 16.4812L14.5125 5.5125C14.5406 5.34375 14.4 5.20313 14.2312 5.20313ZM8.21249 14.9906H7.22811C6.94686 14.9906 6.72186 14.7656 6.72186 14.4844V8.52188C6.72186 8.24063 6.94686 8.01563 7.22811 8.01563H8.21249C8.49374 8.01563 8.71874 8.24063 8.71874 8.52188V14.4844C8.71874 14.7656 8.49374 14.9906 8.21249 14.9906ZM11.2781 14.4844C11.2781 14.7656 11.0531 14.9906 10.7719 14.9906H9.78749C9.50624 14.9906 9.28124 14.7656 9.28124 14.4844V8.52188C9.28124 8.24063 9.50624 8.01563 9.78749 8.01563H10.7719C11.0531 8.01563 11.2781 8.24063 11.2781 8.52188V14.4844Z" fill="" />
-                                                </svg>
-                                            </button>
+                {/* Main Content Area */}
+                <div className="rounded-3xl border border-white/40 bg-white/20 p-6 shadow-2xl backdrop-blur-3xl dark:border-white/10 dark:bg-white/5">
+                    <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between mb-8">
+                        <div>
+                            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
+                                Sectors Directory
+                            </h3>
+                            <p className="text-sm text-slate-500 dark:text-white/50">Manage administrative sectors and assignments</p>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-4">
+                            <div className="relative">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-white/30" size={18} />
+                                <input
+                                    type="text"
+                                    placeholder="Search sectors..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="h-11 w-full rounded-2xl border border-white/20 bg-white/40 pl-11 pr-4 text-sm text-slate-900 outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10 dark:border-white/10 dark:bg-white/5 dark:text-white min-w-[280px]"
+                                />
+                            </div>
+
+                            <div className="flex items-center rounded-2xl border border-slate-200 bg-white/40 p-1 shadow-inner backdrop-blur-xl dark:border-white/10 dark:bg-white/5">
+                                <button
+                                    onClick={() => setViewMode('grid')}
+                                    className={`flex h-9 w-10 items-center justify-center rounded-xl transition-all ${viewMode === 'grid' ? 'bg-slate-900 text-white shadow-xl scale-105' : 'text-slate-500 hover:text-slate-900 dark:text-white/40 dark:hover:text-white'}`}
+                                >
+                                    <LayoutGrid size={18} />
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('table')}
+                                    className={`flex h-9 w-10 items-center justify-center rounded-xl transition-all ${viewMode === 'table' ? 'bg-slate-900 text-white shadow-xl scale-105' : 'text-slate-500 hover:text-slate-900 dark:text-white/40 dark:hover:text-white'}`}
+                                >
+                                    <List size={18} />
+                                </button>
+                            </div>
+
+                            <button
+                                onClick={() => handleOpenModal()}
+                                className="flex h-11 items-center gap-2 rounded-2xl bg-blue-600 px-6 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition-all hover:bg-blue-700 hover:scale-[1.02] active:scale-[0.98] dark:bg-primary dark:shadow-primary/20"
+                            >
+                                <Plus size={18} />
+                                Add Sector
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="mb-4 text-sm text-slate-500 dark:text-white/40">
+                        Showing {filteredSectors.length} sectors
+                    </div>
+
+                    <AnimatePresence mode="wait">
+                        {viewMode === 'grid' ? (
+                            <motion.div
+                                key="grid"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -20 }}
+                                className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                            >
+                                {filteredSectors.map((sector) => (
+                                    <motion.div
+                                        key={sector.id}
+                                        layout
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        whileHover={{ y: -5 }}
+                                        className="group relative overflow-hidden rounded-3xl border border-white/30 bg-white/20 p-6 shadow-2xl backdrop-blur-3xl transition-all hover:border-primary/20 hover:shadow-2xl dark:border-white/10 dark:bg-white/5"
+                                    >
+                                        <div className="relative z-10">
+                                            <div className="mb-4 flex items-start justify-between">
+                                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-all duration-300">
+                                                    <Box size={24} />
+                                                </div>
+                                                <div className="flex gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+                                                    <button onClick={() => handleOpenModal(sector, 'view')} className="p-2 text-slate-400 hover:bg-white hover:shadow-md rounded-xl transition-all">
+                                                        <Eye size={16} />
+                                                    </button>
+                                                    <button onClick={() => handleOpenModal(sector, 'edit')} className="p-2 text-slate-400 hover:bg-white hover:shadow-md rounded-xl transition-all">
+                                                        <Edit2 size={16} />
+                                                    </button>
+                                                    <button onClick={() => handleDelete(sector.id)} className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-xl transition-all">
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <h4 className="mb-1 text-lg font-bold text-slate-900 dark:text-white truncate">
+                                                {sector.name}
+                                            </h4>
+                                            <p className="text-sm text-slate-500 dark:text-white/60 mb-4 line-clamp-2">
+                                                {sector.description || 'No description provided'}
+                                            </p>
+
+                                            <div className="space-y-2 border-t border-slate-100 pt-4 dark:border-white/5">
+                                                <div className="flex items-center justify-between text-xs">
+                                                    <span className="text-slate-500">Org</span>
+                                                    <span className="font-medium text-slate-700 dark:text-white/70">
+                                                        {sector.organization?.name || 'N/A'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center justify-between text-xs">
+                                                    <span className="text-slate-500">Status</span>
+                                                    <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${sector.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                                                        {sector.status}
+                                                    </span>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </td>
-                                </tr>
-                            ))}
-                            {!loading && sectors.length === 0 && (
-                                <tr>
-                                    <td colSpan={5} className="text-center py-4 text-gray-500">
-                                        No sectors found.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+                                    </motion.div>
+                                ))}
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                key="table"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -20 }}
+                                className="overflow-hidden rounded-2xl border border-white/20 bg-white/40 dark:border-white/10 dark:bg-white/5"
+                            >
+                                <div className="max-w-full overflow-x-auto">
+                                    <table className="w-full table-auto">
+                                        <thead>
+                                            <tr className="bg-slate-50 text-left dark:bg-white/5">
+                                                <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-white/50">Sector Name</th>
+                                                <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-white/50">Organization</th>
+                                                <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-white/50">Status</th>
+                                                <th className="px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-white/50">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-200 dark:divide-white/5">
+                                            {filteredSectors.map((sector) => (
+                                                <tr key={sector.id} className="group hover:bg-slate-50 transition-colors dark:hover:bg-white/[0.02]">
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="h-10 w-10 flex-shrink-0 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold uppercase transition-all group-hover:scale-110">
+                                                                {sector.name.charAt(0)}
+                                                            </div>
+                                                            <div>
+                                                                <div className="font-medium text-slate-900 group-hover:text-primary transition-colors dark:text-white">{sector.name}</div>
+                                                                <div className="text-[10px] text-slate-400 dark:text-white/30 truncate max-w-[200px]">{sector.description}</div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="text-sm text-slate-600 dark:text-white/60">
+                                                            {sector.organization?.name || 'N/A'}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className={`inline-flex rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${sector.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                                                            {sector.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center justify-center gap-1">
+                                                            <button onClick={() => handleOpenModal(sector, 'view')} title="View" className="p-2 text-slate-400 hover:bg-slate-100 hover:text-primary rounded-lg transition-all dark:text-white/40 dark:hover:bg-white/5 dark:hover:text-white">
+                                                                <Eye size={16} />
+                                                            </button>
+                                                            <button onClick={() => handleOpenModal(sector, 'edit')} title="Edit" className="p-2 text-slate-400 hover:bg-slate-100 hover:text-primary rounded-lg transition-all dark:text-white/40 dark:hover:bg-white/5 dark:hover:text-white">
+                                                                <Edit2 size={16} />
+                                                            </button>
+                                                            <button onClick={() => handleDelete(sector.id)} title="Delete" className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-all dark:text-white/40 dark:hover:bg-red-500/10 dark:hover:text-red-400">
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
             </div>
 
@@ -273,7 +405,7 @@ export default function SectorList() {
                                 onChange={handleChange}
                                 required
                                 disabled={isViewMode}
-                                className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-5 py-3 font-medium text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-gray-800 dark:text-white dark:focus:border-primary"
+                                className="w-full rounded-lg border-[1.5px] border-slate-200 bg-white/40 px-5 py-3 font-medium text-slate-900 outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-slate-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-primary"
                             >
                                 <option value="">Select Organization</option>
                                 {organizations.map(org => (
@@ -295,7 +427,7 @@ export default function SectorList() {
                                 onChange={handleChange}
                                 rows={3}
                                 disabled={isViewMode}
-                                className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-5 py-3 font-medium text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                                className="w-full rounded-lg border-[1.5px] border-slate-200 bg-white/40 px-5 py-3 font-medium text-slate-900 outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-slate-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-primary"
                             />
                         </div>
 
@@ -306,7 +438,7 @@ export default function SectorList() {
                                 value={formData.status}
                                 onChange={handleChange}
                                 disabled={isViewMode}
-                                className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-5 py-3 font-medium text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-gray-800 dark:text-white dark:focus:border-primary"
+                                className="w-full rounded-lg border-[1.5px] border-slate-200 bg-white/40 px-5 py-3 font-medium text-slate-900 outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-slate-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-primary"
                             >
                                 <option value="active">Active</option>
                                 <option value="inactive">Inactive</option>

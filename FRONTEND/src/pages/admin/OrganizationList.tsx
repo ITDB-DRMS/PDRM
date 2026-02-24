@@ -4,22 +4,53 @@ import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { useModal } from "../../hooks/useModal";
 import { Modal } from "../../components/ui/modal";
-import Button from "../../components/ui/button/Button";
-import {
-    Organization,
-    getOrganizations,
-    createOrganization,
-    updateOrganization,
-    deleteOrganization
-} from '../../api/organizationService';
+import { Organization, getOrganizations, createOrganization, updateOrganization, deleteOrganization } from '../../api/organizationService';
 import { OrganizationForm } from './OrganizationForm';
-import { PencilIcon, TrashBinIcon, AngleLeftIcon, AngleRightIcon } from '../../icons';
+import { motion, AnimatePresence } from 'framer-motion';
+import { LayoutGrid, List, Search, Plus, Eye, Edit2, Trash2, Building2 } from 'lucide-react';
+
+const DiamondBackground = () => (
+    <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+        {/* Mesh Gradient Base */}
+        <div className="absolute inset-0 bg-slate-100 dark:bg-[#0A0A0B]" />
+
+        {/* Floating Glassy Diamonds */}
+        {[...Array(10)].map((_, i) => (
+            <motion.div
+                key={i}
+                initial={{
+                    opacity: 0,
+                    rotate: 45,
+                    x: Math.random() * 100 + "%",
+                    y: Math.random() * 100 + "%"
+                }}
+                animate={{
+                    opacity: [0.15, 0.45, 0.15],
+                    y: ["-20%", "120%"],
+                    rotate: [45, 225],
+                }}
+                transition={{
+                    duration: 20 + Math.random() * 20,
+                    repeat: Infinity,
+                    ease: "linear",
+                    delay: i * -4
+                }}
+                className="absolute h-64 w-64 rounded-[48px] border border-white/40 bg-white/10 backdrop-blur-3xl dark:border-white/10 dark:bg-white/[0.04]"
+                style={{
+                    left: `${(i * 12) % 95}%`,
+                }}
+            />
+        ))}
+    </div>
+);
 
 export default function OrganizationList() {
     const [organizations, setOrganizations] = useState<Organization[]>([]);
     const [loading, setLoading] = useState(true);
     const [editOrg, setEditOrg] = useState<Organization | null>(null);
     const [isViewMode, setIsViewMode] = useState(false);
+    // UI State
+    const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(10);
@@ -68,8 +99,8 @@ export default function OrganizationList() {
     };
 
     const handleOpenModal = (org?: Organization, mode: 'create' | 'edit' | 'view' = 'create') => {
-        setIsViewMode(mode === 'view');
         setEditOrg(org || null);
+        setIsViewMode(mode === 'view');
         openModal();
     };
 
@@ -110,138 +141,199 @@ export default function OrganizationList() {
             />
             <PageBreadcrumb pageTitle="Organizations" />
 
-            <div className="flex flex-col gap-5 md:gap-7 2xl:gap-10">
-                <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pb-6">
-                    <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
-                        <h3 className="text-lg font-bold text-gray-800 dark:text-white/90">
-                            Organizations
-                        </h3>
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="relative space-y-8 pb-10">
+                <DiamondBackground />
+
+                {/* Main Content Area */}
+                <div className="rounded-3xl border border-white/40 bg-white/20 p-6 shadow-2xl backdrop-blur-3xl dark:border-white/10 dark:bg-white/5">
+                    <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between mb-8">
+                        <div>
+                            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
+                                Organizations Directory
+                            </h3>
+                            <p className="text-sm text-slate-500 dark:text-white/50">Manage system organizations and their hierarchy</p>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-4">
+                            {/* Unified Search & Actions */}
                             <div className="relative">
-                                <span className="absolute left-4 top-1/2 -translate-y-1/2">
-                                    <svg
-                                        className="fill-gray-500 hover:fill-primary dark:fill-gray-400"
-                                        width="20"
-                                        height="20"
-                                        viewBox="0 0 20 20"
-                                        fill="none"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <path
-                                            fillRule="evenodd"
-                                            clipRule="evenodd"
-                                            d="M9.16666 3.33332C5.945 3.33332 3.33333 5.945 3.33333 9.16666C3.33333 12.3883 5.945 15 9.16666 15C12.3883 15 15 12.3883 15 9.16666C15 5.945 12.3883 3.33332 9.16666 3.33332ZM1.66667 9.16666C1.66667 5.02452 5.02452 1.66665 9.16666 1.66665C13.3088 1.66665 16.6667 5.02452 16.6667 9.16666C16.6667 13.3088 13.3088 16.6667 9.16666 16.6667C5.02452 16.6667 1.66667 13.3088 1.66667 9.16666Z"
-                                        />
-                                        <path
-                                            fillRule="evenodd"
-                                            clipRule="evenodd"
-                                            d="M13.2857 13.2857C13.6112 12.9603 14.1388 12.9603 14.4642 13.2857L18.0892 16.9107C18.4147 17.2362 18.4147 17.7638 18.0892 18.0892C17.7638 18.4147 17.2362 18.4147 16.9107 18.0892L13.2857 14.4642C12.9603 14.1388 12.9603 13.6112 13.2857 13.2857Z"
-                                        />
-                                    </svg>
-                                </span>
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-white/30" size={18} />
                                 <input
                                     type="text"
                                     placeholder="Search organizations..."
-                                    className="w-full rounded-lg border border-gray-300 bg-transparent py-2.5 pl-11 pr-4 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="h-11 w-full rounded-2xl border border-white/20 bg-white/40 pl-11 pr-4 text-sm text-slate-900 outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10 dark:border-white/10 dark:bg-white/5 dark:text-white min-w-[280px]"
                                 />
                             </div>
-                            <Button size="sm" onClick={() => handleOpenModal()}>
-                                + Add Organization
-                            </Button>
+
+                            <div className="flex items-center rounded-2xl border border-slate-200 bg-white/40 p-1 shadow-inner backdrop-blur-xl dark:border-white/10 dark:bg-white/5">
+                                <button
+                                    onClick={() => setViewMode('grid')}
+                                    className={`flex h-9 w-10 items-center justify-center rounded-xl transition-all ${viewMode === 'grid' ? 'bg-slate-900 text-white shadow-xl scale-105' : 'text-slate-500 hover:text-slate-900 dark:text-white/40 dark:hover:text-white'}`}
+                                >
+                                    <LayoutGrid size={18} />
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('table')}
+                                    className={`flex h-9 w-10 items-center justify-center rounded-xl transition-all ${viewMode === 'table' ? 'bg-slate-900 text-white shadow-xl scale-105' : 'text-slate-500 hover:text-slate-900 dark:text-white/40 dark:hover:text-white'}`}
+                                >
+                                    <List size={18} />
+                                </button>
+                            </div>
+
+                            <button
+                                onClick={() => handleOpenModal()}
+                                className="flex h-11 items-center gap-2 rounded-2xl bg-blue-600 px-6 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition-all hover:bg-blue-700 hover:scale-[1.02] active:scale-[0.98] dark:bg-primary dark:shadow-primary/20"
+                            >
+                                <Plus size={18} />
+                                Add Organization
+                            </button>
                         </div>
                     </div>
 
-                    <div className="max-w-full overflow-x-auto">
-                        <table className="w-full table-auto">
-                            <thead className="border-b border-gray-100 bg-gray-50/50 dark:border-gray-800 dark:bg-gray-900/50">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-500 dark:text-gray-400">Name</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-500 dark:text-gray-400">Type</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-500 dark:text-gray-400">Parent</th>
-                                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-500 dark:text-gray-400">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {loading ? (
-                                    <tr>
-                                        <td colSpan={4} className="text-center py-4 text-gray-500">Loading...</td>
-                                    </tr>
-                                ) : currentItems.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={4} className="text-center py-4 text-gray-500">No organizations found</td>
-                                    </tr>
-                                ) : (
-                                    currentItems.map((org) => (
-                                        <tr key={org.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900/50">
-                                            <td className="px-4 py-3">
-                                                <h5 className="text-sm font-medium text-gray-800 dark:text-white/90">{org.name}</h5>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-800 dark:text-white/90 capitalize">
-                                                    {org.type.replace('_', ' ')}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                                    {typeof org.parentId === 'object' && org.parentId ? (org.parentId as any).name : '-'}
-                                                </p>
-                                            </td>
-                                            <td className="px-4 py-3 text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <button
-                                                        className="flex items-center justify-center p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-brand-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
-                                                        onClick={() => handleOpenModal(org, 'view')}
-                                                        title="View"
-                                                    >
-                                                        <svg className="fill-current w-4 h-4" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                            <path d="M9 13.5C6.075 13.5 3.51563 11.6437 2.475 9C3.51563 6.35625 6.075 4.5 9 4.5C11.925 4.5 14.4844 6.35625 15.525 9C14.4844 11.6437 11.925 13.5 9 13.5ZM9 5.625C7.14375 5.625 5.625 7.14375 5.625 9C5.625 10.8562 7.14375 12.375 9 12.375C10.8562 12.375 12.375 10.8562 12.375 9C12.375 7.14375 10.8562 5.625 9 5.625ZM9 10.5C8.15625 10.5 7.5 9.84375 7.5 9C7.5 8.15625 8.15625 7.5 9 7.5C9.84375 7.5 10.5 8.15625 10.5 9C10.5 9.84375 9.84375 10.5 9 10.5Z" fill="" />
-                                                        </svg>
+                    <div className="mb-4 text-sm text-slate-500 dark:text-white/40">
+                        Showing {filteredOrganizations.length} organizations
+                    </div>
+
+                    <AnimatePresence mode="wait">
+                        {viewMode === 'grid' ? (
+                            <motion.div
+                                key="grid"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -20 }}
+                                className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                            >
+                                {currentItems.map((org) => (
+                                    <motion.div
+                                        key={org.id}
+                                        layout
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        whileHover={{ y: -5 }}
+                                        className="group relative overflow-hidden rounded-3xl border border-white/30 bg-white/20 p-6 shadow-2xl backdrop-blur-3xl transition-all hover:border-primary/20 hover:shadow-2xl dark:border-white/10 dark:bg-white/5"
+                                    >
+                                        <div className="relative z-10">
+                                            <div className="mb-4 flex items-start justify-between">
+                                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-all duration-300">
+                                                    <Building2 size={24} />
+                                                </div>
+                                                <div className="flex gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+                                                    <button onClick={() => handleOpenModal(org, 'view')} className="p-2 text-slate-400 hover:bg-white hover:shadow-md rounded-xl transition-all">
+                                                        <Eye size={16} />
                                                     </button>
-                                                    <button
-                                                        className="flex items-center justify-center p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-brand-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
-                                                        onClick={() => handleOpenModal(org, 'edit')}
-                                                        title="Edit"
-                                                    >
-                                                        <PencilIcon className="w-4 h-4" />
+                                                    <button onClick={() => handleOpenModal(org, 'edit')} className="p-2 text-slate-400 hover:bg-white hover:shadow-md rounded-xl transition-all">
+                                                        <Edit2 size={16} />
                                                     </button>
-                                                    <button
-                                                        className="flex items-center justify-center p-2 rounded-lg text-gray-500 hover:bg-red-50 hover:text-red-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-red-500"
-                                                        onClick={() => handleDelete(org.id)}
-                                                        title="Delete"
-                                                    >
-                                                        <TrashBinIcon className="w-4 h-4" />
+                                                    <button onClick={() => handleDelete(org.id)} className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-xl transition-all">
+                                                        <Trash2 size={16} />
                                                     </button>
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                            </div>
+
+                                            <h4 className="mb-1 text-lg font-bold text-slate-900 dark:text-white truncate">
+                                                {org.name}
+                                            </h4>
+                                            <div className="flex flex-wrap gap-2 mb-4">
+                                                <span className="bg-primary/5 text-primary text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider">
+                                                    {org.type.replace('_', ' ')}
+                                                </span>
+                                            </div>
+
+                                            <div className="space-y-2 border-t border-slate-100 pt-4 dark:border-white/5">
+                                                <div className="flex items-center justify-between text-xs">
+                                                    <span className="text-slate-500">Parent</span>
+                                                    <span className="font-medium text-slate-700 dark:text-white/70">
+                                                        {typeof org.parentId === 'object' && org.parentId ? (org.parentId as any).name : '-'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                key="table"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -20 }}
+                                className="overflow-hidden rounded-2xl border border-white/20 bg-white/40 dark:border-white/10 dark:bg-white/5"
+                            >
+                                <div className="max-w-full overflow-x-auto">
+                                    <table className="w-full table-auto">
+                                        <thead>
+                                            <tr className="bg-slate-50 text-left dark:bg-white/5">
+                                                <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-white/50">Organization</th>
+                                                <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-white/50">Type</th>
+                                                <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-white/50">Parent</th>
+                                                <th className="px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-white/50">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-200 dark:divide-white/5">
+                                            {currentItems.map((org) => (
+                                                <tr key={org.id} className="group hover:bg-slate-50 transition-colors dark:hover:bg-white/[0.02]">
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="h-10 w-10 flex-shrink-0 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold uppercase transition-all group-hover:scale-110">
+                                                                {org.name.charAt(0)}
+                                                            </div>
+                                                            <div className="font-medium text-slate-900 group-hover:text-primary transition-colors dark:text-white">{org.name}</div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-[10px] font-bold text-slate-600 dark:bg-white/5 dark:text-white/70 uppercase tracking-wider">
+                                                            {org.type.replace('_', ' ')}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="text-sm text-slate-600 dark:text-white/60">
+                                                            {typeof org.parentId === 'object' && org.parentId ? (org.parentId as any).name : '-'}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center justify-center gap-1">
+                                                            <button onClick={() => handleOpenModal(org, 'view')} title="View" className="p-2 text-slate-400 hover:bg-slate-100 hover:text-primary rounded-lg transition-all dark:text-white/40 dark:hover:bg-white/5 dark:hover:text-white">
+                                                                <Eye size={16} />
+                                                            </button>
+                                                            <button onClick={() => handleOpenModal(org, 'edit')} title="Edit" className="p-2 text-slate-400 hover:bg-slate-100 hover:text-primary rounded-lg transition-all dark:text-white/40 dark:hover:bg-white/5 dark:hover:text-white">
+                                                                <Edit2 size={16} />
+                                                            </button>
+                                                            <button onClick={() => handleDelete(org.id)} title="Delete" className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-all dark:text-white/40 dark:hover:bg-red-500/10 dark:hover:text-red-400">
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     {/* Pagination */}
                     {totalPages > 1 && (
-                        <div className="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-gray-800">
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
-                                Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredOrganizations.length)} of {filteredOrganizations.length} entries
+                        <div className="mt-8 flex items-center justify-between border-t border-slate-100 pt-6 dark:border-white/5">
+                            <div className="text-sm text-slate-500 dark:text-white/40">
+                                Showing <span className="font-semibold text-slate-900 dark:text-white">{indexOfFirstItem + 1}</span> to <span className="font-semibold text-slate-900 dark:text-white">{Math.min(indexOfLastItem, filteredOrganizations.length)}</span> of <span className="font-semibold text-slate-900 dark:text-white">{filteredOrganizations.length}</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <button
-                                    className={`flex items-center justify-center p-2 rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    className={`flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white/40 text-slate-500 transition-all hover:bg-white hover:text-primary dark:border-white/10 dark:bg-white/5 dark:text-white/40 dark:hover:bg-white/10 ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                                     disabled={currentPage === 1}
                                 >
-                                    <AngleLeftIcon className="w-4 h-4" />
+                                    <LayoutGrid size={18} className="rotate-90" />
                                 </button>
                                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
                                     <button
                                         key={number}
-                                        className={`flex h-8 w-8 items-center justify-center rounded-lg border text-xs font-medium ${currentPage === number
-                                            ? 'border-brand-500 bg-brand-500 text-white'
-                                            : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800'
+                                        className={`flex h-10 w-10 items-center justify-center rounded-xl border text-sm font-semibold transition-all ${currentPage === number
+                                            ? 'border-primary bg-slate-900 text-white shadow-lg scale-105'
+                                            : 'border-slate-200 bg-white/40 text-slate-500 hover:bg-white hover:text-primary dark:border-white/10 dark:bg-white/5 dark:text-white/40 dark:hover:bg-white/10'
                                             }`}
                                         onClick={() => setCurrentPage(number)}
                                     >
@@ -249,11 +341,11 @@ export default function OrganizationList() {
                                     </button>
                                 ))}
                                 <button
-                                    className={`flex items-center justify-center p-2 rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    className={`flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white/40 text-slate-500 transition-all hover:bg-white hover:text-primary dark:border-white/10 dark:bg-white/5 dark:text-white/40 dark:hover:bg-white/10 ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                                     disabled={currentPage === totalPages}
                                 >
-                                    <AngleRightIcon className="w-4 h-4" />
+                                    <LayoutGrid size={18} className="-rotate-90" />
                                 </button>
                             </div>
                         </div>
