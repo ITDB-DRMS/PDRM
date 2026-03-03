@@ -1,0 +1,170 @@
+import Template from '../models/Template.js';
+import FormResponse from '../models/FormResponse.js';
+
+// @desc    Get all templates
+// @route   GET /api/templates
+export const getTemplates = async (req, res) => {
+    try {
+        const { category, status, search } = req.query;
+        let query = { isDeleted: false };
+
+        if (category) query.category = category;
+        if (status) query.status = status;
+        if (search) {
+            query.name = { $regex: search, $options: 'i' };
+        }
+
+        const templates = await Template.find(query).sort({ updatedAt: -1 }).populate('createdBy', 'fullname');
+        res.json(templates);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Get single template by ID
+// @route   GET /api/templates/:id
+export const getTemplateById = async (req, res) => {
+    try {
+        const template = await Template.findById(req.params.id).populate('createdBy', 'fullname');
+        if (!template) {
+            return res.status(404).json({ message: 'Template not found' });
+        }
+        res.json(template);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Create new template draft
+// @route   POST /api/templates
+export const createTemplate = async (req, res) => {
+    try {
+        const { name, category, moduleType, modules, description } = req.body;
+
+        // Check if a template with same moduleType and version exists (though for new it starts at 1)
+        const existing = await Template.findOne({ moduleType, version: 1 });
+        if (existing) {
+            // Maybe allow multiple if name is different, but moduleType usually implies a unique kind
+        }
+
+        const template = new Template({
+            name,
+            category,
+            moduleType,
+            modules: modules || [],
+            description,
+            status: 'Draft',
+            createdBy: req.user?._id // Assuming auth middleware
+        });
+
+        const savedTemplate = await template.save();
+        res.status(201).json(savedTemplate);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
+
+// @desc    Update template draft
+// @route   PUT /api/templates/:id
+export const updateTemplate = async (req, res) => {
+    try {
+        const template = await Template.findById(req.params.id);
+
+        if (!template) {
+            return res.status(404).json({ message: 'Template not found' });
+        }
+
+        if (template.status === 'Published') {
+            return res.status(403).json({ message: 'Cannot edit a published template. Create a new version instead.' });
+        }
+
+        Object.assign(template, req.body);
+        const updatedTemplate = await template.save();
+        res.json(updatedTemplate);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
+
+// @desc    Publish template (Locks version)
+// @route   POST /api/templates/:id/publish
+export const publishTemplate = async (req, res) => {
+    try {
+        const template = await Template.findById(req.params.id);
+
+        if (!template) {
+            return res.status(404).json({ message: 'Template not found' });
+        }
+
+        // Set all previous versions to isLatest: false
+        await Template.updateMany(
+            { moduleType: template.moduleType, _id: { $ne: template._id } },
+            { $set: { isLatest: false } }
+        );
+
+        template.status = 'Published';
+        template.isLatest = true;
+        template.publishedAt = new Date();
+
+        const publishedTemplate = await template.save();
+        res.json(publishedTemplate);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Create new version from existing template
+// @route   POST /api/templates/:id/new-version
+export const createNewVersion = async (req, res) => {
+    try {
+        const oldTemplate = await Template.findById(req.params.id);
+        if (!oldTemplate) {
+            return res.status(404).json({ message: 'Template not found' });
+        }
+
+        // Find highest version
+        const lastTemplate = await Template.findOne({ moduleType: oldTemplate.moduleType })
+            .sort({ version: -1 });
+
+        const newTemplate = new Template({
+            ...oldTemplate.toObject(),
+            _id: undefined,
+            version: lastTemplate.version + 1,
+            status: 'Draft',
+            isLatest: false,
+            createdBy: req.user?._id,
+            publishedAt: undefined,
+            usageCount: 0,
+            createdAt: undefined,
+            updatedAt: undefined
+        });
+
+        const savedTemplate = await newTemplate.save();
+        res.status(201).json(savedTemplate);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Archive template
+// @route   DELETE /api/templates/:id
+export const archiveTemplate = async (req, res) => {
+    try {
+        const template = await Template.findById(req.params.id);
+        if (!template) return res.status(404).json({ message: 'NotFound' });
+
+        // Check if in use
+        const responseCount = await FormResponse.countDocuments({ templateId: template._id });
+        if (responseCount > 0) {
+            template.status = 'Archived'; // Soft archive
+            await template.save();
+            return res.json({ message: 'Template in use. Moved to Archived status.', template });
+        }
+
+        template.isDeleted = true;
+        await template.save();
+        res.json({ message: 'Template deleted' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};

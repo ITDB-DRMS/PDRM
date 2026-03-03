@@ -13,6 +13,8 @@ import hierarchyRoutes from './routes/hierarchyRoutes.js';
 import teamRoutes from './routes/teamRoutes.js';
 import auditRoutes from './routes/auditRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
+import templateRoutes from './routes/templateRoutes.js';
+import formResponseRoutes from './routes/formResponseRoutes.js';
 import { errorHandler } from './middleware/errorMiddleware.js';
 import cors from 'cors';
 
@@ -27,11 +29,17 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Request logging middleware
+import fs from 'fs';
+const logFile = fs.createWriteStream('server_logs.txt', { flags: 'a' });
+
 app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.originalUrl}`);
+    const logLine = `${new Date().toISOString()} - ${req.method} ${req.originalUrl}\n`;
+    console.log(logLine.trim());
+    logFile.write(logLine);
     next();
 });
 
@@ -50,6 +58,8 @@ app.use('/api/hierarchy', hierarchyRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/audit-logs', auditRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/templates', templateRoutes);
+app.use('/api/responses', formResponseRoutes);
 
 app.use(errorHandler);
 

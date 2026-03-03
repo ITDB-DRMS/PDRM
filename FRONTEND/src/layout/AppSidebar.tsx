@@ -22,6 +22,7 @@ import {
   TaskIcon,
   UserCircleIcon,
   UserIcon,
+  PencilIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
@@ -179,6 +180,25 @@ const adminItems: NavItem[] = [
         path: "/admin/email-logs",
         icon: <MailIcon />,
         permission: "view_audit_log",
+      },
+    ],
+  },
+  {
+    icon: <DocsIcon />,
+    name: "Template Engine",
+    superAdminOnly: true,
+    subItems: [
+      {
+        name: "Template Library",
+        path: "/admin/template-library",
+        icon: <ListIcon />,
+        permission: "view_template",
+      },
+      {
+        name: "Form Builder",
+        path: "/admin/form-builder",
+        icon: <PencilIcon />,
+        permission: "create_template",
       },
     ],
   },

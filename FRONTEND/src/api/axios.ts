@@ -2,9 +2,7 @@ import axios from 'axios';
 
 const api = axios.create({
     baseURL: 'http://localhost:5000/api', // Adjust if backend port differs
-    headers: {
-        'Content-Type': 'application/json',
-    },
+    headers: {},
 });
 
 // Request interceptor to add the auth token header to requests
@@ -34,7 +32,7 @@ api.interceptors.response.use(
             );
 
             const isLoginPage = window.location.pathname === '/login' || window.location.pathname.includes('/auth/login');
-            
+
             if (!isLoginRequest && !isLoginPage) {
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');

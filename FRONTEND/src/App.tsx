@@ -20,6 +20,10 @@ import HierarchyManagement from "./pages/admin/HierarchyManagement";
 import AuditLogs from "./pages/admin/AuditLogs";
 import EmailLogs from "./pages/admin/EmailLogs";
 
+// Template Engine
+import TemplateLibrary from "./components/TemplateEngine/TemplateLibrary/TemplateLibrary";
+import FormBuilder from "./components/TemplateEngine/FormBuilder/FormBuilder";
+
 import UserProfiles from "./pages/UserProfiles";
 import DisasterRiskAssessment from "./pages/DRM/DisasterRiskAssessment";
 import DisasterRiskDatabase from "./pages/DRM/DisasterRiskDatabase";
@@ -90,6 +94,11 @@ export default function App() {
                   <Route path="/admin/hierarchy" element={<HierarchyManagement />} />
                   <Route path="/admin/audit-logs" element={<AuditLogs />} />
                   <Route path="/admin/email-logs" element={<EmailLogs />} />
+
+                  {/* Template Engine Routes */}
+                  <Route path="/admin/template-library" element={<TemplateLibrary />} />
+                  <Route path="/admin/form-builder" element={<FormBuilder />} />
+                  <Route path="/admin/form-builder/:id" element={<FormBuilder />} />
 
                   {/* Others Page */}
                   <Route path="/profile" element={<UserProfiles />} />
