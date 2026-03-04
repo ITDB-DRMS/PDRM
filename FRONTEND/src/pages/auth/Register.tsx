@@ -46,11 +46,16 @@ const Register: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-            <div className="max-w-md w-full p-6 bg-white rounded-lg shadow-md border border-gray-100">
-                <div className="text-center mb-8">
-                    <h1 className="text-2xl font-bold text-gray-900">Create Account</h1>
-                    <p className="text-sm text-gray-500 mt-2">Join IDRMIS today</p>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
+            <div className="max-w-md w-full p-6 bg-white/90 rounded-2xl shadow-xl border border-transparent backdrop-blur-sm">
+                <div className="text-center mb-6">
+                    <div className="mx-auto w-14 h-14 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-md">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0 1.657-1.343 3-3 3s-3-1.343-3-3 1.343-3 3-3 3 1.343 3 3zM21 21v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2" />
+                        </svg>
+                    </div>
+                    <h1 className="text-2xl font-extrabold text-gray-900 mt-4">Create Account</h1>
+                    <p className="text-sm text-gray-500 mt-1">Join IDRMIS — it's quick and easy</p>
                 </div>
 
                 {error && (
@@ -65,8 +70,8 @@ const Register: React.FC = () => {
                         <input
                             name="fullname"
                             type="text"
-                            required
-                            className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+                            placeholder="Your full name"
+                            className="mt-1 block w-full px-4 py-2 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-200 focus:border-transparent text-sm"
                             onChange={handleChange}
                             value={formData.fullname}
                         />
@@ -77,8 +82,8 @@ const Register: React.FC = () => {
                         <input
                             name="email"
                             type="email"
-                            required
-                            className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+                            placeholder="you@example.com"
+                            className="mt-1 block w-full px-4 py-2 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-200 focus:border-transparent text-sm"
                             onChange={handleChange}
                             value={formData.email}
                         />
@@ -89,8 +94,8 @@ const Register: React.FC = () => {
                         <input
                             name="phone"
                             type="tel"
-                            required
-                            className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+                            placeholder="Optional phone number"
+                            className="mt-1 block w-full px-4 py-2 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-200 focus:border-transparent text-sm"
                             onChange={handleChange}
                             value={formData.phone}
                         />
@@ -103,9 +108,9 @@ const Register: React.FC = () => {
                         <input
                             name="password"
                             type="password"
-                            required
                             minLength={6}
-                            className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+                            placeholder="Choose a secure password"
+                            className="mt-1 block w-full px-4 py-2 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-200 focus:border-transparent text-sm"
                             onChange={handleChange}
                             value={formData.password}
                         />
@@ -116,8 +121,8 @@ const Register: React.FC = () => {
                         <input
                             name="confirmPassword"
                             type="password"
-                            required
-                            className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+                            placeholder="Repeat your password"
+                            className="mt-1 block w-full px-4 py-2 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-200 focus:border-transparent text-sm"
                             onChange={handleChange}
                             value={formData.confirmPassword}
                         />
@@ -126,7 +131,7 @@ const Register: React.FC = () => {
                     <button
                         type="submit"
                         disabled={loading}
-                        className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-full shadow-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-4 focus:ring-blue-200 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
                     >
                         {loading ? 'Creating Account...' : 'Sign Up'}
                     </button>

@@ -6,10 +6,23 @@ import FormResponse from '../models/FormResponse.js';
 export const getTemplates = async (req, res) => {
     try {
         const { category, status, search } = req.query;
-        let query = { isDeleted: false };
+        let query = {};
+
+        if (status === 'Archived') {
+            // Include both "Archived" status and soft-deleted templates
+            query = {
+                $or: [
+                    { status: 'Archived' },
+                    { isDeleted: true }
+                ]
+            };
+        } else {
+            // Default: show only active ones
+            query = { isDeleted: false };
+            if (status) query.status = status;
+        }
 
         if (category) query.category = category;
-        if (status) query.status = status;
         if (search) {
             query.name = { $regex: search, $options: 'i' };
         }
@@ -153,17 +166,45 @@ export const archiveTemplate = async (req, res) => {
         const template = await Template.findById(req.params.id);
         if (!template) return res.status(404).json({ message: 'NotFound' });
 
-        // Check if in use
-        const responseCount = await FormResponse.countDocuments({ templateId: template._id });
-        if (responseCount > 0) {
-            template.status = 'Archived'; // Soft archive
-            await template.save();
-            return res.json({ message: 'Template in use. Moved to Archived status.', template });
-        }
-
+        template.status = 'Archived';
         template.isDeleted = true;
+        template.isLatest = false; // Archived should not be considered "latest" active
+
         await template.save();
-        res.json({ message: 'Template deleted' });
+        res.json({ message: 'Template moved to archive', template });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Restore template from archive
+// @route   POST /api/templates/:id/restore
+export const restoreTemplate = async (req, res) => {
+    try {
+        const template = await Template.findById(req.params.id);
+        if (!template) return res.status(404).json({ message: 'Template not found' });
+
+        template.isDeleted = false;
+        template.status = 'Draft'; // Default back to draft
+        await template.save();
+
+        res.json({ message: 'Template restored successfully', template });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Permanently delete template
+// @route   DELETE /api/templates/:id/permanent
+export const deleteTemplatePermanent = async (req, res) => {
+    try {
+        const template = await Template.findById(req.params.id);
+        if (!template) return res.status(404).json({ message: 'Template not found' });
+
+        // Ensure it's archived/deleted first before permanent removal? 
+        // User's choice, usually yes.
+        await Template.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Template permanently deleted' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

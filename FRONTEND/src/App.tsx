@@ -49,6 +49,7 @@ import Blank from "./pages/Blank";
 import AppLayout from "./layout/AppLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import Home from "./pages/Dashboard/Home";
+import LandingPage from "./pages/portal";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -69,7 +70,6 @@ export default function App() {
               {/* Protected Dashboard Routes */}
               <Route element={<ProtectedRoute />}>
                 <Route element={<AppLayout />}>
-                  <Route index path="/" element={<Home />} />
                   <Route path="/dashboard" element={<Home />} />
 
                   {/* DRM Routes */}
@@ -132,6 +132,10 @@ export default function App() {
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/setup-account" element={<SetupAccount />} />
+
+              {/* Portal Landing Page - Now the primary application entry */}
+              <Route index path="/" element={<LandingPage />} />
+              <Route path="/portal" element={<LandingPage />} />
 
               {/* Legacy redirects if needed, or simple fallbacks */}
               <Route path="/signin" element={<Login />} />

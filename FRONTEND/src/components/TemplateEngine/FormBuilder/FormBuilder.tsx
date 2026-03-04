@@ -1,193 +1,628 @@
-import React, { useState } from 'react';
-import { FormBuilderProvider, useFormBuilder, Question } from '../../../context/FormBuilderContext';
-import ModuleBuilder from './ModuleBuilder';
-import QuestionEditor from './QuestionEditor';
-import QuestionTypeSelector from './QuestionTypeSelector';
-import { FIELD_TYPES } from './QuestionTypeSelector';
+import React, { useState, useEffect } from 'react';
+import { FormBuilderProvider, useFormBuilder, Question, AnswerType, Option, Module } from '../../../context/FormBuilderContext';
 import {
-    Send, Save, Eye, ChevronLeft,
-    Smartphone, Monitor, Tablet, Download, X
+    Plus, Save, Send, Eye, X, ChevronLeft, Trash2,
+    GripVertical, Copy, ChevronDown,
+    Type, MessageSquare, Hash, Calendar, Circle, CheckSquare,
+    Grid, Phone, Mail, Upload, Heading,
+    StickyNote, Check, Loader2, Settings, Layers, Palette, MoveVertical, Sparkles
 } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { useNavigate } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import api from '@/api/axios';
-import { clsx } from 'clsx';
+import clsx from 'clsx';
+import { motion, AnimatePresence } from 'framer-motion';
 
-// ─── Schema Converter ────────────────────────────────────────────────────────
-// Converts the FormBuilder's flat-question schema into the backend's
-// modules → sections → fields schema expected by the Template model.
-const convertToBackendSchema = (template: any) => {
-    return template.modules.map((module: any, mIdx: number) => ({
+// ─── Constants ────────────────────────────────────────────────────────────────
+const QUESTION_TYPES: { type: AnswerType; label: string; icon: any; desc: string }[] = [
+    { type: 'text', label: 'Short Answer', icon: Type, desc: 'Single line text' },
+    { type: 'textarea', label: 'Paragraph', icon: MessageSquare, desc: 'Multi-line text' },
+    { type: 'number', label: 'Number', icon: Hash, desc: 'Numeric input' },
+    { type: 'date', label: 'Date', icon: Calendar, desc: 'Date picker' },
+    { type: 'radio', label: 'Multiple Choice', icon: Circle, desc: 'Pick one option' },
+    { type: 'checkbox', label: 'Checkboxes', icon: CheckSquare, desc: 'Pick many options' },
+    { type: 'select', label: 'Dropdown', icon: ChevronDown, desc: 'Select from list' },
+    { type: 'matrix', label: 'Grid', icon: Grid, desc: 'Matrix / grid' },
+    { type: 'phone', label: 'Phone', icon: Phone, desc: 'Phone number' },
+    { type: 'email', label: 'Email', icon: Mail, desc: 'Email address' },
+    { type: 'file', label: 'File Upload', icon: Upload, desc: 'Upload a file' },
+    { type: 'header', label: 'Section Header', icon: Heading, desc: 'Visual separator' },
+    { type: 'note', label: 'Note / Tip', icon: StickyNote, desc: 'Informational text' },
+];
+
+const TYPE_COLORS: Record<string, string> = {
+    text: '#673AB7', textarea: '#3F51B5', number: '#F44336',
+    date: '#009688', radio: '#E91E63', checkbox: '#4CAF50',
+    select: '#FF9800', matrix: '#2196F3', phone: '#795548',
+    email: '#607D8B', file: '#9C27B0', header: '#455A64', note: '#FF5722',
+};
+
+// ─── Schema Converter ─────────────────────────────────────────────────────────
+const convertToBackendSchema = (template: any) =>
+    template.modules.map((module: any, mIdx: number) => ({
         moduleId: module.moduleId,
         title: module.moduleName,
         order: mIdx,
-        sections: [
-            {
-                sectionId: `${module.moduleId}_section`,
-                title: module.moduleName,
-                description: '',
-                fields: module.questions.map((q: Question): any => ({
-                    fieldId: q.questionId,
-                    questionCode: q.questionCode,
-                    label: q.label,
-                    type: q.answerType,
-                    helpText: q.helperText,
-                    required: q.required,
-                    options: q.options?.map((o: any) => ({
-                        label: o.label,
-                        value: o.value
-                    })) || [],
-                    matrixConfig: q.answerType === 'matrix' ? q.matrixConfig : undefined,
-                    validation: q.validation || {},
-                    permissions: { visibleToRoles: [], editableByRoles: [] }
-                }))
-            }
-        ]
+        sections: [{
+            sectionId: `${module.moduleId}_section`,
+            title: module.moduleName,
+            description: '',
+            fields: module.questions.map((q: Question): any => ({
+                fieldId: q.questionId,
+                questionCode: q.questionCode,
+                label: q.label,
+                type: q.answerType,
+                helpText: q.helperText,
+                required: q.required,
+                options: q.options?.map((o: any) => ({ label: o.label, value: o.value })) || [],
+                matrixConfig: q.answerType === 'matrix' ? q.matrixConfig : undefined,
+                validation: q.validation || {},
+                permissions: { visibleToRoles: [], editableByRoles: [] }
+            }))
+        }]
     }));
+
+const convertFromBackendSchema = (data: any) => ({
+    templateName: data.name,
+    modules: data.modules.map((m: any) => ({
+        moduleId: m.moduleId,
+        moduleName: m.title,
+        questions: m.sections.flatMap((s: any) => s.fields.map((f: any) => ({
+            questionId: f.fieldId,
+            questionCode: f.questionCode,
+            label: f.label,
+            answerType: f.type,
+            helperText: f.helpText || '',
+            required: f.required || false,
+            options: f.options || [],
+            matrixConfig: f.matrixConfig || { rows: [], columns: [], cellType: 'radio' },
+            validation: f.validation || {}
+        })))
+    }))
+});
+
+// ─── Type Badge ───────────────────────────────────────────────────────────────
+const TypeBadge: React.FC<{ type: AnswerType }> = ({ type }) => {
+    const info = QUESTION_TYPES.find(q => q.type === type);
+    const Icon = info?.icon || Type;
+    return (
+        <div className="flex items-center gap-1.5 text-xs font-medium" style={{ color: TYPE_COLORS[type] || '#666' }}>
+            <Icon size={13} />
+            <span>{info?.label || type}</span>
+        </div>
+    );
 };
 
-// ─── Form Preview Modal ───────────────────────────────────────────────────────
+// ─── Option Row (for radio/checkbox/select) ───────────────────────────────────
+const OptionRow: React.FC<{
+    option: Option; index: number; type: AnswerType;
+    onChange: (idx: number, updates: Partial<Option>) => void;
+    onRemove: (idx: number) => void;
+}> = ({ option, index, type, onChange, onRemove }) => (
+    <div className="flex items-center gap-3 py-1 group">
+        <div className="flex-shrink-0 text-gray-300">
+            {type === 'checkbox' ? (
+                <div className="w-4 h-4 border-2 border-gray-300 rounded" />
+            ) : type === 'select' ? (
+                <span className="text-xs text-gray-300 font-mono">{index + 1}.</span>
+            ) : (
+                <div className="w-4 h-4 border-2 border-gray-300 rounded-full" />
+            )}
+        </div>
+        <input
+            type="text"
+            value={option.label}
+            onChange={e => onChange(index, { label: e.target.value, value: e.target.value.toLowerCase().replace(/\s+/g, '_') })}
+            className="flex-1 border-b border-transparent hover:border-gray-300 focus:border-blue-500 outline-none text-sm text-gray-700 bg-transparent py-0.5 transition-colors"
+            placeholder={`Option ${index + 1}`}
+        />
+        <button
+            onClick={() => onRemove(index)}
+            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all"
+        >
+            <X size={14} />
+        </button>
+    </div>
+);
+
+// ─── Matrix Editor Inline ─────────────────────────────────────────────────────
+const MatrixEditorInline: React.FC<{
+    config: Question['matrixConfig'];
+    onChange: (config: Question['matrixConfig']) => void;
+}> = ({ config, onChange }) => {
+    const addRow = () => {
+        const label = `Row ${config.rows.length + 1}`;
+        onChange({ ...config, rows: [...config.rows, { label, value: label.toLowerCase().replace(/\s+/g, '_') }] });
+    };
+    const addCol = () => {
+        const label = `Col ${config.columns.length + 1}`;
+        onChange({ ...config, columns: [...config.columns, { label, value: label.toLowerCase().replace(/\s+/g, '_') }] });
+    };
+    const updateRow = (i: number, label: string) => {
+        const rows = [...config.rows];
+        rows[i] = { label, value: label.toLowerCase().replace(/\s+/g, '_') };
+        onChange({ ...config, rows });
+    };
+    const updateCol = (i: number, label: string) => {
+        const columns = [...config.columns];
+        columns[i] = { label, value: label.toLowerCase().replace(/\s+/g, '_') };
+        onChange({ ...config, columns });
+    };
+
+    return (
+        <div className="mt-4 space-y-3">
+            <div className="overflow-x-auto">
+                <table className="text-xs border-collapse w-full">
+                    <thead>
+                        <tr>
+                            <th className="p-2 text-left text-gray-400 font-medium w-1/4">Rows \ Cols</th>
+                            {config.columns.map((col, i) => (
+                                <th key={i} className="p-2 text-center">
+                                    <input
+                                        type="text" value={col.label}
+                                        onChange={e => updateCol(i, e.target.value)}
+                                        className="w-20 text-center border-b border-gray-200 focus:border-blue-500 outline-none text-xs bg-transparent"
+                                    />
+                                </th>
+                            ))}
+                            <th className="p-2">
+                                <button onClick={addCol} className="text-blue-500 hover:text-blue-700 font-bold">+ Col</button>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {config.rows.map((row, i) => (
+                            <tr key={i}>
+                                <td className="p-2">
+                                    <input
+                                        type="text" value={row.label}
+                                        onChange={e => updateRow(i, e.target.value)}
+                                        className="w-full border-b border-gray-200 focus:border-blue-500 outline-none text-xs bg-transparent"
+                                    />
+                                </td>
+                                {config.columns.map((_, ci) => (
+                                    <td key={ci} className="p-2 text-center">
+                                        <div className="w-4 h-4 border-2 border-gray-300 rounded-full mx-auto" />
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            <button onClick={addRow} className="text-xs text-blue-600 hover:text-blue-800 font-medium">+ Add Row</button>
+        </div>
+    );
+};
+
+// ─── Google-Forms-style Question Card ─────────────────────────────────────────
+const QuestionCard: React.FC<{
+    question: Question;
+    moduleId: string;
+}> = ({ question, moduleId }) => {
+    const { state, dispatch } = useFormBuilder();
+    const isActive = state.activeQuestionId === question.questionId;
+
+    const updateQuestion = (updates: Partial<Question>) => {
+        dispatch({ type: 'UPDATE_QUESTION', questionId: question.questionId, updates });
+    };
+
+    const addOption = () => {
+        const newOpt: Option = {
+            label: `Option ${(question.options?.length || 0) + 1}`,
+            value: `opt_${(question.options?.length || 0) + 1}`,
+        };
+        updateQuestion({ options: [...(question.options || []), newOpt] });
+    };
+
+    const updateOption = (idx: number, updates: Partial<Option>) => {
+        const opts = [...(question.options || [])];
+        opts[idx] = { ...opts[idx], ...updates };
+        updateQuestion({ options: opts });
+    };
+
+    const removeOption = (idx: number) => {
+        updateQuestion({ options: (question.options || []).filter((_, i) => i !== idx) });
+    };
+
+    const isChoiceType = ['radio', 'checkbox', 'select'].includes(question.answerType);
+    const accentColor = TYPE_COLORS[question.answerType] || '#673AB7';
+
+    return (
+        <motion.div
+            layout
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={() => dispatch({ type: 'SELECT_QUESTION', questionId: question.questionId })}
+            className={clsx(
+                "relative bg-white rounded-xl shadow-sm border-l-4 transition-all duration-300",
+                isActive ? "shadow-xl z-20" : "border-transparent border-l-0 hover:shadow-md",
+                "overflow-hidden p-6 mb-4 group cursor-pointer"
+            )}
+            style={{ borderLeftColor: isActive ? accentColor : undefined }}
+        >
+            {isActive && (
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-purple-600 rounded-r-full" />
+            )}
+
+            <div className="flex flex-col gap-5">
+                {/* Header: Question + Type */}
+                <div className="flex flex-wrap items-start gap-4">
+                    <div className="flex-1 min-w-[300px]">
+                        <input
+                            type="text"
+                            value={question.label}
+                            onChange={e => updateQuestion({ label: e.target.value })}
+                            className={clsx(
+                                "w-full text-lg outline-none bg-transparent border-b transition-all duration-200",
+                                isActive ? "border-purple-200 focus:border-purple-600 pb-2" : "border-transparent"
+                            )}
+                            placeholder="Question text"
+                        />
+                        {isActive && (
+                            <input
+                                type="text"
+                                value={question.helperText}
+                                onChange={e => updateQuestion({ helperText: e.target.value })}
+                                className="w-full text-xs text-gray-400 mt-2 outline-none border-none bg-transparent"
+                                placeholder="Add optional instructions/helper text..."
+                            />
+                        )}
+                    </div>
+
+                    {isActive ? (
+                        <div className="relative w-52">
+                            <select
+                                value={question.answerType}
+                                onChange={e => updateQuestion({ answerType: e.target.value as AnswerType })}
+                                className="w-full appearance-none bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-purple-100 focus:border-purple-500 transition-all cursor-pointer"
+                            >
+                                {QUESTION_TYPES.map(t => (
+                                    <option key={t.type} value={t.type}>{t.label}</option>
+                                ))}
+                            </select>
+                            <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        </div>
+                    ) : (
+                        <TypeBadge type={question.answerType} />
+                    )}
+                </div>
+
+                {/* Content based on type */}
+                <div className="pl-1">
+                    {/* (keep existing type-specific rendering logic below) */}
+                    {/* Text inputs */}
+                    {question.answerType === 'text' && (
+                        <div className="border-b-2 border-dotted border-gray-200 pb-1 text-sm text-gray-400 py-2 pl-2">
+                            Short answer text
+                        </div>
+                    )}
+                    {question.answerType === 'textarea' && (
+                        <div className="border-b-2 border-dotted border-gray-200 pb-1 text-sm text-gray-400 py-2 pl-2">
+                            Long answer text
+                        </div>
+                    )}
+                    {question.answerType === 'number' && (
+                        <div className="border-b-2 border-dotted border-gray-200 pb-1 text-sm text-gray-400 py-2 pl-2">
+                            0–9999
+                        </div>
+                    )}
+                    {question.answerType === 'date' && (
+                        <div className="border-b-2 border-dotted border-gray-200 pb-1 text-sm text-gray-400 py-2 pl-2 flex items-center gap-2">
+                            <Calendar size={14} /> MM/DD/YYYY
+                        </div>
+                    )}
+                    {question.answerType === 'phone' && (
+                        <div className="border-b-2 border-dotted border-gray-200 pb-1 text-sm text-gray-400 py-2 pl-2 flex items-center gap-2">
+                            <Phone size={14} /> +251 9xx xxx xxx
+                        </div>
+                    )}
+                    {question.answerType === 'email' && (
+                        <div className="border-b-2 border-dotted border-gray-200 pb-1 text-sm text-gray-400 py-2 pl-2 flex items-center gap-2">
+                            <Mail size={14} /> example@email.com
+                        </div>
+                    )}
+                    {question.answerType === 'file' && (
+                        <div className="flex items-center gap-3 mt-2 p-3 border-2 border-dashed border-gray-200 rounded-lg text-sm text-gray-400">
+                            <Upload size={18} /> Click to upload a file
+                        </div>
+                    )}
+
+                    {/* Choice types */}
+                    {isChoiceType && (
+                        <div className="space-y-1 mt-1">
+                            {(question.options || []).map((opt, i) => (
+                                <OptionRow
+                                    key={i} option={opt} index={i}
+                                    type={question.answerType}
+                                    onChange={updateOption}
+                                    onRemove={removeOption}
+                                />
+                            ))}
+
+                            {/* Add option row */}
+                            <div className="flex items-center gap-3 py-1">
+                                <div className="flex-shrink-0 text-gray-200">
+                                    {question.answerType === 'checkbox'
+                                        ? <div className="w-4 h-4 border-2 border-gray-200 rounded" />
+                                        : question.answerType === 'select'
+                                            ? <span className="text-xs text-gray-200">{(question.options?.length || 0) + 1}.</span>
+                                            : <div className="w-4 h-4 border-2 border-gray-200 rounded-full" />
+                                    }
+                                </div>
+                                <button
+                                    onClick={addOption}
+                                    className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                                >
+                                    Add option
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Matrix */}
+                    {question.answerType === 'matrix' && (
+                        <MatrixEditorInline
+                            config={question.matrixConfig}
+                            onChange={(mc) => updateQuestion({ matrixConfig: mc })}
+                        />
+                    )}
+
+                    {/* Header type questions */}
+                    {question.answerType === 'header' ? (
+                        <div className="space-y-2">
+                            <input
+                                type="text"
+                                value={question.label}
+                                onChange={e => updateQuestion({ label: e.target.value })}
+                                placeholder="Section title"
+                                className="w-full text-xl font-semibold text-gray-800 border-b-2 border-blue-400 outline-none bg-transparent pb-1 focus:border-blue-600"
+                                onClick={e => e.stopPropagation()}
+                            />
+                            <input
+                                type="text"
+                                value={question.helperText}
+                                onChange={e => updateQuestion({ helperText: e.target.value })}
+                                placeholder="Section description (optional)"
+                                className="w-full text-sm text-gray-500 border-b border-gray-200 outline-none bg-transparent pb-1 focus:border-gray-400"
+                                onClick={e => e.stopPropagation()}
+                            />
+                        </div>
+                    ) : question.answerType === 'note' ? (
+                        <div className="bg-amber-50 border-l-4 border-amber-400 rounded-r-lg p-4">
+                            <textarea
+                                value={question.label}
+                                onChange={e => updateQuestion({ label: e.target.value })}
+                                placeholder="Enter note / instruction text..."
+                                className="w-full text-sm text-amber-800 bg-transparent outline-none resize-none min-h-[60px]"
+                                onClick={e => e.stopPropagation()}
+                            />
+                        </div>
+                    ) : null}
+                </div>
+
+                {/* Footer actions (only when active) */}
+                {isActive && question.answerType !== 'header' && question.answerType !== 'note' && (
+                    <div className="flex items-center gap-2 border-t pt-4">
+                        <div className="flex-1 flex items-center gap-1.5 grayscale group-hover:grayscale-0 transition-all opacity-50 group-hover:opacity-100">
+                            <span className="text-[10px] font-black tracking-widest text-purple-600 uppercase">Question Code</span>
+                            <input
+                                type="text"
+                                value={question.questionCode}
+                                onChange={e => updateQuestion({ questionCode: e.target.value })}
+                                className="bg-transparent border-none outline-none text-xs font-mono text-gray-500 w-24"
+                            />
+                        </div>
+
+                        <div className="flex items-center gap-1 border-r pr-4 mr-2 border-gray-100">
+                            <button
+                                onClick={() => {
+                                    dispatch({ type: 'ADD_QUESTION', moduleId, answerType: question.answerType });
+                                }}
+                                className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
+                                title="Duplicate"
+                            >
+                                <Copy size={18} />
+                            </button>
+                            <button
+                                onClick={() => dispatch({ type: 'REMOVE_QUESTION', questionId: question.questionId })}
+                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                title="Delete"
+                            >
+                                <Trash2 size={18} />
+                            </button>
+                        </div>
+
+                        <div className="flex items-center gap-3 ml-2">
+                            <span className="text-xs font-semibold text-gray-500">Required</span>
+                            <button
+                                onClick={() => updateQuestion({ required: !question.required })}
+                                className={clsx(
+                                    "w-10 h-5 rounded-full transition-all relative",
+                                    question.required ? "bg-purple-600" : "bg-gray-200"
+                                )}
+                            >
+                                <div className={clsx(
+                                    "absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all shadow-sm",
+                                    question.required ? "left-5.5" : "left-0.5"
+                                )} />
+                            </button>
+                        </div>
+
+                        <button className="p-2 text-gray-400 hover:text-gray-600 transition-all ml-1">
+                            <Settings size={18} />
+                        </button>
+                    </div>
+                )}
+            </div>
+        </motion.div>
+    );
+};
+
+// ─── Section/Module Block ─────────────────────────────────────────────────────
+const ModuleBlock: React.FC<{ module: Module; order: number }> = ({ module, order }) => {
+    const { state, dispatch } = useFormBuilder();
+
+    return (
+        <div className="space-y-3 mb-8">
+            {/* Section title card */}
+            {order === 0 ? (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div className="h-2" style={{ background: 'linear-gradient(90deg, #673AB7, #3F51B5, #2196F3)' }} />
+                    <div className="p-6 space-y-3">
+                        <input
+                            type="text"
+                            value={state.template.templateName}
+                            onChange={e => dispatch({ type: 'SET_TEMPLATE_NAME', name: e.target.value })}
+                            placeholder="Form title"
+                            className="w-full text-2xl font-semibold text-gray-800 border-b-2 border-purple-300 focus:border-purple-600 outline-none bg-transparent pb-1 transition-colors"
+                        />
+                        <input
+                            type="text"
+                            value={module.moduleName}
+                            onChange={e => dispatch({ type: 'UPDATE_MODULE_NAME', moduleId: module.moduleId, name: e.target.value })}
+                            placeholder="Form description (optional)"
+                            className="w-full text-sm text-gray-500 border-b border-gray-100 focus:border-gray-300 outline-none bg-transparent pb-1 transition-colors"
+                        />
+                    </div>
+                </div>
+            ) : (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div className="h-1 bg-blue-400" />
+                    <div className="p-5">
+                        <input
+                            type="text"
+                            value={module.moduleName}
+                            onChange={e => dispatch({ type: 'UPDATE_MODULE_NAME', moduleId: module.moduleId, name: e.target.value })}
+                            placeholder="Section title"
+                            className="w-full text-lg font-semibold text-gray-800 border-b-2 border-blue-300 focus:border-blue-600 outline-none bg-transparent pb-1 transition-colors"
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* Question cards */}
+            <AnimatePresence>
+                {module.questions.map((question) => (
+                    <QuestionCard
+                        key={question.questionId}
+                        question={question}
+                        moduleId={module.moduleId}
+                    />
+                ))}
+            </AnimatePresence>
+        </div>
+    );
+};
+
+// ─── Preview Modal ────────────────────────────────────────────────────────────
 const PreviewModal: React.FC<{ template: any; onClose: () => void }> = ({ template, onClose }) => {
     const [radioValues, setRadioValues] = useState<Record<string, string>>({});
     const [checkboxValues, setCheckboxValues] = useState<Record<string, string[]>>({});
 
-    const allQuestions = template.modules.flatMap((m: any) => m.questions);
-
     return (
         <div className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl">
-                <header className="p-6 border-b flex justify-between items-center bg-gray-50/50 rounded-t-3xl">
-                    <div>
-                        <h2 className="text-xl font-black text-gray-900">📋 Preview: {template.templateName}</h2>
-                        <p className="text-xs text-gray-400 mt-1">This is how respondents will see your questionnaire</p>
-                    </div>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full text-gray-400">
-                        <X size={24} />
+            <div className="bg-gray-100 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+                <div className="bg-white px-6 py-4 border-b flex justify-between items-center">
+                    <h2 className="font-semibold text-gray-800">Preview: {template.templateName}</h2>
+                    <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-full text-gray-500">
+                        <X size={20} />
                     </button>
-                </header>
+                </div>
 
-                <div className="flex-1 overflow-y-auto p-8 space-y-10">
-                    {template.modules.map((module: any) => (
-                        <div key={module.moduleId}>
-                            <h3 className="text-lg font-black text-gray-900 mb-6 pb-3 border-b-2 border-gray-100">{module.moduleName}</h3>
-                            <div className="space-y-8">
-                                {module.questions.map((q: Question, idx: number) => (
-                                    <div key={q.questionId} className="space-y-3">
-                                        {q.answerType === 'header' ? (
-                                            <h4 className="text-base font-black text-gray-700 uppercase tracking-wide border-b border-dashed pb-2">{q.label}</h4>
-                                        ) : q.answerType === 'note' ? (
-                                            <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-sm text-amber-700 italic">{q.label}</div>
-                                        ) : (
-                                            <>
-                                                <label className="block text-sm font-bold text-gray-900">
-                                                    <span className="text-blue-600 font-black mr-2">{q.questionCode}.</span>
-                                                    {q.label}
-                                                    {q.required && <span className="text-red-500 ml-1">*</span>}
-                                                </label>
-                                                {q.helperText && (
-                                                    <p className="text-xs text-gray-400 italic bg-gray-50 p-2 rounded-lg">{q.helperText}</p>
-                                                )}
-
-                                                {/* Render input by type */}
-                                                {['text', 'email', 'phone'].includes(q.answerType) && (
-                                                    <input type="text" className="w-full border rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-400" placeholder={q.validation?.placeholder as string || ''} />
-                                                )}
-                                                {q.answerType === 'textarea' && (
-                                                    <textarea className="w-full border rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-400 min-h-[80px]" placeholder={q.validation?.placeholder as string || ''} />
-                                                )}
-                                                {q.answerType === 'number' && (
-                                                    <input type="number" className="w-full border rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
-                                                )}
-                                                {q.answerType === 'date' && (
-                                                    <input type="date" className="w-full border rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-400" />
-                                                )}
-                                                {q.answerType === 'radio' && (
-                                                    <div className="space-y-2">
-                                                        {q.options?.map((opt, oi) => (
-                                                            <label key={oi} className="flex items-center gap-3 p-3 rounded-xl border hover:bg-blue-50 cursor-pointer transition-all">
-                                                                <input
-                                                                    type="radio"
-                                                                    name={q.questionId}
-                                                                    value={opt.value}
-                                                                    checked={radioValues[q.questionId] === opt.value}
-                                                                    onChange={() => setRadioValues(prev => ({ ...prev, [q.questionId]: opt.value }))}
-                                                                    className="text-blue-600"
-                                                                />
-                                                                <span className="text-sm font-medium text-gray-700">{opt.label}</span>
-                                                                {opt.hasAdditionalInput && radioValues[q.questionId] === opt.value && (
-                                                                    <input type="text" className="flex-1 border-b border-dashed border-blue-300 outline-none text-sm px-2 py-1" placeholder={opt.additionalInput?.label || 'Please specify'} />
-                                                                )}
-                                                            </label>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                                {q.answerType === 'checkbox' && (
-                                                    <div className="space-y-2">
-                                                        {q.options?.map((opt, oi) => {
-                                                            const checked = checkboxValues[q.questionId]?.includes(opt.value) || false;
-                                                            return (
-                                                                <label key={oi} className="flex items-center gap-3 p-3 rounded-xl border hover:bg-blue-50 cursor-pointer transition-all">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={checked}
-                                                                        onChange={() => setCheckboxValues(prev => ({
-                                                                            ...prev,
-                                                                            [q.questionId]: checked
-                                                                                ? (prev[q.questionId] || []).filter(v => v !== opt.value)
-                                                                                : [...(prev[q.questionId] || []), opt.value]
-                                                                        }))}
-                                                                        className="rounded text-blue-600"
-                                                                    />
-                                                                    <span className="text-sm font-medium text-gray-700">{opt.label}</span>
-                                                                    {opt.hasAdditionalInput && checked && (
-                                                                        <input type="text" className="flex-1 border-b border-dashed border-blue-300 outline-none text-sm px-2 py-1" placeholder={opt.additionalInput?.label || 'Please specify'} />
-                                                                    )}
-                                                                </label>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                )}
-                                                {q.answerType === 'matrix' && q.matrixConfig && (
-                                                    <div className="overflow-x-auto rounded-2xl border">
-                                                        <table className="min-w-full text-xs">
-                                                            <thead className="bg-gray-50">
-                                                                <tr>
-                                                                    <th className="p-3 text-left text-gray-400 font-black uppercase">—</th>
-                                                                    {q.matrixConfig.columns.map((col: any, ci: number) => (
-                                                                        <th key={ci} className="p-3 text-center text-gray-600 font-bold">{col.label}</th>
-                                                                    ))}
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {q.matrixConfig.rows.map((row: any, ri: number) => (
-                                                                    <tr key={ri} className="border-t">
-                                                                        <td className="p-3 font-bold text-gray-700">{row.label}</td>
-                                                                        {q.matrixConfig.columns.map((_: any, ci: number) => (
-                                                                            <td key={ci} className="p-3 text-center">
-                                                                                <input type={q.matrixConfig.cellType === 'radio' ? 'radio' : 'checkbox'} name={`${q.questionId}_r${ri}`} className="accent-blue-600" />
-                                                                            </td>
-                                                                        ))}
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
-                                ))}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {template.modules.map((mod: any) => (
+                        <div key={mod.moduleId} className="space-y-3">
+                            <div className="bg-white rounded-xl p-5 border border-t-4" style={{ borderTopColor: '#673AB7' }}>
+                                <h3 className="text-xl font-semibold text-gray-800">{template.templateName}</h3>
+                                <p className="text-sm text-gray-500 mt-1">{mod.moduleName}</p>
                             </div>
+                            {mod.questions.map((q: Question) => (
+                                <div key={q.questionId} className="bg-white rounded-xl p-5 border border-gray-200">
+                                    {q.answerType === 'header' ? (
+                                        <h4 className="text-base font-semibold text-gray-800 border-b pb-2">{q.label}</h4>
+                                    ) : q.answerType === 'note' ? (
+                                        <div className="bg-amber-50 border-l-4 border-amber-400 p-3 text-sm text-amber-800 rounded-r-lg">{q.label}</div>
+                                    ) : (
+                                        <>
+                                            <p className="text-sm font-medium text-gray-800 mb-3">
+                                                {q.label}
+                                                {q.required && <span className="text-red-500 ml-1">*</span>}
+                                            </p>
+                                            {q.helperText && <p className="text-xs text-gray-400 mb-3">{q.helperText}</p>}
+
+                                            {['text', 'email', 'phone'].includes(q.answerType) && (
+                                                <input type="text" className="w-full border-b border-gray-300 focus:border-blue-500 outline-none text-sm py-1.5 bg-transparent" placeholder="Your answer" />
+                                            )}
+                                            {q.answerType === 'textarea' && (
+                                                <textarea className="w-full border-b border-gray-300 focus:border-blue-500 outline-none text-sm py-1.5 bg-transparent resize-none min-h-[60px]" placeholder="Your answer" />
+                                            )}
+                                            {q.answerType === 'number' && (
+                                                <input type="number" className="w-full border-b border-gray-300 focus:border-blue-500 outline-none text-sm py-1.5 bg-transparent" placeholder="0" />
+                                            )}
+                                            {q.answerType === 'date' && (
+                                                <input type="date" className="border-b border-gray-300 focus:border-blue-500 outline-none text-sm py-1.5 bg-transparent" />
+                                            )}
+                                            {q.answerType === 'radio' && q.options?.map((opt, oi) => (
+                                                <label key={oi} className="flex items-center gap-3 py-1.5 cursor-pointer">
+                                                    <input type="radio" name={q.questionId} value={opt.value}
+                                                        checked={radioValues[q.questionId] === opt.value}
+                                                        onChange={() => setRadioValues(prev => ({ ...prev, [q.questionId]: opt.value }))}
+                                                        className="accent-purple-600" />
+                                                    <span className="text-sm text-gray-700">{opt.label}</span>
+                                                </label>
+                                            ))}
+                                            {q.answerType === 'checkbox' && q.options?.map((opt, oi) => (
+                                                <label key={oi} className="flex items-center gap-3 py-1.5 cursor-pointer">
+                                                    <input type="checkbox"
+                                                        checked={checkboxValues[q.questionId]?.includes(opt.value) || false}
+                                                        onChange={() => setCheckboxValues(prev => ({
+                                                            ...prev,
+                                                            [q.questionId]: prev[q.questionId]?.includes(opt.value)
+                                                                ? prev[q.questionId].filter(v => v !== opt.value)
+                                                                : [...(prev[q.questionId] || []), opt.value]
+                                                        }))}
+                                                        className="accent-purple-600 rounded" />
+                                                    <span className="text-sm text-gray-700">{opt.label}</span>
+                                                </label>
+                                            ))}
+                                        </>
+                                    )}
+                                </div>
+                            ))}
                         </div>
                     ))}
                 </div>
-
-                <footer className="p-6 border-t bg-gray-50/50 rounded-b-3xl flex justify-end gap-3">
-                    <button onClick={onClose} className="px-6 py-2.5 text-sm font-bold text-gray-600 hover:text-gray-900 transition-colors">
-                        Close Preview
-                    </button>
-                </footer>
             </div>
+        </div>
+    );
+};
+
+const SidebarActions: React.FC = () => {
+    const { dispatch } = useFormBuilder();
+    return (
+        <div className="fixed right-10 top-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 flex flex-col gap-2 z-40">
+            <button
+                onClick={() => dispatch({ type: 'OPEN_TYPE_SELECTOR', moduleId: 'any' })} // Simplification for demo
+                className="p-4 rounded-xl text-gray-500 hover:text-purple-600 hover:bg-purple-50 transition-all group relative"
+                title="Add Question"
+            >
+                <Plus size={24} />
+                <span className="absolute right-full mr-4 bg-gray-900 text-white text-[10px] font-bold py-1 px-3 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">Add Question</span>
+            </button>
+            <button className="p-4 rounded-xl text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all group relative" title="Add Section">
+                <Layers size={24} />
+                <span className="absolute right-full mr-4 bg-gray-900 text-white text-[10px] font-bold py-1 px-3 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">Add Section</span>
+            </button>
+            <button className="p-4 rounded-xl text-gray-500 hover:text-pink-600 hover:bg-pink-50 transition-all group relative" title="Customize Theme">
+                <Palette size={24} />
+                <span className="absolute right-full mr-4 bg-gray-900 text-white text-[10px] font-bold py-1 px-3 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">Theme</span>
+            </button>
+            <div className="h-px bg-gray-100 mx-2" />
+            <button className="p-4 rounded-xl text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all group relative" title="Settings">
+                <Settings size={24} />
+                <span className="absolute right-full mr-4 bg-gray-900 text-white text-[10px] font-bold py-1 px-3 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">Settings</span>
+            </button>
         </div>
     );
 };
@@ -196,15 +631,38 @@ const PreviewModal: React.FC<{ template: any; onClose: () => void }> = ({ templa
 const InnerFormBuilder: React.FC = () => {
     const { state, dispatch } = useFormBuilder();
     const navigate = useNavigate();
+    const { id } = useParams();
     const [showPreview, setShowPreview] = useState(false);
     const [savedId, setSavedId] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isPublishing, setIsPublishing] = useState(false);
+
+    useEffect(() => {
+        if (id) {
+            setSavedId(id);
+            fetchTemplate(id);
+        }
+    }, [id]);
+
+    const fetchTemplate = async (templateId: string) => {
+        setIsLoading(true);
+        try {
+            const response = await api.get(`/templates/${templateId}`);
+            const converted = convertFromBackendSchema(response.data);
+            dispatch({ type: 'LOAD_TEMPLATE', template: converted });
+        } catch (error) {
+            toast.error('Failed to load template');
+            navigate('/admin/template-library');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const buildPayload = (status: 'Draft' | 'Published') => ({
         name: state.template.templateName,
         category: 'Household',
-        moduleType: 'QNR',
+        moduleType: 'HHQ',
         description: '',
         status,
         modules: convertToBackendSchema(state.template)
@@ -216,15 +674,14 @@ const InnerFormBuilder: React.FC = () => {
             let response;
             if (savedId) {
                 response = await api.put(`/templates/${savedId}`, buildPayload('Draft'));
-                toast.success('Draft updated successfully!');
+                toast.success('Draft updated!');
             } else {
                 response = await api.post('/templates', buildPayload('Draft'));
                 setSavedId(response.data._id);
-                toast.success('Draft saved successfully!');
+                toast.success('Draft saved!');
             }
         } catch (error: any) {
-            const msg = error?.response?.data?.message || error.message || 'Failed to save draft';
-            toast.error(msg);
+            toast.error(error?.response?.data?.message || 'Failed to save');
         } finally {
             setIsSaving(false);
         }
@@ -234,128 +691,148 @@ const InnerFormBuilder: React.FC = () => {
         setIsPublishing(true);
         try {
             let id = savedId;
-            // If never saved, create a draft first
             if (!id) {
-                const draftRes = await api.post('/templates', buildPayload('Draft'));
-                id = draftRes.data._id;
+                const res = await api.post('/templates', buildPayload('Draft'));
+                id = res.data._id;
                 setSavedId(id);
             }
-            // Then publish
             await api.post(`/templates/${id}/publish`);
-            toast.success('🚀 Template published successfully!');
+            toast.success('🚀 Published!');
         } catch (error: any) {
-            const msg = error?.response?.data?.message || error.message || 'Failed to publish';
-            toast.error(msg);
+            toast.error(error?.response?.data?.message || 'Failed to publish');
         } finally {
             setIsPublishing(false);
         }
     };
 
+    const totalQuestions = state.template.modules.reduce((a, m) => a + m.questions.length, 0);
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col h-screen bg-gray-100 items-center justify-center">
+                <Loader2 className="w-10 h-10 animate-spin text-blue-600 mb-4" />
+                <p className="text-gray-500 font-bold">Loading Template...</p>
+            </div>
+        );
+    }
+
     return (
-        <div className="flex flex-col h-screen bg-gray-50 overflow-hidden font-sans">
-            {/* 🏆 Top Navigation */}
-            <nav className="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-8 z-30 shadow-sm flex-shrink-0">
-                <div className="flex items-center gap-6">
+        <div className="flex flex-col h-screen bg-gray-100 overflow-hidden font-sans">
+            {/* ── Top Bar (Google Forms style) ── */}
+            <nav className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 z-30 shadow-sm flex-shrink-0">
+                <div className="flex items-center gap-3">
                     <button
                         onClick={() => navigate('/admin/template-library')}
-                        className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 transition-colors"
-                        title="Back to Template Library"
+                        className="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"
+                        title="Back to Library"
                     >
-                        <ChevronLeft size={24} />
+                        <ChevronLeft size={22} />
                     </button>
-                    <div className="h-8 w-[1px] bg-gray-100" />
+
+                    {/* Logo dots (Google Forms inspired) */}
+                    <div className="flex gap-0.5">
+                        <div className="w-4 h-5 rounded-sm" style={{ backgroundColor: '#673AB7' }} />
+                        <div className="w-4 h-5 rounded-sm" style={{ backgroundColor: '#3F51B5' }} />
+                        <div className="w-4 h-5 rounded-sm" style={{ backgroundColor: '#2196F3' }} />
+                    </div>
+
                     <div>
                         <input
                             type="text"
                             value={state.template.templateName}
-                            onChange={(e) => dispatch({ type: 'SET_TEMPLATE_NAME', name: e.target.value })}
-                            className="text-lg font-black text-gray-900 bg-transparent border-none outline-none focus:ring-0 p-0"
+                            onChange={e => dispatch({ type: 'SET_TEMPLATE_NAME', name: e.target.value })}
+                            className="text-base font-medium text-gray-800 bg-transparent border-none outline-none focus:ring-0 p-0 min-w-[200px]"
                         />
-                        <div className="flex items-center gap-2 mt-0.5">
-                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Architect Engine v4.0</span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-gray-400">{totalQuestions} question{totalQuestions !== 1 ? 's' : ''}</span>
+                            {savedId && <span className="text-[10px] text-green-500 flex items-center gap-1"><Check size={9} /> Saved</span>}
                         </div>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-8">
-                    {/* Device Switcher */}
-                    <div className="hidden lg:flex bg-gray-100 p-1 rounded-xl">
-                        <button className="p-2 text-gray-400 hover:text-blue-600 transition-colors"><Smartphone size={18} /></button>
-                        <button className="p-2 text-gray-400 hover:text-blue-600 transition-colors"><Tablet size={18} /></button>
-                        <button className="p-2 bg-white text-blue-600 rounded-lg shadow-sm"><Monitor size={18} /></button>
-                    </div>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setShowPreview(true)}
+                        className="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"
+                        title="Preview"
+                    >
+                        <Eye size={20} />
+                    </button>
 
-                    <div className="flex items-center gap-3">
-                        {/* ✅ Working Preview Button */}
-                        <button
-                            onClick={() => setShowPreview(true)}
-                            className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-xl transition-all"
-                        >
-                            <Eye size={18} /> Preview
-                        </button>
+                    <button
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-purple-700 hover:bg-purple-50 rounded-lg transition-all disabled:opacity-50"
+                    >
+                        {isSaving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                        {isSaving ? 'Saving...' : 'Save'}
+                    </button>
 
-                        {/* ✅ Working Save Draft Button */}
-                        <button
-                            onClick={handleSave}
-                            disabled={isSaving}
-                            className={clsx(
-                                "flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all",
-                                isSaving && "opacity-60 cursor-not-allowed"
-                            )}
-                        >
-                            <Save size={18} /> {isSaving ? 'Saving...' : 'Save Draft'}
-                        </button>
-
-                        {/* ✅ Working Publish Button */}
-                        <button
-                            onClick={handlePublish}
-                            disabled={isPublishing}
-                            className={clsx(
-                                "flex items-center gap-2 px-6 py-2.5 text-sm font-black text-white bg-gray-900 hover:bg-black rounded-xl shadow-xl shadow-gray-200 transition-all uppercase tracking-widest",
-                                isPublishing && "opacity-60 cursor-not-allowed"
-                            )}
-                        >
-                            {isPublishing ? 'Publishing...' : 'Publish'} <Send size={16} className="ml-1" />
-                        </button>
-                    </div>
+                    <button
+                        onClick={handlePublish}
+                        disabled={isPublishing}
+                        className="flex items-center gap-1.5 px-5 py-2 text-sm font-semibold text-white rounded-lg transition-all disabled:opacity-50"
+                        style={{ backgroundColor: '#673AB7' }}
+                    >
+                        {isPublishing ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+                        {isPublishing ? 'Publishing...' : 'Publish'}
+                    </button>
                 </div>
             </nav>
 
-            {/* 🏗 Main Workspace */}
-            <main className="flex flex-1 overflow-hidden relative">
-                <div className="flex-1 overflow-y-auto px-8 pt-12 pb-24 scroll-smooth">
-                    <div className="max-w-4xl mx-auto">
-                        <div className="mb-12 bg-white rounded-3xl p-8 border border-gray-100 shadow-sm relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                <Download size={80} />
+            {/* ── Floating Actions Sidebar ── */}
+            <SidebarActions />
+
+            <main className="flex-1 overflow-y-auto pt-8 pb-32 px-4 scroll-smooth">
+                <div className="max-w-[770px] mx-auto">
+                    {/* Header Image Area */}
+                    <div className="h-40 w-full rounded-2xl mb-8 overflow-hidden relative shadow-xl shadow-purple-200/50">
+                        <img
+                            src="https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&q=80&w=1200"
+                            className="w-full h-full object-cover"
+                            alt="Header"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                        <div className="absolute bottom-6 left-8 flex items-center gap-3">
+                            <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl border border-white/30 text-white shadow-xl">
+                                <Sparkles size={24} />
                             </div>
-                            <h2 className="text-sm font-black text-blue-600 uppercase tracking-[0.2em] mb-2">Instrument Overview</h2>
-                            <h1 className="text-4xl font-black text-gray-900 tracking-tight leading-tight">
-                                Build your questionnaire structures <br />with semantic precision.
-                            </h1>
+                            <h2 className="text-2xl font-black text-white drop-shadow-lg tracking-tight">Instrument Designer</h2>
                         </div>
-                        <ModuleBuilder />
+                    </div>
+
+                    {state.template.modules.map((m, idx) => (
+                        <ModuleBlock key={m.moduleId} module={m} order={idx} />
+                    ))}
+
+                    <div className="flex justify-center mt-12 pb-24">
+                        <button
+                            onClick={() => dispatch({ type: 'ADD_MODULE', name: 'New Section' })}
+                            className="flex items-center gap-2 group text-gray-400 hover:text-purple-600 transition-all"
+                        >
+                            <div className="w-12 h-px bg-gray-200 group-hover:bg-purple-200 transition-all" />
+                            <span className="text-xs font-black uppercase tracking-widest px-4 py-2 border border-gray-100 rounded-full group-hover:border-purple-100">Add New Module</span>
+                            <div className="w-12 h-px bg-gray-200 group-hover:bg-purple-200 transition-all" />
+                        </button>
                     </div>
                 </div>
-
-                <QuestionEditor />
             </main>
 
-            {/* Overlays */}
-            <QuestionTypeSelector />
-            {showPreview && <PreviewModal template={state.template} onClose={() => setShowPreview(false)} />}
+            {/* ── Preview Modal ── */}
+            <AnimatePresence>
+                {showPreview && (
+                    <PreviewModal template={state.template} onClose={() => setShowPreview(false)} />
+                )}
+            </AnimatePresence>
         </div>
     );
 };
 
-// ─── Root Component ───────────────────────────────────────────────────────────
-const FormBuilder: React.FC = () => {
-    return (
-        <FormBuilderProvider>
-            <InnerFormBuilder />
-        </FormBuilderProvider>
-    );
-};
+// ─── Root ─────────────────────────────────────────────────────────────────────
+const FormBuilder: React.FC = () => (
+    <FormBuilderProvider>
+        <InnerFormBuilder />
+    </FormBuilderProvider>
+);
 
 export default FormBuilder;

@@ -82,8 +82,9 @@ const templateSchema = new mongoose.Schema({
     isDeleted: { type: Boolean, default: false }
 }, { timestamps: true });
 
-// Ensure unique versioning per moduleType/category if needed, 
-// or just handle it in logic.
-templateSchema.index({ moduleType: 1, version: 1 }, { unique: true });
+// Ensure unique versioning per template name.
+// This allows multiple templates to share the same moduleType (category)
+// while keeping versions unique within a named template group.
+templateSchema.index({ name: 1, version: 1 }, { unique: true });
 
 export default mongoose.model('Template', templateSchema);

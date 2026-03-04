@@ -71,7 +71,8 @@ type Action =
     | { type: 'ADD_QUESTION'; moduleId: string; answerType: AnswerType }
     | { type: 'UPDATE_QUESTION'; questionId: string; updates: Partial<Question> }
     | { type: 'REMOVE_QUESTION'; questionId: string }
-    | { type: 'SELECT_QUESTION'; questionId: string | null };
+    | { type: 'SELECT_QUESTION'; questionId: string | null }
+    | { type: 'LOAD_TEMPLATE'; template: FormTemplate };
 
 // --- Reducer ---
 const formReducer = (state: FormState, action: Action): FormState => {
@@ -160,6 +161,9 @@ const formReducer = (state: FormState, action: Action): FormState => {
 
         case 'SELECT_QUESTION':
             return { ...state, activeQuestionId: action.questionId };
+
+        case 'LOAD_TEMPLATE':
+            return { ...state, template: action.template, activeQuestionId: null };
 
         default:
             return state;
