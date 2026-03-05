@@ -39,6 +39,11 @@ const fieldSchema = new mongoose.Schema({
     repeatable: { type: Boolean, default: false },
     helpText: String,
     defaultValue: mongoose.Schema.Types.Mixed,
+    systemAutoFill: {
+        type: String,
+        enum: ['none', 'user_name', 'user_phone', 'user_email', 'user_organization', 'user_subcity', 'user_kebele'],
+        default: 'none'
+    },
     permissions: {
         visibleToRoles: [{ type: String }], // Role names or IDs
         editableByRoles: [{ type: String }]
@@ -64,7 +69,7 @@ const templateSchema = new mongoose.Schema({
     description: String,
     category: {
         type: String,
-        enum: ['Household', 'Woreda', 'Shock', 'Finance', 'Assessment', 'Other'],
+        enum: ['Household', 'Woreda', 'Shock', 'Finance', 'Assessment', 'Feedback', 'Other'],
         default: 'Other'
     },
     moduleType: { type: String }, // e.g., 'HHQ', 'WRP', 'SAP'

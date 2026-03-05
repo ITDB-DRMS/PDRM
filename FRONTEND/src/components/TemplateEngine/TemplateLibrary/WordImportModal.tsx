@@ -19,6 +19,7 @@ interface ParsedField {
     matrixConfig?: { rows: any[]; columns: any[] };
     helpText?: string;
     required: boolean;
+    systemAutoFill?: string;
 }
 
 interface ParsedSection {
@@ -119,6 +120,14 @@ const ModulePreview: React.FC<{ module: ParsedModule; idx: number }> = ({ module
                                                         <span className="text-blue-500 font-black mr-1">{field.questionCode}</span>
                                                         {field.label}
                                                     </p>
+                                                    {field.systemAutoFill && field.systemAutoFill !== 'none' && (
+                                                        <div className="mt-1 flex items-center gap-1">
+                                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-blue-100 text-blue-700 text-[8px] font-black uppercase tracking-tighter">
+                                                                <Cloud size={8} className="mr-0.5" />
+                                                                System Auto-filled
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                     {field.options && field.options.length > 0 && (
                                                         <p className="text-[10px] text-gray-400 mt-0.5">
                                                             {field.options.slice(0, 3).map(o => o.label).join(' · ')}
@@ -150,7 +159,7 @@ interface WordImportModalProps {
     onImported: () => void;
 }
 
-type Step = 'upload' | 'preview' | 'saving';
+type Step = 'upload' | 'analysis' | 'preview' | 'saving';
 
 const CATEGORIES = ['Household', 'Woreda', 'Shock', 'Finance', 'Assessment', 'Other'];
 const MODULE_TYPES = ['HHQ', 'WRP', 'SAP', 'DRA', 'CRA', 'EA', 'VOL', 'AW', 'INS', 'Other'];
@@ -198,7 +207,9 @@ const WordImportModal: React.FC<WordImportModalProps> = ({ onClose, onImported }
             setTemplateName(data.name || file.name.replace(/\.docx$/i, ''));
             setCategory(data.category || 'Household');
             setModuleType(data.moduleType || 'HHQ');
-            setStep('preview');
+
+            // Move to analysis first
+            setStep('analysis');
         } catch (err: any) {
             const msg = err?.response?.data?.message || err.message || 'Failed to parse Word document';
             setParseError(msg);
@@ -253,6 +264,7 @@ const WordImportModal: React.FC<WordImportModalProps> = ({ onClose, onImported }
                             required: f.required || false,
                             options: f.options || [],
                             matrixConfig: f.matrixConfig,
+                            systemAutoFill: (f as any).systemAutoFill || 'none',
                             validation: {},
                             permissions: { visibleToRoles: [], editableByRoles: [] }
                         }))
@@ -303,8 +315,9 @@ const WordImportModal: React.FC<WordImportModalProps> = ({ onClose, onImported }
                             <h2 className="text-lg font-black text-white">Import from Word</h2>
                             <p className="text-blue-200 text-xs mt-0.5">
                                 {step === 'upload' ? 'Upload a .docx questionnaire file' :
-                                    step === 'preview' ? `Parsed · ${parsedTemplate?.modules.length} modules · ${totalFields} fields` :
-                                        'Saving your template...'}
+                                    step === 'analysis' ? 'Initial Analysis Output' :
+                                        step === 'preview' ? `Parsed · ${parsedTemplate?.modules.length} modules · ${totalFields} fields` :
+                                            'Saving your template...'}
                             </p>
                         </div>
                     </div>
@@ -319,24 +332,25 @@ const WordImportModal: React.FC<WordImportModalProps> = ({ onClose, onImported }
                 {/* ── Step Indicator ── */}
                 <div className="flex-shrink-0 px-8 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
                     {[
-                        { id: 'upload', label: 'Upload File' },
-                        { id: 'preview', label: 'Review & Configure' },
-                        { id: 'saving', label: 'Save Template' },
+                        { id: 'upload', label: 'Upload' },
+                        { id: 'analysis', label: 'Analysis' },
+                        { id: 'preview', label: 'Review' },
+                        { id: 'saving', label: 'Save' },
                     ].map((s, i) => (
                         <React.Fragment key={s.id}>
-                            <div className={`flex items-center gap-2 text-xs font-bold transition-colors ${step === s.id ? 'text-blue-600' :
-                                    (step === 'preview' && i === 0) || step === 'saving' ? 'text-green-600' :
-                                        'text-gray-400'
+                            <div className={`flex items-center gap-2 text-[10px] font-bold transition-colors ${step === s.id ? 'text-blue-600' :
+                                (step === 'preview' && i <= 2) || (step === 'analysis' && i === 0) || step === 'saving' ? 'text-green-600' :
+                                    'text-gray-400'
                                 }`}>
-                                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${step === s.id ? 'bg-blue-600 text-white' :
-                                        (step === 'preview' && i === 0) || step === 'saving' ? 'bg-green-500 text-white' :
-                                            'bg-gray-200 text-gray-500'
+                                <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black ${step === s.id ? 'bg-blue-600 text-white' :
+                                    (step === 'preview' && i <= 2) || (step === 'analysis' && i === 0) || step === 'saving' ? 'bg-green-500 text-white' :
+                                        'bg-gray-200 text-gray-500'
                                     }`}>
-                                    {((step === 'preview' && i === 0) || step === 'saving') ? '✓' : i + 1}
+                                    {((step === 'preview' && i <= 2) || (step === 'analysis' && i === 0) || step === 'saving') ? '✓' : i + 1}
                                 </div>
                                 {s.label}
                             </div>
-                            {i < 2 && <div className="flex-1 h-px bg-gray-200" />}
+                            {i < 3 && <div className="flex-1 h-px bg-gray-200" />}
                         </React.Fragment>
                     ))}
                 </div>
@@ -353,10 +367,10 @@ const WordImportModal: React.FC<WordImportModalProps> = ({ onClose, onImported }
                                 onDrop={onDrop}
                                 onClick={() => !isParsing && fileInputRef.current?.click()}
                                 className={`relative border-2 border-dashed rounded-3xl p-12 text-center transition-all cursor-pointer select-none ${isDragging
-                                        ? 'border-blue-400 bg-blue-50 scale-[1.01]'
-                                        : isParsing
-                                            ? 'border-indigo-300 bg-indigo-50 cursor-wait'
-                                            : 'border-gray-200 bg-gray-50 hover:border-blue-300 hover:bg-blue-50/50'
+                                    ? 'border-blue-400 bg-blue-50 scale-[1.01]'
+                                    : isParsing
+                                        ? 'border-indigo-300 bg-indigo-50 cursor-wait'
+                                        : 'border-gray-200 bg-gray-50 hover:border-blue-300 hover:bg-blue-50/50'
                                     }`}
                             >
                                 <input
@@ -420,7 +434,90 @@ const WordImportModal: React.FC<WordImportModalProps> = ({ onClose, onImported }
                         </div>
                     )}
 
-                    {/* STEP 2: Preview & Configure */}
+                    {/* STEP 2: Analysis */}
+                    {step === 'analysis' && parsedTemplate && (
+                        <div className="p-8 space-y-6">
+                            <div className="flex items-center gap-3 mb-2">
+                                <Sparkles className="text-yellow-500" size={24} />
+                                <h3 className="text-xl font-black text-gray-800">Document Analysis Complete</h3>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="p-5 bg-blue-50 rounded-2xl border border-blue-100">
+                                    <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center text-white mb-3">
+                                        <Layers size={20} />
+                                    </div>
+                                    <p className="text-2xl font-black text-blue-700">{parsedTemplate.modules.length}</p>
+                                    <p className="text-sm font-bold text-blue-600/70">Modules Detected</p>
+                                </div>
+                                <div className="p-5 bg-indigo-50 rounded-2xl border border-indigo-100">
+                                    <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center text-white mb-3">
+                                        <HelpCircle size={20} />
+                                    </div>
+                                    <p className="text-2xl font-black text-indigo-700">{totalFields}</p>
+                                    <p className="text-sm font-bold text-indigo-600/70">Questions & Notes</p>
+                                </div>
+                                <div className="p-5 bg-orange-50 rounded-2xl border border-orange-100">
+                                    <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center text-white mb-3">
+                                        <Table2 size={20} />
+                                    </div>
+                                    <p className="text-2xl font-black text-orange-700">
+                                        {parsedTemplate.modules.flatMap(m => m.sections.flatMap(s => s.fields.filter(f => f.type === 'matrix'))).length}
+                                    </p>
+                                    <p className="text-sm font-bold text-orange-600/70">Tables (Matrices)</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Detail Breakdown</h4>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-green-500" />
+                                            <span className="text-xs font-bold text-gray-600">Choices/Options</span>
+                                        </div>
+                                        <span className="text-xs font-black text-gray-900">
+                                            {parsedTemplate.modules.flatMap(m => m.sections.flatMap(s => s.fields.flatMap(f => f.options || []))).length}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-purple-500" />
+                                            <span className="text-xs font-bold text-gray-600">Sections</span>
+                                        </div>
+                                        <span className="text-xs font-black text-gray-900">{totalSections}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-amber-50 rounded-2xl p-5 border border-amber-100 flex gap-4">
+                                <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <Sparkles className="text-amber-600" size={24} />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-black text-amber-900">AI Analysis Insight</p>
+                                    <p className="text-xs text-amber-700/80 leading-relaxed mt-1">
+                                        We found <strong>{totalFields}</strong> questions across <strong>{parsedTemplate.modules.length}</strong> modules.
+                                        {parsedTemplate.modules.flatMap(m => m.sections.flatMap(s => s.fields.filter(f => f.type === 'matrix'))).length > 0 ?
+                                            ` We successfully identified several tables which have been converted to Matrix fields.` :
+                                            ` No tables were detected in this document structure.`
+                                        } Options were extracted from bullet points and numbered lists.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-center pt-4">
+                                <button
+                                    onClick={() => setStep('preview')}
+                                    className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-sm shadow-xl shadow-blue-200 transition-all flex items-center gap-2"
+                                >
+                                    Proceed to Detailed Preview <ChevronRight size={18} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* STEP 3: Preview & Configure */}
                     {(step === 'preview' || step === 'saving') && parsedTemplate && (
                         <div className="flex flex-col lg:flex-row gap-0 h-full">
                             {/* Left: Config */}
@@ -490,10 +587,10 @@ const WordImportModal: React.FC<WordImportModalProps> = ({ onClose, onImported }
                                                 key={mode}
                                                 onClick={() => setSaveMode(mode)}
                                                 className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${saveMode === mode
-                                                        ? mode === 'Published'
-                                                            ? 'bg-green-600 text-white border-green-600'
-                                                            : 'bg-amber-500 text-white border-amber-500'
-                                                        : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                                                    ? mode === 'Published'
+                                                        ? 'bg-green-600 text-white border-green-600'
+                                                        : 'bg-amber-500 text-white border-amber-500'
+                                                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
                                                     }`}
                                             >
                                                 {mode}

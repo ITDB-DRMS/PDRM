@@ -6,6 +6,7 @@ import {
     createTemplate,
     updateTemplate,
     publishTemplate,
+    revertToDraft,
     createNewVersion,
     archiveTemplate,
     restoreTemplate,
@@ -22,6 +23,7 @@ router.post('/import-word', upload.single('file'), importWordTemplate); // ⚠ M
 router.get('/:id', getTemplateById);
 router.put('/:id', updateTemplate);
 router.post('/:id/publish', publishTemplate);
+router.post('/:id/revert-to-draft', revertToDraft);
 router.post('/:id/new-version', createNewVersion);
 router.post('/:id/restore', restoreTemplate);
 router.delete('/:id', archiveTemplate);

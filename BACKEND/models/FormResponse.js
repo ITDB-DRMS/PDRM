@@ -5,11 +5,10 @@ const formResponseSchema = new mongoose.Schema({
     templateVersion: { type: Number, required: true },
 
     // Dynamic context mapping
-    moduleContextId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    moduleContextId: { type: mongoose.Schema.Types.Mixed },
     moduleContextType: {
         type: String,
-        enum: ['Household', 'Woreda', 'Shock', 'Finance', 'Assessment'],
-        required: true
+        default: 'Feedback'
     },
 
     respondentMetadata: {

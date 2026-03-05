@@ -57,6 +57,8 @@ interface FormState {
     template: FormTemplate;
     activeQuestionId: string | null;
     isSelectingType: boolean;
+    isSettingsOpen: boolean;
+    isThemeOpen: boolean;
     targetModuleId: string | null;
 }
 
@@ -71,7 +73,10 @@ type Action =
     | { type: 'ADD_QUESTION'; moduleId: string; answerType: AnswerType }
     | { type: 'UPDATE_QUESTION'; questionId: string; updates: Partial<Question> }
     | { type: 'REMOVE_QUESTION'; questionId: string }
+    | { type: 'DUPLICATE_QUESTION'; questionId: string }
     | { type: 'SELECT_QUESTION'; questionId: string | null }
+    | { type: 'TOGGLE_SETTINGS'; open?: boolean }
+    | { type: 'TOGGLE_THEME'; open?: boolean }
     | { type: 'LOAD_TEMPLATE'; template: FormTemplate };
 
 // --- Reducer ---
@@ -98,8 +103,14 @@ const formReducer = (state: FormState, action: Action): FormState => {
                 }
             };
 
-        case 'OPEN_TYPE_SELECTOR':
-            return { ...state, isSelectingType: true, targetModuleId: action.moduleId };
+        case 'OPEN_TYPE_SELECTOR': {
+            const lastModuleId = state.template.modules[state.template.modules.length - 1]?.moduleId;
+            return {
+                ...state,
+                isSelectingType: true,
+                targetModuleId: action.moduleId === 'any' ? lastModuleId : action.moduleId
+            };
+        }
 
         case 'CLOSE_TYPE_SELECTOR':
             return { ...state, isSelectingType: false, targetModuleId: null };
@@ -159,8 +170,42 @@ const formReducer = (state: FormState, action: Action): FormState => {
                 }
             };
 
+        case 'DUPLICATE_QUESTION': {
+            let found = false;
+            let newQId = '';
+            const newModules = state.template.modules.map(m => {
+                const idx = m.questions.findIndex(q => q.questionId === action.questionId);
+                if (idx !== -1) {
+                    found = true;
+                    const original = m.questions[idx];
+                    const clone = JSON.parse(JSON.stringify(original));
+                    clone.questionId = uuidv4();
+                    clone.questionCode = `${original.questionCode}_copy`;
+                    newQId = clone.questionId;
+                    const updatedQuestions = [...m.questions];
+                    updatedQuestions.splice(idx + 1, 0, clone);
+                    return { ...m, questions: updatedQuestions };
+                }
+                return m;
+            });
+
+            if (!found) return state;
+
+            return {
+                ...state,
+                activeQuestionId: newQId,
+                template: { ...state.template, modules: newModules }
+            };
+        }
+
         case 'SELECT_QUESTION':
             return { ...state, activeQuestionId: action.questionId };
+
+        case 'TOGGLE_SETTINGS':
+            return { ...state, isSettingsOpen: action.open ?? !state.isSettingsOpen };
+
+        case 'TOGGLE_THEME':
+            return { ...state, isThemeOpen: action.open ?? !state.isThemeOpen };
 
         case 'LOAD_TEMPLATE':
             return { ...state, template: action.template, activeQuestionId: null };
@@ -179,6 +224,8 @@ const initialState: FormState = {
     },
     activeQuestionId: null,
     isSelectingType: false,
+    isSettingsOpen: false,
+    isThemeOpen: false,
     targetModuleId: null
 };
 

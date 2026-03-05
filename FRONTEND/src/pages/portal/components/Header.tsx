@@ -16,28 +16,33 @@ const Header: React.FC = () => {
     }, []);
 
     const navLinks = [
-        { name: "Home", href: "#" },
-        { name: "About", href: "#about" },
-        { name: "Contact Us", href: "#contact" },
+        { name: "Home", href: "/" },
+        { name: "About", href: "/#about" },
+        { name: "Feedback", href: "/feedback" },
+        { name: "Contact Us", href: "/#contact" },
     ];
 
     return (
         <header
             className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
-                    ? "bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shadow-lg py-3"
-                    : "bg-transparent py-5"
+                ? "bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shadow-lg py-3"
+                : "bg-transparent py-5"
                 }`}
         >
             <div className="container mx-auto px-4 md:px-6">
                 <nav className="flex items-center justify-between">
                     {/* Logo */}
-                    <Link to="/" className="flex items-center gap-2 group">
-                        <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center transform group-hover:rotate-12 transition-transform duration-300">
-                            <Globe className="text-white w-6 h-6" />
+                    <Link to="/" className="flex items-center gap-3 group">
+                        <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-lg flex items-center justify-center transform group-hover:rotate-12 transition-transform duration-300 shadow-sm border border-slate-100 dark:border-slate-700">
+                            <img
+                                src="/images/logo/logo.png"
+                                alt="PDRM Logo"
+                                className="w-8 h-8 object-contain"
+                            />
                         </div>
-                        <span className={`text-xl font-bold tracking-tight ${isScrolled ? "text-slate-900 dark:text-white" : "text-slate-900 dark:text-white md:text-white"
+                        <span className={`text-2xl font-black tracking-tight ${isScrolled ? "text-slate-900 dark:text-white" : "text-slate-900 dark:text-white md:text-white"
                             }`}>
-                            IDRM<span className="text-indigo-600">IS</span>
+                            PDRM
                         </span>
                     </Link>
 

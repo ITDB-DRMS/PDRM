@@ -61,10 +61,23 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/responses', formResponseRoutes);
 
+app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+
+// Diagnostic for FormResponse model
+import FormResponse from './models/FormResponse.js';
+console.log("FormResponse Schema Keys:", Object.keys(FormResponse.schema.paths));
+if (FormResponse.schema.paths.moduleContextType.enumValues) {
+    console.log("WARNING: moduleContextType still has enums:", FormResponse.schema.paths.moduleContextType.enumValues);
+} else {
+    console.log("SUCCESS: moduleContextType enum has been removed.");
+}
+
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+
 
 
 

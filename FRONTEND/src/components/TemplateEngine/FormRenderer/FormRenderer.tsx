@@ -3,8 +3,9 @@ import { useForm } from 'react-hook-form';
 import {
     TextField, RadioField, SelectField, MatrixField, TableField, GeoField, FileField
 } from './FieldComponents';
-import { ChevronLeft, ChevronRight, Save, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Save, CheckCircle2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '@/context/AuthContext';
 
 interface FormRendererProps {
     template: any;
@@ -24,12 +25,38 @@ const FormRenderer: React.FC<FormRendererProps> = ({
         defaultValues: initialData || {}
     });
 
+    const { user } = useAuth();
+
     const formValues = watch();
-    const currentModule = template.modules[currentModuleIdx];
+    const currentModule = template?.modules?.[currentModuleIdx];
 
     useEffect(() => {
-        if (initialData) reset(initialData);
-    }, [initialData, reset]);
+        if (initialData) {
+            reset(initialData);
+        } else if (user && template?.modules?.length > 0) {
+            // Check for fields that need auto-filling
+            template.modules.forEach((mod: any) => {
+                mod.sections?.forEach((sec: any) => {
+                    sec.fields?.forEach((field: any) => {
+                        if (field.systemAutoFill && field.systemAutoFill !== 'none') {
+                            let val = '';
+                            switch (field.systemAutoFill) {
+                                case 'user_name': val = user.fullname; break;
+                                case 'user_phone': val = user.phone || ''; break;
+                                case 'user_email': val = user.email; break;
+                                case 'user_subcity': val = user.subcity || ''; break;
+                                case 'user_kebele': val = user.kebele || ''; break;
+                                case 'user_organization': val = user.organization?.name || ''; break;
+                            }
+                            if (val) {
+                                setValue(field.questionCode, val);
+                            }
+                        }
+                    });
+                });
+            });
+        }
+    }, [initialData, reset, user, template, setValue]);
 
     // Evaluate conditional logic
     const shouldShowField = (field: any) => {
@@ -64,18 +91,30 @@ const FormRenderer: React.FC<FormRendererProps> = ({
         }
     };
 
+    if (!template?.modules || template.modules.length === 0) {
+        return (
+            <div className="max-w-3xl mx-auto py-20 px-6 text-center">
+                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <AlertCircle className="text-gray-400" size={32} />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">This form is empty</h2>
+                <p className="text-gray-500 mt-2">There are no modules or questions defined in this template yet.</p>
+            </div>
+        );
+    }
+
     const progress = ((currentModuleIdx + 1) / template.modules.length) * 100;
 
     return (
         <div className="max-w-3xl mx-auto py-10 px-6">
             {/* Progress Header */}
-            <div className="mb-10">
+            <div className="mb-10 text-left">
                 <div className="flex justify-between items-end mb-2">
                     <div>
                         <span className="text-xs font-bold text-blue-600 uppercase tracking-widest">
                             Module {currentModuleIdx + 1} of {template.modules.length}
                         </span>
-                        <h1 className="text-2xl font-bold text-gray-900">{currentModule.title}</h1>
+                        <h1 className="text-2xl font-bold text-gray-900">{currentModule?.title || 'Section'}</h1>
                     </div>
                     <span className="text-sm font-medium text-gray-500">{Math.round(progress)}% Complete</span>
                 </div>
@@ -90,57 +129,59 @@ const FormRenderer: React.FC<FormRendererProps> = ({
 
             <form className="space-y-12 pb-24" onSubmit={(e) => e.preventDefault()}>
                 <AnimatePresence mode="wait">
-                    <motion.div
-                        key={currentModule.moduleId}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        transition={{ duration: 0.3, ease: 'easeOut' }}
-                        className="space-y-12"
-                    >
-                        {currentModule.sections.map((section: any) => (
-                            <div key={section.sectionId} className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm space-y-8">
-                                <div className="border-b border-gray-50 pb-4">
-                                    <h3 className="text-xl font-bold text-gray-900">{section.title}</h3>
-                                    {section.description && <p className="text-sm text-gray-500 mt-1">{section.description}</p>}
-                                </div>
+                    {currentModule && (
+                        <motion.div
+                            key={currentModule.moduleId}
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            transition={{ duration: 0.3, ease: 'easeOut' }}
+                            className="space-y-12"
+                        >
+                            {currentModule.sections?.map((section: any) => (
+                                <div key={section.sectionId} className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm space-y-8">
+                                    <div className="border-b border-gray-50 pb-4">
+                                        <h3 className="text-xl font-bold text-gray-900">{section.title}</h3>
+                                        {section.description && <p className="text-sm text-gray-500 mt-1">{section.description}</p>}
+                                    </div>
 
-                                <div className="grid grid-cols-1 gap-10">
-                                    {section.fields.filter(shouldShowField).map((field: any) => {
-                                        const commonProps = { field, register, errors, setValue, watch };
-                                        return (
-                                            <div key={field.fieldId} className="field-group">
-                                                {(() => {
-                                                    switch (field.type) {
-                                                        case 'text':
-                                                        case 'number':
-                                                        case 'email':
-                                                        case 'phone':
-                                                        case 'date':
-                                                            return <TextField {...commonProps} />;
-                                                        case 'radio':
-                                                            return <RadioField {...commonProps} />;
-                                                        case 'select':
-                                                            return <SelectField {...commonProps} />;
-                                                        case 'matrix':
-                                                            return <MatrixField {...commonProps} />;
-                                                        case 'table':
-                                                            return <TableField {...commonProps} />;
-                                                        case 'geo':
-                                                            return <GeoField {...commonProps} />;
-                                                        case 'file':
-                                                            return <FileField {...commonProps} />;
-                                                        default:
-                                                            return <div className="text-red-400">Unsupported field type: {field.type}</div>;
-                                                    }
-                                                })()}
-                                            </div>
-                                        );
-                                    })}
+                                    <div className="grid grid-cols-1 gap-10">
+                                        {section.fields.filter(shouldShowField).map((field: any) => {
+                                            const commonProps = { field, register, errors, setValue, watch };
+                                            return (
+                                                <div key={field.fieldId} className="field-group">
+                                                    {(() => {
+                                                        switch (field.type) {
+                                                            case 'text':
+                                                            case 'number':
+                                                            case 'email':
+                                                            case 'phone':
+                                                            case 'date':
+                                                                return <TextField {...commonProps} />;
+                                                            case 'radio':
+                                                                return <RadioField {...commonProps} />;
+                                                            case 'select':
+                                                                return <SelectField {...commonProps} />;
+                                                            case 'matrix':
+                                                                return <MatrixField {...commonProps} />;
+                                                            case 'table':
+                                                                return <TableField {...commonProps} />;
+                                                            case 'geo':
+                                                                return <GeoField {...commonProps} />;
+                                                            case 'file':
+                                                                return <FileField {...commonProps} />;
+                                                            default:
+                                                                return <div className="text-red-400">Unsupported field type: {field.type}</div>;
+                                                        }
+                                                    })()}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
-                    </motion.div>
+                            ))}
+                        </motion.div>
+                    )}
                 </AnimatePresence>
             </form>
 

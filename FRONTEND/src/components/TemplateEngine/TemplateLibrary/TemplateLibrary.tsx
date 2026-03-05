@@ -4,7 +4,7 @@ import {
     Search, Filter, Plus, MoreVertical,
     FileText, Clock,
     Edit3, Trash2, History, Download, Upload,
-    X, AlertTriangle, Eye, Send, RotateCcw, Trash
+    X, AlertTriangle, Eye, Send, RotateCcw, Trash, LayoutDashboard, Database
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -120,8 +120,10 @@ const TemplateCard: React.FC<{
     onPreview: (t: any) => void;
     onPublish: (id: string) => void;
     onRestore: (id: string) => void;
+    onRevertToDraft: (id: string) => void;
     onPermanentDelete: (id: string) => void;
-}> = ({ template, onEdit, onDelete, onExport, onPreview, onPublish, onRestore, onPermanentDelete }) => {
+}> = ({ template, onEdit, onDelete, onExport, onPreview, onPublish, onRestore, onRevertToDraft, onPermanentDelete }) => {
+    const navigate = useNavigate();
     const sc = statusConfig[template.status] || statusConfig.Draft;
     const fields = template.modules?.reduce((acc: number, m: any) =>
         acc + m.sections?.reduce((a: number, s: any) => a + (s.fields?.length || 0), 0), 0) ?? 0;
@@ -138,18 +140,31 @@ const TemplateCard: React.FC<{
             <div className={`h-1.5 w-full ${template.status === 'Published' ? 'bg-gradient-to-r from-green-400 to-emerald-500' : template.status === 'Draft' ? 'bg-gradient-to-r from-amber-400 to-orange-500' : 'bg-gray-200'}`} />
 
             <div className="p-6 flex-1">
-                <div className="flex justify-between items-start mb-4">
-                    <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${sc.bg} ${sc.text}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
-                        {template.status}
+                <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center gap-2">
+                        <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${sc.bg} ${sc.text}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
+                            {template.status}
+                        </div>
+                        {template.status === 'Published' && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); window.open(`/responses/${template._id}`, '_blank'); }}
+                                className="flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 group/btn"
+                                title="Start Data Entry"
+                            >
+                                <LayoutDashboard size={14} className="group-hover/btn:scale-110 transition-transform" />
+                            </button>
+                        )}
                     </div>
-                    <button
-                        onClick={() => onEdit(template._id)}
-                        className="p-1.5 rounded-lg text-gray-300 hover:text-blue-600 hover:bg-blue-50 transition-all opacity-0 group-hover:opacity-100"
-                        title="Edit template"
-                    >
-                        <MoreVertical size={18} />
-                    </button>
+                    {template.status !== 'Published' && (
+                        <button
+                            onClick={() => onEdit(template._id)}
+                            className="p-1.5 rounded-lg text-gray-300 hover:text-blue-600 hover:bg-blue-50 transition-all opacity-0 group-hover:opacity-100"
+                            title="Edit template"
+                        >
+                            <MoreVertical size={18} />
+                        </button>
+                    )}
                 </div>
 
                 <h3 className="text-lg font-bold text-gray-900 mb-1 truncate">{template.name}</h3>
@@ -174,73 +189,93 @@ const TemplateCard: React.FC<{
             </div>
 
             <div className="bg-gray-50 px-6 py-3.5 flex justify-between items-center border-t border-gray-100">
-                <div className="flex items-center gap-2 text-xs text-gray-400 font-medium">
+                <div className="flex items-center gap-2 text-xs text-gray-400 font-medium tracking-tight">
                     <Clock size={12} />
                     {new Date(template.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     <span className="text-gray-200">·</span>
                     <History size={12} />
                     v{template.version}
                 </div>
-                <div className="flex gap-1">
-                    <button
-                        onClick={() => onPreview(template)}
-                        className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-blue-600 transition-all border border-transparent hover:border-blue-100"
-                        title="Preview"
-                    >
-                        <Eye size={16} />
-                    </button>
+                <div className="flex items-center gap-1">
+                    <div className="flex gap-0.5">
+                        <button
+                            onClick={() => onPreview(template)}
+                            className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-blue-600 transition-all border border-transparent hover:border-blue-100"
+                            title="Preview"
+                        >
+                            <Eye size={16} />
+                        </button>
+                        <button
+                            onClick={() => navigate(`/admin/responses/${template._id}`)}
+                            className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-cyan-600 transition-all border border-transparent hover:border-cyan-100"
+                            title="View Responses Database"
+                        >
+                            <Database size={16} />
+                        </button>
 
-                    {template.isDeleted || template.status === 'Archived' ? (
-                        <>
-                            <button
-                                onClick={() => onRestore(template._id)}
-                                className="p-2 hover:bg-white rounded-lg text-green-400 hover:text-green-600 transition-all border border-transparent hover:border-green-100"
-                                title="Restore to Draft"
-                            >
-                                <RotateCcw size={16} />
-                            </button>
-                            <button
-                                onClick={() => onPermanentDelete(template._id)}
-                                className="p-2 hover:bg-white rounded-lg text-red-400 hover:text-red-600 transition-all border border-transparent hover:border-red-100"
-                                title="Delete Permanently"
-                            >
-                                <Trash size={16} />
-                            </button>
-                        </>
-                    ) : (
-                        <>
-                            <button
-                                onClick={() => onExport(template._id, template.name)}
-                                className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-emerald-600 transition-all border border-transparent hover:border-emerald-100"
-                                title="Export Template"
-                            >
-                                <Download size={16} />
-                            </button>
-                            {template.status === 'Draft' && (
+                        {template.isDeleted || template.status === 'Archived' ? (
+                            <>
                                 <button
-                                    onClick={() => onPublish(template._id)}
-                                    className="p-2 hover:bg-white rounded-lg text-amber-400 hover:text-amber-600 transition-all border border-transparent hover:border-amber-100"
-                                    title="Publish Now"
+                                    onClick={() => onRestore(template._id)}
+                                    className="p-2 hover:bg-white rounded-lg text-green-400 hover:text-green-600 transition-all border border-transparent hover:border-green-100"
+                                    title="Restore to Draft"
                                 >
-                                    <Send size={16} />
+                                    <RotateCcw size={16} />
                                 </button>
-                            )}
-                            <button
-                                onClick={() => onEdit(template._id)}
-                                className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-indigo-600 transition-all border border-transparent hover:border-indigo-100"
-                                title="Edit / Update"
-                            >
-                                <Edit3 size={16} />
-                            </button>
-                            <button
-                                onClick={() => onDelete(template)}
-                                className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-red-600 transition-all border border-transparent hover:border-red-100"
-                                title="Archive"
-                            >
-                                <Trash2 size={16} />
-                            </button>
-                        </>
-                    )}
+                                <button
+                                    onClick={() => onPermanentDelete(template._id)}
+                                    className="p-2 hover:bg-white rounded-lg text-red-400 hover:text-red-600 transition-all border border-transparent hover:border-red-100"
+                                    title="Delete Permanently"
+                                >
+                                    <Trash size={16} />
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <button
+                                    onClick={() => onExport(template._id, template.name)}
+                                    className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-emerald-600 transition-all border border-transparent hover:border-emerald-100"
+                                    title="Export Template"
+                                >
+                                    <Download size={16} />
+                                </button>
+                                {template.status === 'Draft' && (
+                                    <button
+                                        onClick={() => onPublish(template._id)}
+                                        className="p-2 hover:bg-white rounded-lg text-amber-400 hover:text-amber-600 transition-all border border-transparent hover:border-amber-100"
+                                        title="Publish Now"
+                                    >
+                                        <Send size={16} />
+                                    </button>
+                                )}
+                                {template.status === 'Published' && (
+                                    <button
+                                        onClick={() => onRevertToDraft(template._id)}
+                                        className="p-2 hover:bg-white rounded-lg text-amber-400 hover:text-amber-600 transition-all border border-transparent hover:border-amber-100"
+                                        title="Unpublish (Restore to Draft)"
+                                    >
+                                        <RotateCcw size={16} />
+                                    </button>
+                                )}
+                                {template.status !== 'Published' && (
+                                    <button
+                                        onClick={() => onEdit(template._id)}
+                                        className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-indigo-600 transition-all border border-transparent hover:border-indigo-100"
+                                        title="Edit / Update"
+                                    >
+                                        <Edit3 size={16} />
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => onDelete(template)}
+                                    className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-red-600 transition-all border border-transparent hover:border-red-100"
+                                    title="Archive"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </>
+                        )}
+                    </div>
                 </div>
             </div>
         </motion.div>
@@ -326,6 +361,17 @@ const TemplateLibrary: React.FC = () => {
             fetchTemplates();
         } catch {
             toast.error('Failed to restore template');
+        }
+    };
+
+    const handleRevertToDraft = async (id: string) => {
+        try {
+            toast.info('Reverting to draft...');
+            await api.post(`/templates/${id}/revert-to-draft`);
+            toast.success('Template can now be edited');
+            fetchTemplates();
+        } catch (err: any) {
+            toast.error(err?.response?.data?.message || 'Failed to revert');
         }
     };
 
@@ -486,6 +532,7 @@ const TemplateLibrary: React.FC = () => {
                                 onPreview={(t) => setPreviewTarget(t)}
                                 onPublish={handlePublish}
                                 onRestore={handleRestore}
+                                onRevertToDraft={handleRevertToDraft}
                                 onPermanentDelete={handlePermanentDelete}
                             />
                         ))}

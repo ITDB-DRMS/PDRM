@@ -1,6 +1,6 @@
 import React from 'react';
 import { UseFormRegister, FieldErrors } from 'react-hook-form';
-import { MapPin, Upload } from 'lucide-react';
+import { MapPin, Upload, Cloud } from 'lucide-react';
 
 interface FieldProps {
     field: any;
@@ -12,14 +12,27 @@ interface FieldProps {
 
 export const TextField: React.FC<FieldProps> = ({ field, register, errors }) => (
     <div className="space-y-1">
-        <label className="block text-sm font-semibold text-gray-700">
-            {field.label} {field.required && <span className="text-red-500">*</span>}
-        </label>
+        <div className="flex justify-between items-center mb-1">
+            <label className="block text-sm font-semibold text-gray-700">
+                {field.label} {field.required && <span className="text-red-500">*</span>}
+            </label>
+            {field.systemAutoFill && field.systemAutoFill !== 'none' && (
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+                    <Cloud size={10} className="fill-blue-500/20" />
+                    <span className="text-[10px] font-black uppercase tracking-tighter">System Auto-filled</span>
+                </div>
+            )}
+        </div>
         <input
             type={field.type === 'number' ? 'number' : field.type === 'email' ? 'email' : 'text'}
             {...register(field.questionCode, { required: field.required })}
             placeholder={field.helpText}
-            className={`w-full p-2.5 border rounded-lg outline-none transition-all ${errors[field.questionCode] ? 'border-red-500 bg-red-50' : 'border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-50 focus:bg-white'
+            readOnly={field.systemAutoFill && field.systemAutoFill !== 'none'}
+            className={`w-full p-2.5 border rounded-lg outline-none transition-all ${field.systemAutoFill && field.systemAutoFill !== 'none'
+                ? 'bg-blue-50/30 border-blue-100 text-gray-800'
+                : errors[field.questionCode]
+                    ? 'border-red-500 bg-red-50'
+                    : 'border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-50 focus:bg-white'
                 }`}
         />
         {errors[field.questionCode] && (
@@ -34,7 +47,7 @@ export const RadioField: React.FC<FieldProps> = ({ field, register, errors }) =>
             {field.label} {field.required && <span className="text-red-500">*</span>}
         </label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {field.options.map((opt: any) => (
+            {(field.options || []).map((opt: any) => (
                 <label key={opt.value} className="flex items-center gap-3 p-3 border rounded-xl hover:bg-gray-50 cursor-pointer transition-colors border-gray-100">
                     <input
                         type="radio"
@@ -71,12 +84,12 @@ export const SelectField: React.FC<FieldProps> = ({ field, register, errors }) =
 );
 
 export const MatrixField: React.FC<FieldProps> = ({ field, register }) => {
-    const columns = field.options?.columns || [
+    const columns = field.options?.columns || field.matrixConfig?.columns || [
         { label: 'Low', value: '1' },
         { label: 'Medium', value: '2' },
         { label: 'High', value: '3' }
     ];
-    const rows = field.options?.rows || [
+    const rows = field.options?.rows || field.matrixConfig?.rows || [
         { label: 'Frequency', value: 'freq' },
         { label: 'Severity', value: 'sev' }
     ];
@@ -118,7 +131,7 @@ export const MatrixField: React.FC<FieldProps> = ({ field, register }) => {
 };
 
 export const TableField: React.FC<FieldProps> = ({ field, register }) => {
-    const columns = field.options?.columns || [{ label: 'Name', value: 'name', type: 'text' }];
+    const columns = field.options?.columns || field.tableConfig?.columns || [{ label: 'Name', value: 'name', type: 'text' }];
 
     return (
         <div className="space-y-3">

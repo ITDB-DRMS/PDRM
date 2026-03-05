@@ -126,6 +126,37 @@ export const publishTemplate = async (req, res) => {
     }
 };
 
+// @desc    Revert published template to draft (Unlock)
+// @route   POST /api/templates/:id/revert-to-draft
+export const revertToDraft = async (req, res) => {
+    console.log("Reverting template to draft:", req.params.id);
+    try {
+        const template = await Template.findById(req.params.id);
+
+        if (!template) {
+            console.log("Template not found for ID:", req.params.id);
+            return res.status(404).json({ message: 'Template not found' });
+        }
+
+        console.log("Current template status:", template.status);
+
+        if (template.status !== 'Published') {
+            return res.status(400).json({ message: `Only published templates can be reverted. Current status: ${template.status}` });
+        }
+
+        template.status = 'Draft';
+        // Use null instead of undefined to clear the date field explicitly
+        template.publishedAt = null;
+
+        const updatedTemplate = await template.save();
+        console.log("Revert successful for:", updatedTemplate.name);
+        res.json(updatedTemplate);
+    } catch (error) {
+        console.error("Error in revertToDraft:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
 // @desc    Create new version from existing template
 // @route   POST /api/templates/:id/new-version
 export const createNewVersion = async (req, res) => {

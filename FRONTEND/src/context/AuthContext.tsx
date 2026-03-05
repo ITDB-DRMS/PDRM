@@ -10,6 +10,8 @@ interface User {
     roles?: { id: string; name: string }[];
     department?: { id: string; name: string };
     organization?: { id: string; name: string };
+    subcity?: string;
+    kebele?: string;
     permissions?: string[];
     profileImage?: string;
     accessLevel?: string;

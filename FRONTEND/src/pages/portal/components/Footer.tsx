@@ -1,6 +1,6 @@
 import React from "react";
 import {
-    MapPin, Phone, Mail, Globe,
+    MapPin, Phone, Mail,
     Facebook, Twitter, Linkedin, Instagram,
     Send, ShieldIcon, HelpCircle
 } from "lucide-react";
@@ -13,12 +13,16 @@ const Footer: React.FC = () => {
 
                     {/* Column 1: Location & Brand */}
                     <div className="space-y-8">
-                        <div className="flex items-center gap-2 group cursor-pointer inline-block">
-                            <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center transform group-hover:rotate-12 transition-transform duration-300">
-                                <Globe className="text-white w-6 h-6" />
+                        <div className="flex items-center gap-3 group cursor-pointer inline-block">
+                            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center transform group-hover:rotate-12 transition-transform duration-300 shadow-sm border border-slate-700">
+                                <img
+                                    src="/images/logo/logo.png"
+                                    alt="PDRM Logo"
+                                    className="w-8 h-8 object-contain"
+                                />
                             </div>
-                            <span className="text-2xl font-bold tracking-tight text-white">
-                                IDRM<span className="text-indigo-600">IS</span>
+                            <span className="text-2xl font-black tracking-tight text-white">
+                                PDRM
                             </span>
                         </div>
 
@@ -65,9 +69,10 @@ const Footer: React.FC = () => {
                             Quick Links
                         </h3>
                         <ul className="grid grid-cols-2 gap-y-4 gap-x-8">
-                            <li><a href="#" className="hover:text-indigo-500 transition-colors flex items-center gap-2 group"><span className="w-1 h-1 bg-indigo-600 rounded-full opacity-0 group-hover:opacity-100 transition-all"></span>Home</a></li>
-                            <li><a href="#about" className="hover:text-indigo-500 transition-colors flex items-center gap-2 group"><span className="w-1 h-1 bg-indigo-600 rounded-full opacity-0 group-hover:opacity-100 transition-all"></span>About Us</a></li>
-                            <li><a href="#contact" className="hover:text-indigo-500 transition-colors flex items-center gap-2 group"><span className="w-1 h-1 bg-indigo-600 rounded-full opacity-0 group-hover:opacity-100 transition-all"></span>Contact</a></li>
+                            <li><a href="/" className="hover:text-indigo-500 transition-colors flex items-center gap-2 group"><span className="w-1 h-1 bg-indigo-600 rounded-full opacity-0 group-hover:opacity-100 transition-all"></span>Home</a></li>
+                            <li><a href="/feedback" className="hover:text-indigo-500 transition-colors flex items-center gap-2 group font-bold text-teal-500"><span className="w-1 h-1 bg-indigo-600 rounded-full opacity-0 group-hover:opacity-100 transition-all"></span>Give Feedback</a></li>
+                            <li><a href="/#about" className="hover:text-indigo-500 transition-colors flex items-center gap-2 group"><span className="w-1 h-1 bg-indigo-600 rounded-full opacity-0 group-hover:opacity-100 transition-all"></span>About Us</a></li>
+                            <li><a href="/#contact" className="hover:text-indigo-500 transition-colors flex items-center gap-2 group"><span className="w-1 h-1 bg-indigo-600 rounded-full opacity-0 group-hover:opacity-100 transition-all"></span>Contact</a></li>
                             <li><a href="/login" className="hover:text-indigo-500 transition-colors flex items-center gap-2 group font-bold text-indigo-400"><span className="w-1 h-1 bg-indigo-600 rounded-full opacity-0 group-hover:opacity-100 transition-all"></span>My Portal</a></li>
                             <li><a href="#" className="hover:text-indigo-500 transition-colors flex items-center gap-2 group"><span className="w-1 h-1 bg-indigo-600 rounded-full opacity-0 group-hover:opacity-100 transition-all"></span>Privacy Policy</a></li>
                             <li><a href="#" className="hover:text-indigo-500 transition-colors flex items-center gap-2 group"><span className="w-1 h-1 bg-indigo-600 rounded-full opacity-0 group-hover:opacity-100 transition-all"></span>Services</a></li>
@@ -121,7 +126,7 @@ const Footer: React.FC = () => {
                 {/* Bottom Bar */}
                 <div className="pt-10 border-t border-slate-900 flex flex-col md:flex-row justify-between items-center gap-6">
                     <p className="text-slate-600 text-sm">
-                        &copy; {new Date().getFullYear()} IDRMIS. All rights reserved by Innovation Management Team.
+                        &copy; {new Date().getFullYear()} PDRM. All rights reserved by Innovation Management Team.
                     </p>
                     <div className="flex gap-8 text-xs text-slate-600">
                         <a href="#" className="hover:text-indigo-500">Terms of Service</a>

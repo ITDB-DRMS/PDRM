@@ -5,13 +5,14 @@ import {
     GripVertical, Copy, ChevronDown,
     Type, MessageSquare, Hash, Calendar, Circle, CheckSquare,
     Grid, Phone, Mail, Upload, Heading,
-    StickyNote, Check, Loader2, Settings, Layers, Palette, MoveVertical, Sparkles
+    StickyNote, Check, Loader2, Settings, Layers, Palette, MoveVertical, Sparkles, MapPin, Table
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useNavigate, useParams } from 'react-router';
 import api from '@/api/axios';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
+import QuestionTypeSelector from './QuestionTypeSelector';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const QUESTION_TYPES: { type: AnswerType; label: string; icon: any; desc: string }[] = [
@@ -198,8 +199,7 @@ const MatrixEditorInline: React.FC<{
 // ─── Google-Forms-style Question Card ─────────────────────────────────────────
 const QuestionCard: React.FC<{
     question: Question;
-    moduleId: string;
-}> = ({ question, moduleId }) => {
+}> = ({ question }) => {
     const { state, dispatch } = useFormBuilder();
     const isActive = state.activeQuestionId === question.questionId;
 
@@ -368,6 +368,19 @@ const QuestionCard: React.FC<{
                         />
                     )}
 
+                    {/* Table / Geo */}
+                    {question.answerType === 'geo' && (
+                        <div className="flex items-center gap-2 mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-400">
+                            <MapPin size={16} /> GPS Capture (Location)
+                        </div>
+                    )}
+                    {question.answerType === 'table' && (
+                        <div className="flex flex-col gap-2 mt-2 p-4 bg-gray-50 border border-gray-100 rounded-lg text-xs text-gray-400">
+                            <div className="flex items-center gap-2 opacity-60"><Table size={14} /> Dynamic Data Table</div>
+                            <div className="h-20 border border-gray-200 rounded animate-pulse" />
+                        </div>
+                    )}
+
                     {/* Header type questions */}
                     {question.answerType === 'header' ? (
                         <div className="space-y-2">
@@ -417,7 +430,7 @@ const QuestionCard: React.FC<{
                         <div className="flex items-center gap-1 border-r pr-4 mr-2 border-gray-100">
                             <button
                                 onClick={() => {
-                                    dispatch({ type: 'ADD_QUESTION', moduleId, answerType: question.answerType });
+                                    dispatch({ type: 'DUPLICATE_QUESTION', questionId: question.questionId });
                                 }}
                                 className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
                                 title="Duplicate"
@@ -507,7 +520,6 @@ const ModuleBlock: React.FC<{ module: Module; order: number }> = ({ module, orde
                     <QuestionCard
                         key={question.questionId}
                         question={question}
-                        moduleId={module.moduleId}
                     />
                 ))}
             </AnimatePresence>
@@ -586,6 +598,51 @@ const PreviewModal: React.FC<{ template: any; onClose: () => void }> = ({ templa
                                                     <span className="text-sm text-gray-700">{opt.label}</span>
                                                 </label>
                                             ))}
+
+                                            {q.answerType === 'matrix' && (
+                                                <div className="overflow-x-auto mt-2">
+                                                    <table className="w-full text-xs border border-gray-100">
+                                                        <thead>
+                                                            <tr className="bg-gray-50">
+                                                                <th className="p-2 border">Rows \ Cols</th>
+                                                                {q.matrixConfig.columns.map(c => <th key={c.value} className="p-2 border">{c.label}</th>)}
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {q.matrixConfig.rows.map(r => (
+                                                                <tr key={r.value}>
+                                                                    <td className="p-2 border font-medium">{r.label}</td>
+                                                                    {q.matrixConfig.columns.map(c => (
+                                                                        <td key={c.value} className="p-2 border text-center">
+                                                                            <input type="radio" name={`${q.questionId}_${r.value}`} className="accent-purple-600" />
+                                                                        </td>
+                                                                    ))}
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+
+                                            {q.answerType === 'table' && (
+                                                <div className="bg-gray-50 border border-gray-100 p-4 rounded-lg flex flex-col items-center justify-center min-h-[100px] text-gray-400">
+                                                    <Table size={24} className="mb-2 opacity-30" />
+                                                    <span className="text-xs">Dynamic Table Preview Component</span>
+                                                </div>
+                                            )}
+
+                                            {q.answerType === 'geo' && (
+                                                <div className="flex items-center gap-2 p-3 bg-blue-50/50 border border-blue-100 rounded-lg text-blue-600 text-xs mt-2">
+                                                    <MapPin size={16} /> Capture GPS Location
+                                                </div>
+                                            )}
+
+                                            {q.answerType === 'file' && (
+                                                <div className="mt-2 border-2 border-dashed border-gray-200 p-6 rounded-xl flex flex-col items-center justify-center text-gray-400 bg-gray-50/30">
+                                                    <Upload size={20} className="mb-2" />
+                                                    <span className="text-xs font-medium">Click to upload file</span>
+                                                </div>
+                                            )}
                                         </>
                                     )}
                                 </div>
@@ -610,16 +667,28 @@ const SidebarActions: React.FC = () => {
                 <Plus size={24} />
                 <span className="absolute right-full mr-4 bg-gray-900 text-white text-[10px] font-bold py-1 px-3 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">Add Question</span>
             </button>
-            <button className="p-4 rounded-xl text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all group relative" title="Add Section">
+            <button
+                onClick={() => dispatch({ type: 'ADD_MODULE', name: 'New Section' })}
+                className="p-4 rounded-xl text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all group relative"
+                title="Add Section"
+            >
                 <Layers size={24} />
                 <span className="absolute right-full mr-4 bg-gray-900 text-white text-[10px] font-bold py-1 px-3 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">Add Section</span>
             </button>
-            <button className="p-4 rounded-xl text-gray-500 hover:text-pink-600 hover:bg-pink-50 transition-all group relative" title="Customize Theme">
+            <button
+                onClick={() => dispatch({ type: 'TOGGLE_THEME' })}
+                className="p-4 rounded-xl text-gray-500 hover:text-pink-600 hover:bg-pink-50 transition-all group relative"
+                title="Customize Theme"
+            >
                 <Palette size={24} />
                 <span className="absolute right-full mr-4 bg-gray-900 text-white text-[10px] font-bold py-1 px-3 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">Theme</span>
             </button>
             <div className="h-px bg-gray-100 mx-2" />
-            <button className="p-4 rounded-xl text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all group relative" title="Settings">
+            <button
+                onClick={() => dispatch({ type: 'TOGGLE_SETTINGS' })}
+                className="p-4 rounded-xl text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all group relative"
+                title="Settings"
+            >
                 <Settings size={24} />
                 <span className="absolute right-full mr-4 bg-gray-900 text-white text-[10px] font-bold py-1 px-3 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">Settings</span>
             </button>
@@ -822,6 +891,65 @@ const InnerFormBuilder: React.FC = () => {
             <AnimatePresence>
                 {showPreview && (
                     <PreviewModal template={state.template} onClose={() => setShowPreview(false)} />
+                )}
+            </AnimatePresence>
+
+            {/* ── Question Type Selector ── */}
+            <QuestionTypeSelector />
+
+            {/* ── Theme Drawer ── */}
+            <AnimatePresence>
+                {state.isThemeOpen && (
+                    <motion.div
+                        initial={{ x: 300, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        exit={{ x: 300, opacity: 0 }}
+                        className="fixed right-0 top-0 bottom-0 w-80 bg-white shadow-2xl z-[100] border-l border-gray-100 p-6"
+                    >
+                        <div className="flex justify-between items-center mb-8">
+                            <h3 className="text-xl font-black text-gray-900">Theme Selector</h3>
+                            <button onClick={() => dispatch({ type: 'TOGGLE_THEME', open: false })} className="p-2 hover:bg-gray-100 rounded-full">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="space-y-6">
+                            <p className="text-sm text-gray-500">Customize the look and feel of your questionnaire.</p>
+                            <div className="grid grid-cols-4 gap-3">
+                                {Object.entries(TYPE_COLORS).map(([name, color]) => (
+                                    <button key={name} className="w-10 h-10 rounded-full shadow-inner border-2 border-white ring-2 ring-gray-100" style={{ backgroundColor: color }} />
+                                ))}
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* ── Settings Drawer ── */}
+            <AnimatePresence>
+                {state.isSettingsOpen && (
+                    <motion.div
+                        initial={{ x: 300, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        exit={{ x: 300, opacity: 0 }}
+                        className="fixed right-0 top-0 bottom-0 w-80 bg-white shadow-2xl z-[100] border-l border-gray-100 p-6"
+                    >
+                        <div className="flex justify-between items-center mb-8">
+                            <h3 className="text-xl font-black text-gray-900">Form Settings</h3>
+                            <button onClick={() => dispatch({ type: 'TOGGLE_SETTINGS', open: false })} className="p-2 hover:bg-gray-100 rounded-full">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            <div className="p-4 bg-gray-50 rounded-xl">
+                                <h4 className="font-bold text-sm text-gray-800">Response Logic</h4>
+                                <p className="text-xs text-gray-400 mt-1">Allow multiple responses per enumerator?</p>
+                            </div>
+                            <div className="p-4 bg-gray-50 rounded-xl">
+                                <h4 className="font-bold text-sm text-gray-800">Visual Rules</h4>
+                                <p className="text-xs text-gray-400 mt-1">Show progress bar to respondent?</p>
+                            </div>
+                        </div>
+                    </motion.div>
                 )}
             </AnimatePresence>
         </div>

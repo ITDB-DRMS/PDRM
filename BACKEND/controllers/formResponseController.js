@@ -4,6 +4,9 @@ import Template from '../models/Template.js';
 // @desc    Submit a new form response
 // @route   POST /api/responses
 export const submitResponse = async (req, res) => {
+    console.log("--- INCOMING SUBMISSION ---");
+    console.log("Context Type:", req.body.moduleContextType);
+    console.log("Template ID:", req.body.templateId);
     try {
         const {
             templateId,

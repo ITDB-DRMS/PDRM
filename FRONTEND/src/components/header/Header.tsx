@@ -85,7 +85,7 @@ const Header: React.FC<HeaderProps> = ({ onClick, onToggle }) => {
               alt="Logo"
             />
             <h3 className="text-lg font-bold text-gray-800 dark:text-white">
-              IDRMIS
+              PDRM
             </h3>
           </Link>
 

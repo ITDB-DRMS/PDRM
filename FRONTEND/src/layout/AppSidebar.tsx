@@ -53,6 +53,20 @@ const navItems: NavItem[] = [
     path: "/",
   },
   {
+    icon: <BoxCubeIcon />,
+    name: "Woreda Profile",
+    subItems: [
+      { name: "Administrative Location", path: "/woreda-profile/admin-location", icon: <GridIcon /> },
+      { name: "Community Information", path: "/woreda-profile/community", icon: <GroupIcon /> },
+      { name: "Demographics", path: "/woreda-profile/demographics", icon: <UserIcon /> },
+      { name: "Livelihoods", path: "/woreda-profile/livelihoods", icon: <DocsIcon /> },
+      { name: "Basic Services", path: "/woreda-profile/basic-services", icon: <FolderIcon /> },
+      { name: "Critical Facilities", path: "/woreda-profile/critical-facilities", icon: <BoxIconLine /> },
+      { name: "Vulnerable Groups", path: "/woreda-profile/vulnerable-groups", icon: <AlertIcon /> },
+      { name: "Community Capacity", path: "/woreda-profile/community-capacity", icon: <TaskIcon /> },
+    ],
+  },
+  {
     icon: <DocsIcon />,
     name: "Disaster Risk Assessment",
     path: "/disaster-risk-assessment",
@@ -482,7 +496,7 @@ const AppSidebar: React.FC = () => {
                 className="h-12 w-12 object-contain"
               />
               <h3 className="text-xl font-bold text-gray-800 dark:text-white">
-                IDRMIS
+                PDRM
               </h3>
             </>
           ) : (

@@ -58,18 +58,19 @@ export const importWordTemplate = async (req, res) => {
             const textContent = content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
             if (!textContent) return;
 
-            // 1. Detect Modules/Chapters (H1 or BOLD CAPITALS)
+            // 1. Detect Modules/Chapters (H1, H2, or BOLD CAPITALS)
             const isHeading = content.match(/<h[1-2][^>]*>(.*?)<\/h[1-2]>/i) ||
-                (content.match(/<strong>(.*?)<\/strong>/i) && textContent.length < 100 && textContent === textContent.toUpperCase());
+                (content.match(/<strong>(.*?)<\/strong>/i) && textContent.length < 100 && textContent === textContent.toUpperCase() && textContent.length > 3);
 
             if (isHeading) {
                 addModule(textContent);
                 return;
             }
 
-            // 2. Detect Sections (H3 or Ends with Colon)
-            const isSection = content.match(/<h[3-4][^>]*>(.*?)<\/h[3-4]>/i) ||
-                (textContent.length < 80 && textContent.endsWith(':') && !textContent.match(/^q\d+/i));
+            // 2. Detect Sections (H3, H4, or Ends with Colon/significant bold)
+            const isSection = content.match(/<h[3-4][^>]*>(.*?)<\/h3|4]>/i) ||
+                (textContent.length < 100 && textContent.endsWith(':') && !textContent.match(/^(q\d+|question)/i)) ||
+                (content.match(/<strong>(.*?)<\/strong>/i) && textContent.length < 80 && textContent.match(/^(Section|Part|Chapter|Module|Block)\s+[A-Z0-9]/i));
 
             if (isSection && currentModule) {
                 currentSection = {
@@ -127,22 +128,37 @@ export const importWordTemplate = async (req, res) => {
                 }
             }
 
-            // 4. Detect Question (q101 style)
-            const questionMatch = textContent.match(/^\s*(q[0-9]{1,4}[a-z]?[0-9]*)[\.\s\t:]+(.*)/i);
+            // 4. Detect Question (q101 style, 1. style, or starting with "Question")
+            const qRegex = /^\s*(q?\d+[a-z]?(?:\.\d+)*|Question\s*\d+|[A-Z]\d{1,3})[\.\s\t:]+(.*)/i;
+            const questionMatch = textContent.match(qRegex) || (textContent.endsWith('?') && textContent.length < 200 ? [null, `q_${uuidv4().substring(0, 4)}`, textContent] : null);
+
             if (questionMatch) {
                 const qCode = questionMatch[1].toLowerCase();
-                const qLabel = questionMatch[2].trim();
+                const qLabel = questionMatch[2] ? questionMatch[2].trim() : textContent;
 
                 if (!currentSection) addModule('Questionnaire');
 
+                let autoFill = 'none';
+                const lowerLabel = qLabel.toLowerCase();
+                if (lowerLabel.includes('name') && (lowerLabel.includes('facilitator') || lowerLabel.includes('enumerator') || lowerLabel.includes('supervisor'))) {
+                    autoFill = 'user_name';
+                } else if (lowerLabel.includes('phone') && (lowerLabel.includes('facilitator') || lowerLabel.includes('enumerator'))) {
+                    autoFill = 'user_phone';
+                } else if (lowerLabel.match(/\bsub-?city\b/i)) {
+                    autoFill = 'user_subcity';
+                } else if (lowerLabel.match(/\bkebele\b/i)) {
+                    autoFill = 'user_kebele';
+                }
+
                 currentField = {
                     fieldId: uuidv4(),
-                    questionCode: qCode,
+                    questionCode: qCode.includes('_') ? qCode : qCode.replace(/[^a-z0-9]/g, ''),
                     label: qLabel,
-                    type: (qLabel.toLowerCase().includes('age') || qLabel.toLowerCase().includes('how many')) ? 'number' : 'text',
+                    type: (qLabel.toLowerCase().includes('age') || qLabel.toLowerCase().includes('how many') || qLabel.toLowerCase().includes('number')) ? 'number' : 'text',
                     required: false,
                     options: [],
                     helpText: '',
+                    systemAutoFill: autoFill,
                     permissions: { visibleToRoles: [], editableByRoles: [] }
                 };
                 currentSection.fields.push(currentField);
@@ -155,10 +171,11 @@ export const importWordTemplate = async (req, res) => {
                 return;
             }
 
-            // 5. Detect Options (Bullets or starting with 'o', '-', '*')
-            const isBullet = content.match(/<li>|<\s*p[^>]*>\s*[o○\u25CB\u25EF\u25E6\-*+]/i);
+            // 5. Detect Options (Bullets, checkboxes, or starting with 'o', '-', '*', or sequential a), 1) )
+            const bulletRegex = /<li>|<\s*p[^>]*>\s*(?:[o○\u25CB\u25EF\u25E6\u2610\u2611\u2612\u25A1\u25A0\-*+]|\[\s*\]|\(\s*\)|[a-z0-9]{1,2}[\)\.])\s+/i;
+            const isBullet = content.match(bulletRegex);
             if (isBullet && currentField) {
-                const optText = textContent.replace(/^[o○\u25CB\u25EF\u25E6\-*+\s\t]+/, '').trim();
+                const optText = textContent.replace(/^([o○\u25CB\u25EF\u25E6\u2610\u2611\u2612\u25A1\u25A0\-*+]|\[\s*\]|\(\s*\)|[a-z0-9]{1,2}[\)\.])\s+/, '').trim();
                 if (optText) {
                     if (currentField.type === 'text' || currentField.type === 'note') {
                         currentField.type = 'radio';
@@ -170,34 +187,51 @@ export const importWordTemplate = async (req, res) => {
 
             // 6. Greedy Text Catch-all
             if (currentField && textContent.length > 2) {
-                const isInstruction = textContent.match(/^(Enumerator|Note|Instruction|Skip|If|Read|Please|Select|Only)/i) || content.match(/<em|<i/i);
+                const isInstruction = textContent.match(/^(Enumerator|Note|Instruction|Skip|If|Read|Please|Select|Only|Note:)/i) || content.match(/<em|<i/i);
                 const isConditional = textContent.match(/^(If|Skip|When|Go to)/i);
 
                 if (isInstruction) {
-                    currentField.helpText = currentField.helpText ? `${currentField.helpText} ${textContent}` : textContent;
+                    currentField.helpText = currentField.helpText ? `${currentField.helpText}\n${textContent}` : textContent;
                     if (isConditional) {
                         currentField.conditionalLogic = {
                             ...currentField.conditionalLogic,
-                            statement: textContent
+                            statement: (currentField.conditionalLogic?.statement || '') + ' ' + textContent
                         };
                     }
-                } else if (!textContent.match(/^q\d+/i) && textContent.length < 300) {
-                    // If it's not a question and not a bullet, it's likely a continuation of the previous field's label or help text
-                    if (currentField.type === 'note' || currentField.type === 'text') {
+                } else if (!textContent.match(qRegex) && textContent.length < 400) {
+                    // If it's not a question and not a bullet, decide if it's continuation or a new note
+                    if (textContent.length < 150 && (currentField.type === 'text' || currentField.type === 'note')) {
                         currentField.label += ' ' + textContent;
-                    } else {
-                        currentField.helpText = currentField.helpText ? `${currentField.helpText} ${textContent}` : textContent;
+                    } else if (currentSection) {
+                        currentField = {
+                            fieldId: uuidv4(),
+                            questionCode: `note_${uuidv4().substring(0, 4)}`,
+                            label: textContent,
+                            type: 'note',
+                            required: false,
+                            options: [],
+                            helpText: '',
+                            permissions: { visibleToRoles: [], editableByRoles: [] }
+                        };
+                        currentSection.fields.push(currentField);
                     }
                 }
-            } else if (currentSection && textContent.length > 5 && !textContent.match(/^q\d+/i)) {
+            } else if (currentSection && textContent.length > 5 && !textContent.match(qRegex)) {
+                let autoFill = 'none';
+                const lowerText = textContent.toLowerCase();
+                if (lowerText.match(/\bsub-?city\b/i)) autoFill = 'user_subcity';
+                else if (lowerText.match(/\bkebele\b/i)) autoFill = 'user_kebele';
+                else if (lowerText.includes('name') && lowerText.includes('phone')) autoFill = 'user_name'; // Mixed or ambiguous
+
                 currentField = {
                     fieldId: uuidv4(),
-                    questionCode: `note_${uuidv4().substring(0, 4)}`,
+                    questionCode: `info_${uuidv4().substring(0, 4)}`,
                     label: textContent,
                     type: 'note',
                     required: false,
                     options: [],
                     helpText: '',
+                    systemAutoFill: autoFill,
                     permissions: { visibleToRoles: [], editableByRoles: [] }
                 };
                 currentSection.fields.push(currentField);
