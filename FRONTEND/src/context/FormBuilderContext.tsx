@@ -60,6 +60,18 @@ interface FormState {
     isSettingsOpen: boolean;
     isThemeOpen: boolean;
     targetModuleId: string | null;
+    theme: {
+        primaryColor: string;
+        headerImage: string;
+        fontFamily: string;
+        headerOpacity: number;
+    };
+    settings: {
+        showQuestionCodes: boolean;
+        autoSave: boolean;
+        defaultRequired: boolean;
+        publicAccess: boolean;
+    };
 }
 
 // --- Actions ---
@@ -77,6 +89,10 @@ type Action =
     | { type: 'SELECT_QUESTION'; questionId: string | null }
     | { type: 'TOGGLE_SETTINGS'; open?: boolean }
     | { type: 'TOGGLE_THEME'; open?: boolean }
+    | { type: 'MOVE_MODULE'; moduleId: string; direction: 'up' | 'down' }
+    | { type: 'MOVE_QUESTION'; questionId: string; direction: 'up' | 'down' }
+    | { type: 'UPDATE_THEME'; updates: Partial<FormState['theme']> }
+    | { type: 'UPDATE_SETTINGS'; updates: Partial<FormState['settings']> }
     | { type: 'LOAD_TEMPLATE'; template: FormTemplate };
 
 // --- Reducer ---
@@ -91,6 +107,16 @@ const formReducer = (state: FormState, action: Action): FormState => {
                 template: {
                     ...state.template,
                     modules: [...state.template.modules, { moduleId: uuidv4(), moduleName: action.name, questions: [] }]
+                }
+            };
+
+        case 'REMOVE_MODULE':
+            if (state.template.modules.length <= 1) return state; // Keep at least one
+            return {
+                ...state,
+                template: {
+                    ...state.template,
+                    modules: state.template.modules.filter(m => m.moduleId !== action.moduleId)
                 }
             };
 
@@ -122,7 +148,7 @@ const formReducer = (state: FormState, action: Action): FormState => {
                 label: action.answerType === 'header' ? 'New Header' : action.answerType === 'note' ? 'New Note' : 'New Question',
                 answerType: action.answerType,
                 helperText: '',
-                required: false,
+                required: state.settings.defaultRequired,
                 options: [],
                 matrixConfig: { rows: [], columns: [], cellType: 'radio' },
                 tableConfig: { columns: [], allowAddRow: true },
@@ -207,6 +233,45 @@ const formReducer = (state: FormState, action: Action): FormState => {
         case 'TOGGLE_THEME':
             return { ...state, isThemeOpen: action.open ?? !state.isThemeOpen };
 
+        case 'MOVE_MODULE': {
+            const modules = [...state.template.modules];
+            const idx = modules.findIndex(m => m.moduleId === action.moduleId);
+            if (idx === -1) return state;
+            const newIdx = action.direction === 'up' ? idx - 1 : idx + 1;
+            if (newIdx < 0 || newIdx >= modules.length) return state;
+
+            const temp = modules[idx];
+            modules[idx] = modules[newIdx];
+            modules[newIdx] = temp;
+
+            return { ...state, template: { ...state.template, modules } };
+        }
+
+        case 'MOVE_QUESTION': {
+            const modules = state.template.modules.map(m => {
+                const idx = m.questions.findIndex(q => q.questionId === action.questionId);
+                if (idx === -1) return m;
+
+                const newIdx = action.direction === 'up' ? idx - 1 : idx + 1;
+                if (newIdx < 0 || newIdx >= m.questions.length) return m;
+
+                const questions = [...m.questions];
+                const temp = questions[idx];
+                questions[idx] = questions[newIdx];
+                questions[newIdx] = temp;
+
+                return { ...m, questions };
+            });
+
+            return { ...state, template: { ...state.template, modules } };
+        }
+
+        case 'UPDATE_THEME':
+            return { ...state, theme: { ...state.theme, ...action.updates } };
+
+        case 'UPDATE_SETTINGS':
+            return { ...state, settings: { ...state.settings, ...action.updates } };
+
         case 'LOAD_TEMPLATE':
             return { ...state, template: action.template, activeQuestionId: null };
 
@@ -226,7 +291,19 @@ const initialState: FormState = {
     isSelectingType: false,
     isSettingsOpen: false,
     isThemeOpen: false,
-    targetModuleId: null
+    targetModuleId: null,
+    theme: {
+        primaryColor: '#673AB7',
+        headerImage: "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&q=80&w=1200",
+        fontFamily: 'Inter',
+        headerOpacity: 100
+    },
+    settings: {
+        showQuestionCodes: true,
+        autoSave: false,
+        defaultRequired: false,
+        publicAccess: false
+    }
 };
 
 const FormBuilderContext = createContext<{

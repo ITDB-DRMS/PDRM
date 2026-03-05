@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { FormBuilderProvider, useFormBuilder, Question, AnswerType, Option, Module } from '../../../context/FormBuilderContext';
 import {
     Plus, Save, Send, Eye, X, ChevronLeft, Trash2,
-    GripVertical, Copy, ChevronDown,
+    Copy, ChevronDown, ChevronUp,
     Type, MessageSquare, Hash, Calendar, Circle, CheckSquare,
     Grid, Phone, Mail, Upload, Heading,
-    StickyNote, Check, Loader2, Settings, Layers, Palette, MoveVertical, Sparkles, MapPin, Table
+    StickyNote, Check, Loader2, Settings, Layers, Palette, Sparkles, MapPin, Table
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useNavigate, useParams } from 'react-router';
@@ -13,6 +13,33 @@ import api from '@/api/axios';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import QuestionTypeSelector from './QuestionTypeSelector';
+
+// ─── Utility Components ──────────────────────────────────────────────────────
+const SettingToggle: React.FC<{
+    title: string;
+    desc: string;
+    value: boolean;
+    onChange: (val: boolean) => void;
+}> = ({ title, desc, value, onChange }) => (
+    <div className="p-4 bg-gray-50 hover:bg-white hover:shadow-md transition-all rounded-2xl border border-transparent hover:border-gray-100 flex items-center justify-between group">
+        <div className="flex-1 pr-4">
+            <h4 className="font-bold text-sm text-gray-800">{title}</h4>
+            <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-tight font-black">{desc}</p>
+        </div>
+        <button
+            onClick={() => onChange(!value)}
+            className={clsx(
+                "w-11 h-6 rounded-full relative transition-all duration-300",
+                value ? "bg-purple-600" : "bg-gray-300"
+            )}
+        >
+            <div className={clsx(
+                "absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-sm",
+                value ? "left-6" : "left-1"
+            )} />
+        </button>
+    </div>
+);
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const QUESTION_TYPES: { type: AnswerType; label: string; icon: any; desc: string }[] = [
@@ -226,7 +253,6 @@ const QuestionCard: React.FC<{
     };
 
     const isChoiceType = ['radio', 'checkbox', 'select'].includes(question.answerType);
-    const accentColor = TYPE_COLORS[question.answerType] || '#673AB7';
 
     return (
         <motion.div
@@ -239,11 +265,32 @@ const QuestionCard: React.FC<{
                 isActive ? "shadow-xl z-20" : "border-transparent border-l-0 hover:shadow-md",
                 "overflow-hidden p-6 mb-4 group cursor-pointer"
             )}
-            style={{ borderLeftColor: isActive ? accentColor : undefined }}
+            style={{ borderLeftColor: isActive ? state.theme.primaryColor : undefined }}
         >
             {isActive && (
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-purple-600 rounded-r-full" />
+                <div className="absolute left-0 top-0 bottom-0 w-1 rounded-r-full" style={{ backgroundColor: state.theme.primaryColor }} />
             )}
+
+            {/* Reorder Icons (Visible on Hover/Active) */}
+            <div className={clsx(
+                "absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-1 transition-opacity duration-300",
+                isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            )}>
+                <button
+                    onClick={(e) => { e.stopPropagation(); dispatch({ type: 'MOVE_QUESTION', questionId: question.questionId, direction: 'up' }); }}
+                    className="p-1.5 bg-gray-50 hover:bg-purple-100 text-gray-400 hover:text-purple-600 rounded-md shadow-sm transition-all border border-gray-100"
+                    title="Move Up"
+                >
+                    <ChevronUp size={16} />
+                </button>
+                <button
+                    onClick={(e) => { e.stopPropagation(); dispatch({ type: 'MOVE_QUESTION', questionId: question.questionId, direction: 'down' }); }}
+                    className="p-1.5 bg-gray-50 hover:bg-purple-100 text-gray-400 hover:text-purple-600 rounded-md shadow-sm transition-all border border-gray-100"
+                    title="Move Down"
+                >
+                    <ChevronDown size={16} />
+                </button>
+            </div>
 
             <div className="flex flex-col gap-5">
                 {/* Header: Question + Type */}
@@ -417,15 +464,18 @@ const QuestionCard: React.FC<{
                 {/* Footer actions (only when active) */}
                 {isActive && question.answerType !== 'header' && question.answerType !== 'note' && (
                     <div className="flex items-center gap-2 border-t pt-4">
-                        <div className="flex-1 flex items-center gap-1.5 grayscale group-hover:grayscale-0 transition-all opacity-50 group-hover:opacity-100">
-                            <span className="text-[10px] font-black tracking-widest text-purple-600 uppercase">Question Code</span>
-                            <input
-                                type="text"
-                                value={question.questionCode}
-                                onChange={e => updateQuestion({ questionCode: e.target.value })}
-                                className="bg-transparent border-none outline-none text-xs font-mono text-gray-500 w-24"
-                            />
-                        </div>
+                        {state.settings.showQuestionCodes && (
+                            <div className="flex-1 flex items-center gap-1.5 grayscale group-hover:grayscale-0 transition-all opacity-50 group-hover:opacity-100">
+                                <span className="text-[10px] font-black tracking-widest text-purple-600 uppercase">Question Code</span>
+                                <input
+                                    type="text"
+                                    value={question.questionCode}
+                                    onChange={e => updateQuestion({ questionCode: e.target.value })}
+                                    className="bg-transparent border-none outline-none text-xs font-mono text-gray-500 w-24"
+                                />
+                            </div>
+                        )}
+                        {!state.settings.showQuestionCodes && <div className="flex-1" />}
 
                         <div className="flex items-center gap-1 border-r pr-4 mr-2 border-gray-100">
                             <button
@@ -502,14 +552,39 @@ const ModuleBlock: React.FC<{ module: Module; order: number }> = ({ module, orde
             ) : (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                     <div className="h-1 bg-blue-400" />
-                    <div className="p-5">
-                        <input
-                            type="text"
-                            value={module.moduleName}
-                            onChange={e => dispatch({ type: 'UPDATE_MODULE_NAME', moduleId: module.moduleId, name: e.target.value })}
-                            placeholder="Section title"
-                            className="w-full text-lg font-semibold text-gray-800 border-b-2 border-blue-300 focus:border-blue-600 outline-none bg-transparent pb-1 transition-colors"
-                        />
+                    <div className="p-5 flex items-center gap-4">
+                        <div className="flex-1">
+                            <input
+                                type="text"
+                                value={module.moduleName}
+                                onChange={e => dispatch({ type: 'UPDATE_MODULE_NAME', moduleId: module.moduleId, name: e.target.value })}
+                                placeholder="Section title"
+                                className="w-full text-lg font-semibold text-gray-800 border-b-2 border-blue-300 focus:border-blue-600 outline-none bg-transparent pb-1 transition-colors"
+                            />
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => dispatch({ type: 'MOVE_MODULE', moduleId: module.moduleId, direction: 'up' })}
+                                className="p-2 bg-gray-50 hover:bg-blue-100 text-gray-400 hover:text-blue-600 rounded-lg transition-all"
+                                title="Move Module Up"
+                            >
+                                <ChevronUp size={18} />
+                            </button>
+                            <button
+                                onClick={() => dispatch({ type: 'MOVE_MODULE', moduleId: module.moduleId, direction: 'down' })}
+                                className="p-2 bg-gray-50 hover:bg-blue-100 text-gray-400 hover:text-blue-600 rounded-lg transition-all"
+                                title="Move Module Down"
+                            >
+                                <ChevronDown size={18} />
+                            </button>
+                            <button
+                                onClick={() => dispatch({ type: 'REMOVE_MODULE', moduleId: module.moduleId })}
+                                className="p-2 bg-gray-50 hover:bg-red-100 text-gray-400 hover:text-red-500 rounded-lg transition-all"
+                                title="Remove Module"
+                            >
+                                <Trash2 size={18} />
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -786,7 +861,7 @@ const InnerFormBuilder: React.FC = () => {
     }
 
     return (
-        <div className="flex flex-col h-screen bg-gray-100 overflow-hidden font-sans">
+        <div className="flex flex-col h-screen bg-gray-100 overflow-hidden" style={{ fontFamily: state.theme.fontFamily }}>
             {/* ── Top Bar (Google Forms style) ── */}
             <nav className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 z-30 shadow-sm flex-shrink-0">
                 <div className="flex items-center gap-3">
@@ -800,9 +875,9 @@ const InnerFormBuilder: React.FC = () => {
 
                     {/* Logo dots (Google Forms inspired) */}
                     <div className="flex gap-0.5">
-                        <div className="w-4 h-5 rounded-sm" style={{ backgroundColor: '#673AB7' }} />
-                        <div className="w-4 h-5 rounded-sm" style={{ backgroundColor: '#3F51B5' }} />
-                        <div className="w-4 h-5 rounded-sm" style={{ backgroundColor: '#2196F3' }} />
+                        <div className="w-4 h-5 rounded-sm" style={{ backgroundColor: state.theme.primaryColor }} />
+                        <div className="w-4 h-5 rounded-sm" style={{ backgroundColor: state.theme.primaryColor, opacity: 0.6 }} />
+                        <div className="w-4 h-5 rounded-sm" style={{ backgroundColor: state.theme.primaryColor, opacity: 0.3 }} />
                     </div>
 
                     <div>
@@ -841,7 +916,7 @@ const InnerFormBuilder: React.FC = () => {
                         onClick={handlePublish}
                         disabled={isPublishing}
                         className="flex items-center gap-1.5 px-5 py-2 text-sm font-semibold text-white rounded-lg transition-all disabled:opacity-50"
-                        style={{ backgroundColor: '#673AB7' }}
+                        style={{ backgroundColor: state.theme.primaryColor }}
                     >
                         {isPublishing ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
                         {isPublishing ? 'Publishing...' : 'Publish'}
@@ -857,13 +932,17 @@ const InnerFormBuilder: React.FC = () => {
                     {/* Header Image Area */}
                     <div className="h-40 w-full rounded-2xl mb-8 overflow-hidden relative shadow-xl shadow-purple-200/50">
                         <img
-                            src="https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&q=80&w=1200"
+                            src={state.theme.headerImage}
                             className="w-full h-full object-cover"
+                            style={{ opacity: state.theme.headerOpacity / 100 }}
                             alt="Header"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
                         <div className="absolute bottom-6 left-8 flex items-center gap-3">
-                            <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl border border-white/30 text-white shadow-xl">
+                            <div
+                                className="p-3 bg-white/20 backdrop-blur-md rounded-xl border border-white/30 text-white shadow-xl"
+                                style={{ backgroundColor: `${state.theme.primaryColor}33` }}
+                            >
                                 <Sparkles size={24} />
                             </div>
                             <h2 className="text-2xl font-black text-white drop-shadow-lg tracking-tight">Instrument Designer</h2>
@@ -914,10 +993,65 @@ const InnerFormBuilder: React.FC = () => {
                         </div>
                         <div className="space-y-6">
                             <p className="text-sm text-gray-500">Customize the look and feel of your questionnaire.</p>
-                            <div className="grid grid-cols-4 gap-3">
-                                {Object.entries(TYPE_COLORS).map(([name, color]) => (
-                                    <button key={name} className="w-10 h-10 rounded-full shadow-inner border-2 border-white ring-2 ring-gray-100" style={{ backgroundColor: color }} />
-                                ))}
+
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 block">Primary Color</label>
+                                <div className="grid grid-cols-5 gap-3">
+                                    {['#673AB7', '#3F51B5', '#2196F3', '#009688', '#4CAF50', '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107', '#FF9800'].map(color => (
+                                        <button
+                                            key={color}
+                                            onClick={() => dispatch({ type: 'UPDATE_THEME', updates: { primaryColor: color } })}
+                                            className={clsx(
+                                                "w-10 h-10 rounded-full shadow-inner border-2 transition-all",
+                                                state.theme.primaryColor === color ? "border-black scale-110" : "border-white"
+                                            )}
+                                            style={{ backgroundColor: color }}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 block">Header Image URL</label>
+                                <input
+                                    type="text"
+                                    value={state.theme.headerImage}
+                                    onChange={e => dispatch({ type: 'UPDATE_THEME', updates: { headerImage: e.target.value } })}
+                                    className="w-full bg-gray-50 border border-gray-100 rounded-lg p-3 text-xs outline-none focus:ring-2 focus:ring-purple-100 transition-all font-mono"
+                                    placeholder="Enter image URL..."
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 block">Header Opacity</label>
+                                <div className="flex gap-4 items-center">
+                                    <input
+                                        type="range" min="0" max="100"
+                                        value={state.theme.headerOpacity}
+                                        onChange={e => dispatch({ type: 'UPDATE_THEME', updates: { headerOpacity: parseInt(e.target.value) } })}
+                                        className="flex-1 accent-purple-600"
+                                    />
+                                    <span className="text-xs font-mono text-gray-500 w-8">{state.theme.headerOpacity}%</span>
+                                </div>
+                            </div>
+
+                            <div className="pt-6 border-t">
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 block">Font Family</label>
+                                <div className="flex flex-col gap-2">
+                                    {['Inter', 'Outfit', 'Roboto', 'Poppins'].map(font => (
+                                        <button
+                                            key={font}
+                                            onClick={() => dispatch({ type: 'UPDATE_THEME', updates: { fontFamily: font } })}
+                                            className={clsx(
+                                                "w-full px-4 py-3 rounded-xl border text-left transition-all",
+                                                state.theme.fontFamily === font ? "bg-purple-50 border-purple-200 text-purple-700 font-bold" : "bg-white border-gray-100 text-gray-600"
+                                            )}
+                                            style={{ fontFamily: font }}
+                                        >
+                                            {font}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </motion.div>
@@ -940,14 +1074,30 @@ const InnerFormBuilder: React.FC = () => {
                             </button>
                         </div>
                         <div className="space-y-4">
-                            <div className="p-4 bg-gray-50 rounded-xl">
-                                <h4 className="font-bold text-sm text-gray-800">Response Logic</h4>
-                                <p className="text-xs text-gray-400 mt-1">Allow multiple responses per enumerator?</p>
-                            </div>
-                            <div className="p-4 bg-gray-50 rounded-xl">
-                                <h4 className="font-bold text-sm text-gray-800">Visual Rules</h4>
-                                <p className="text-xs text-gray-400 mt-1">Show progress bar to respondent?</p>
-                            </div>
+                            <SettingToggle
+                                title="Show Question Codes"
+                                desc="Visible unique identifiers for each field"
+                                value={state.settings.showQuestionCodes}
+                                onChange={(val: boolean) => dispatch({ type: 'UPDATE_SETTINGS', updates: { showQuestionCodes: val } })}
+                            />
+                            <SettingToggle
+                                title="Auto-save Drafts"
+                                desc="Save changes automatically while building"
+                                value={state.settings.autoSave}
+                                onChange={(val: boolean) => dispatch({ type: 'UPDATE_SETTINGS', updates: { autoSave: val } })}
+                            />
+                            <SettingToggle
+                                title="Default Required"
+                                desc="Automatically set new questions to required"
+                                value={state.settings.defaultRequired}
+                                onChange={(val: boolean) => dispatch({ type: 'UPDATE_SETTINGS', updates: { defaultRequired: val } })}
+                            />
+                            <SettingToggle
+                                title="Allow Public Access"
+                                desc="Allow anyone with mirror link to respond"
+                                value={state.settings.publicAccess}
+                                onChange={(val: boolean) => dispatch({ type: 'UPDATE_SETTINGS', updates: { publicAccess: val } })}
+                            />
                         </div>
                     </motion.div>
                 )}
