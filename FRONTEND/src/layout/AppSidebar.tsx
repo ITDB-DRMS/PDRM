@@ -50,21 +50,12 @@ const navItems: NavItem[] = [
   {
     icon: <GridIcon />,
     name: "Dashboard",
-    path: "/",
+    path: "/dashboard",
   },
   {
     icon: <BoxCubeIcon />,
     name: "Woreda Profile",
-    subItems: [
-      { name: "Administrative Location", path: "/woreda-profile/admin-location", icon: <GridIcon /> },
-      { name: "Community Information", path: "/woreda-profile/community", icon: <GroupIcon /> },
-      { name: "Demographics", path: "/woreda-profile/demographics", icon: <UserIcon /> },
-      { name: "Livelihoods", path: "/woreda-profile/livelihoods", icon: <DocsIcon /> },
-      { name: "Basic Services", path: "/woreda-profile/basic-services", icon: <FolderIcon /> },
-      { name: "Critical Facilities", path: "/woreda-profile/critical-facilities", icon: <BoxIconLine /> },
-      { name: "Vulnerable Groups", path: "/woreda-profile/vulnerable-groups", icon: <AlertIcon /> },
-      { name: "Community Capacity", path: "/woreda-profile/community-capacity", icon: <TaskIcon /> },
-    ],
+    path: "/woreda-profile",
   },
   {
     icon: <DocsIcon />,
@@ -487,7 +478,7 @@ const AppSidebar: React.FC = () => {
         className={`py-8 flex items-center gap-3 ${!isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
           }`}
       >
-        <Link to="/" className="flex items-center gap-3">
+        <Link to="/dashboard" className="flex items-center gap-3">
           {isExpanded || isHovered || isMobileOpen ? (
             <>
               <img

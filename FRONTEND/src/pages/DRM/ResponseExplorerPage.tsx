@@ -2,11 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import api from '@/api/axios';
 import {
-    ArrowLeft, Search, Filter, Download,
+    ArrowLeft, Search, Download,
     User, Clock, ChevronRight,
-    Loader2, Database, Calendar, X,
-    ChevronDown, FileText, CheckCircle2,
-    MapPin, Smartphone
+    Database, Calendar, X,
+    FileText, CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';

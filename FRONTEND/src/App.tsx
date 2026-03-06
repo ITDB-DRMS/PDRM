@@ -79,6 +79,7 @@ export default function App() {
                 {/* Dashboard Layout Routes */}
                 <Route element={<AppLayout />}>
                   <Route path="/dashboard" element={<Home />} />
+                  <Route path="/woreda-profile" element={<WoredaProfile />} />
                   <Route path="/woreda-profile/:section" element={<WoredaProfile />} />
 
                   {/* DRM Routes */}

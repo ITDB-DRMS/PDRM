@@ -15,6 +15,7 @@ import auditRoutes from './routes/auditRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import templateRoutes from './routes/templateRoutes.js';
 import formResponseRoutes from './routes/formResponseRoutes.js';
+import woredaProfileRoutes from './routes/woredaProfileRoutes.js';
 import { errorHandler } from './middleware/errorMiddleware.js';
 import cors from 'cors';
 
@@ -60,6 +61,7 @@ app.use('/api/audit-logs', auditRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/responses', formResponseRoutes);
+app.use('/api/woreda-profiles', woredaProfileRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
