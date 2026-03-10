@@ -1,11 +1,10 @@
 import api from './axios';
 
 export interface AdminLocation {
-    region: string;
-    zone: string;
+    subcity?: string;
     woreda: string;
-    kebele: string;
-    got?: string;
+    block?: string;
+    house_no?: string;
 }
 
 export interface EducationLevel {
@@ -64,6 +63,91 @@ export interface CommunityCapacity {
     remarks?: string;
 }
 
+export interface Hazard {
+    hazard_name?: string;
+    frequency?: string;
+    severity?: string;
+    seasonality?: string;
+    historical_events?: string;
+}
+
+export interface VulnerabilityAssessment {
+    hazard_name?: string;
+    element_at_risk?: string;
+    vulnerability_level?: string;
+    reasons?: string;
+}
+
+export interface HousingIndicators {
+    percent_non_durable_materials?: number;
+    age_buildings_over_30_years?: number;
+    compliance_with_building_codes?: number;
+    housing_density_overcrowding?: number;
+    informal_housing_coverage?: number;
+    proximity_to_hazard_zones?: number;
+    fire_resistant_materials_availability?: number;
+}
+
+export interface CapacityAssessment {
+    hazard_name?: string;
+    capacity_type?: string;
+    capacity_level?: string;
+    remarks?: string;
+}
+
+export interface EconomicRiskIndicators {
+    concentration_small_informal_businesses?: string;
+    market_exposure?: string;
+    daily_labor_dependency?: string;
+    business_interruption_risk?: string;
+    industrial_hazard_exposure?: string;
+    insurance_coverage_level?: string;
+}
+
+export interface EnvironmentalIndicators {
+    green_space_per_capita?: string;
+    wetland_encroachment?: string;
+    soil_sealing_coverage?: string;
+    waste_dumping_sites?: string;
+    urban_drainage_blockage_frequency?: string;
+    pollution_hotspots?: string;
+}
+
+export interface PreparednessIndicators {
+    emergency_shelters_availability?: string;
+    evacuation_routes_mapped?: string;
+    firefighting_equipment_availability?: string;
+    ambulance_coverage?: string;
+    emergency_drills_frequency?: string;
+    community_awareness_level?: string;
+    stockpiled_emergency_supplies?: string;
+}
+
+export interface RecoveryIndicators {
+    post_disaster_recovery_plans?: string;
+    livelihood_diversification?: string;
+    access_to_credit_safety_nets?: string;
+    community_self_help_groups?: string;
+    urban_upgrading_programs?: string;
+    climate_adaptation_initiatives?: string;
+}
+
+export interface RiskIndex {
+    hazard_index?: number;
+    vulnerability_index?: number;
+    exposure_index?: number;
+    capacity_index?: number;
+    overall_woreda_risk_score?: number;
+}
+
+export interface RiskAssessment {
+    hazard_name?: string;
+    risk_level?: string;
+    risk_score?: number;
+    priority_rank?: number;
+    recommended_action?: string;
+}
+
 export interface WoredaProfileInput {
     location: AdminLocation;
     assessment_date: string;
@@ -74,6 +158,16 @@ export interface WoredaProfileInput {
     critical_facilities?: CriticalFacility[];
     vulnerable_groups?: VulnerableGroup[];
     community_capacity?: CommunityCapacity[];
+    hazards?: Hazard[];
+    vulnerability_assessments?: VulnerabilityAssessment[];
+    housing_indicators?: HousingIndicators;
+    capacity_assessments?: CapacityAssessment[];
+    economic_risk_indicators?: EconomicRiskIndicators;
+    environmental_indicators?: EnvironmentalIndicators;
+    preparedness_indicators?: PreparednessIndicators;
+    recovery_indicators?: RecoveryIndicators;
+    risk_index?: RiskIndex;
+    risk_assessments?: RiskAssessment[];
     status?: 'Draft' | 'Submitted' | 'Reviewed';
 }
 
@@ -94,7 +188,6 @@ export interface WoredaProfileStats {
 }
 
 export const getWoredaProfiles = async (params?: {
-    region?: string;
     woreda?: string;
     status?: string;
 }): Promise<WoredaProfile[]> => {

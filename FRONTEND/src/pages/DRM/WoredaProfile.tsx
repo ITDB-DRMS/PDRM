@@ -26,6 +26,8 @@ const TABS = [
     { id: 'facilities',  label: 'Critical Facilities',icon: Building2 },
     { id: 'vulnerable',  label: 'Vulnerable Groups',  icon: Heart },
     { id: 'capacity',    label: 'Community Capacity', icon: ShieldCheck },
+    { id: 'hazards',     label: 'Hazards & Risks',    icon: AlertTriangle },
+    { id: 'risk',        label: 'Risk Assessment',    icon: BarChart3 },
 ];
 
 const FACILITY_TYPES = ['Health Center', 'School', 'Police Station', 'Fire Station', 'Emergency Shelter'];
@@ -41,7 +43,7 @@ const statusColor = (s?: string) => {
 };
 
 const emptyProfile = (): WoredaProfileInput => ({
-    location: { region: '', zone: '', woreda: '', kebele: '', got: '' },
+    location: { subcity: '', woreda: '', block: '', house_no: '' },
     assessment_date: new Date().toISOString().split('T')[0],
     remarks: '',
     demographics: { total_population: 0, male_population: 0, female_population: 0, children_0_17: 0, youth_18_29: 0, adults_30_59: 0, elderly_60_plus: 0, total_households: 0, female_headed_households: 0, informal_settlement_population: 0, low_income_households: 0, unemployment_rate: 0, internally_displaced_population: 0, education_levels: EDUCATION_CATS.map(c => ({ category: c, count: 0 })) },
@@ -50,6 +52,10 @@ const emptyProfile = (): WoredaProfileInput => ({
     critical_facilities: FACILITY_TYPES.map(f => ({ facility_type: f, distance_to_nearest_emergency_service: 0, structural_safety: '', emergency_equipment_available: false })),
     vulnerable_groups: VG_TYPES.map(t => ({ group_type: t, number: 0 })),
     community_capacity: CAPACITY_TYPES.map(t => ({ capacity_type: t, available: false, remarks: '' })),
+    hazards: [],
+    vulnerability_assessments: [],
+    capacity_assessments: [],
+    risk_assessments: [],
     status: 'Draft',
 });
 
@@ -74,23 +80,27 @@ const ProfileCard: React.FC<{ profile: WProfile; onView: () => void; onEdit: () 
                 </div>
                 <div>
                     <h3 className="font-bold text-slate-900">{profile.location.woreda} Woreda</h3>
-                    <p className="text-xs text-slate-400">{profile.location.kebele} • {profile.location.zone}</p>
+                    <p className="text-xs text-slate-400">{profile.location.subcity} Subcity</p>
                 </div>
             </div>
             <span className={`text-[10px] font-bold px-3 py-1 rounded-full border ${statusColor(profile.status)}`}>{profile.status}</span>
         </div>
-        <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="grid grid-cols-4 gap-2 mb-4">
             <div className="bg-slate-50 rounded-2xl p-3 text-center">
-                <p className="text-lg font-black text-slate-900">{profile.demographics?.total_population?.toLocaleString() || '—'}</p>
-                <p className="text-[9px] text-slate-400 uppercase tracking-wider">Population</p>
-            </div>
-            <div className="bg-slate-50 rounded-2xl p-3 text-center">
-                <p className="text-lg font-black text-slate-900">{profile.demographics?.total_households?.toLocaleString() || '—'}</p>
-                <p className="text-[9px] text-slate-400 uppercase tracking-wider">Households</p>
+                <p className="text-lg font-black text-slate-900">{(profile.demographics?.total_population || 0).toLocaleString()}</p>
+                <p className="text-[9px] text-slate-400 uppercase tracking-wider">Pop.</p>
             </div>
             <div className="bg-slate-50 rounded-2xl p-3 text-center">
                 <p className="text-lg font-black text-slate-900">{(profile.vulnerable_groups?.reduce((a, g) => a + (g.number || 0), 0) || 0).toLocaleString()}</p>
-                <p className="text-[9px] text-slate-400 uppercase tracking-wider">Vulnerable</p>
+                <p className="text-[9px] text-slate-400 uppercase tracking-wider">Vuln.</p>
+            </div>
+            <div className="bg-slate-50 rounded-2xl p-3 text-center">
+                <p className="text-lg font-black text-slate-900">{profile.risk_index?.overall_woreda_risk_score || '—'}</p>
+                <p className="text-[9px] text-slate-400 uppercase tracking-wider">Risk</p>
+            </div>
+            <div className={`rounded-2xl p-3 text-center ${profile.status === 'Submitted' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                <p className="text-lg font-black">{(profile.risk_assessments?.length || 0)}</p>
+                <p className="text-[9px] uppercase tracking-wider">Hazards</p>
             </div>
         </div>
         <div className="flex items-center justify-between">
@@ -156,8 +166,8 @@ const FormWizard: React.FC<{ initial?: WProfile | null; onSave: (d: WoredaProfil
                 <div className="flex-1 overflow-y-auto p-8">
                     {step === 0 && (
                         <div className="grid grid-cols-2 gap-4">
-                            {[['region','Region'],['zone','Zone'],['woreda','Woreda'],['kebele','Kebele'],['got','Got (Village)']].map(([k,l]) => (
-                                <div key={k} className={k === 'got' ? 'col-span-2' : ''}>
+                            {[['subcity','Subcity'],['woreda','Woreda'],['block','Block'],['house_no','House No']].map(([k,l]) => (
+                                <div key={k} className={k === 'block' || k === 'house_no' ? 'col-span-1' : ''}>
                                     <label className={labelCls}>{l}</label>
                                     <input className={inputCls} value={(form.location as any)[k] || ''} onChange={e => setLoc(k, e.target.value)} placeholder={`Enter ${l}`} />
                                 </div>
@@ -349,8 +359,8 @@ const DetailView: React.FC<{ profile: WProfile; onBack: () => void; onEdit: () =
                     <button onClick={onBack} className="w-10 h-10 rounded-2xl bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 flex items-center justify-center shadow-sm transition-all"><ArrowLeft size={18} /></button>
                     <div>
                         <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Woreda Profile</p>
-                        <h2 className="text-2xl font-black text-slate-900">{profile.location.woreda} — {profile.location.kebele}</h2>
-                        <p className="text-xs text-slate-400">{profile.location.zone} Zone, {profile.location.region}</p>
+                        <h2 className="text-2xl font-black text-slate-900">{profile.location.woreda} Woreda</h2>
+                        <p className="text-xs text-slate-400">{profile.location.subcity} Subcity</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -530,6 +540,105 @@ const DetailView: React.FC<{ profile: WProfile; onBack: () => void; onEdit: () =
                         ))}
                     </div>
                 )}
+
+                {tab === 'hazards' && (
+                    <div className="space-y-6">
+                        <div className="space-y-3">
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Community Hazards</p>
+                            {profile.hazards?.length ? profile.hazards.map((h, i) => (
+                                <div key={i} className="bg-slate-50 rounded-2xl p-5">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <p className="font-black text-slate-900">{h.hazard_name}</p>
+                                        <div className="flex gap-2">
+                                            <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${h.severity === 'High' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>Severity: {h.severity}</span>
+                                            <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-slate-200 text-slate-700">Freq: {h.frequency}</span>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div><p className="text-[9px] text-slate-400 uppercase">Seasonality</p><p className="text-xs font-bold text-slate-700">{h.seasonality || 'N/A'}</p></div>
+                                        <div><p className="text-[9px] text-slate-400 uppercase">History</p><p className="text-xs text-slate-600">{h.historical_events || 'No history recorded'}</p></div>
+                                    </div>
+                                </div>
+                            )) : <p className="text-sm text-slate-400 italic">No hazard data recorded.</p>}
+                        </div>
+
+                        <div className="space-y-3">
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Vulnerability Assessments</p>
+                            {profile.vulnerability_assessments?.length ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {profile.vulnerability_assessments.map((v, i) => (
+                                        <div key={i} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+                                            <p className="text-[10px] font-bold text-indigo-500 uppercase mb-1">{v.hazard_name}</p>
+                                            <p className="font-bold text-slate-800 mb-2">{v.element_at_risk}</p>
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <span className={`text-[9px] font-black px-2 py-0.5 rounded ${v.vulnerability_level === 'High' ? 'bg-rose-600 text-white' : 'bg-amber-500 text-white'}`}>{v.vulnerability_level} Risk</span>
+                                            </div>
+                                            <p className="text-[10px] text-slate-400 leading-relaxed"><span className="font-bold">Reason:</span> {v.reasons}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : <p className="text-sm text-slate-400 italic">No vulnerability data recorded.</p>}
+                        </div>
+                    </div>
+                )}
+
+                {tab === 'risk' && (
+                    <div className="space-y-8">
+                        {profile.risk_index && (
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                                {[['Hazard', profile.risk_index.hazard_index, 'text-rose-600'], ['Vulnerability', profile.risk_index.vulnerability_index, 'text-amber-600'], ['Exposure', profile.risk_index.exposure_index, 'text-orange-600'], ['Capacity', profile.risk_index.capacity_index, 'text-emerald-600'], ['Score', profile.risk_index.overall_woreda_risk_score, 'text-indigo-700 bg-indigo-50 rounded-2xl pt-2']].map(([l, v, c]) => (
+                                    <div key={String(l)} className={`text-center p-3 ${String(c)}`}>
+                                        <p className="text-[9px] font-bold uppercase tracking-wider">{l}</p>
+                                        <p className="text-2xl font-black">{v ?? '—'}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="space-y-4">
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Risk Evaluation</p>
+                            {profile.risk_assessments?.length ? profile.risk_assessments.map((r, i) => (
+                                <div key={i} className="flex flex-col md:flex-row gap-6 p-6 bg-slate-50 rounded-3xl items-start">
+                                    <div className="bg-white p-4 rounded-2xl shadow-sm text-center min-w-[100px]">
+                                        <p className="text-[9px] text-slate-400 uppercase font-black mb-1">Score</p>
+                                        <p className="text-3xl font-black text-slate-900">{r.risk_score}</p>
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${r.risk_level?.includes('High') ? 'text-rose-600 bg-rose-50' : 'text-amber-600 bg-amber-50'}`}>{r.risk_level}</span>
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-[10px] flex items-center justify-center font-bold">#{r.priority_rank}</span>
+                                            <h4 className="font-bold text-slate-900 text-lg">{r.hazard_name} Risk</h4>
+                                        </div>
+                                        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4">
+                                            <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider mb-1">Recommended Action</p>
+                                            <p className="text-sm text-indigo-900 font-medium">{r.recommended_action}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )) : <p className="text-sm text-slate-400 italic">No risk assessments recorded.</p>}
+                        </div>
+
+                        {profile.capacity_assessments?.length ? (
+                            <div className="space-y-3">
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Capacity Indices</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {profile.capacity_assessments.map((c, i) => (
+                                        <div key={i} className="flex items-center gap-4 p-4 bg-white border border-slate-100 rounded-2xl transition-all hover:shadow-sm">
+                                            <div className="flex-1">
+                                                <p className="text-[9px] font-bold text-indigo-500 uppercase">{c.hazard_name}</p>
+                                                <p className="text-sm font-bold text-slate-800">{c.capacity_type}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className={`text-[10px] font-black px-3 py-1 rounded-full ${c.capacity_level === 'Strong' ? 'bg-emerald-100 text-emerald-700' : c.capacity_level === 'Moderate' ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}`}>{c.capacity_level}</span>
+                                                {c.remarks && <p className="text-[10px] text-slate-400 mt-1">{c.remarks}</p>}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : null}
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -602,8 +711,8 @@ const ImportModal: React.FC<{
                             <table className="w-full text-left">
                                 <thead className="bg-slate-50 border-b border-slate-100">
                                     <tr>
-                                        <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Region/Zone</th>
-                                        <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Woreda/Kebele</th>
+                                        <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Subcity</th>
+                                        <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Woreda</th>
                                         <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Population</th>
                                         <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Assessment Date</th>
                                     </tr>
@@ -612,12 +721,10 @@ const ImportModal: React.FC<{
                                     {previewProfiles.map((p, i) => (
                                         <tr key={i} className="hover:bg-slate-50 transition-colors">
                                             <td className="px-4 py-3">
-                                                <p className="text-sm font-bold text-slate-800">{p.location.region}</p>
-                                                <p className="text-[10px] text-slate-400">{p.location.zone}</p>
+                                                <p className="text-sm font-bold text-slate-800">{p.location.subcity}</p>
                                             </td>
                                             <td className="px-4 py-3">
                                                 <p className="text-sm font-bold text-slate-800">{p.location.woreda}</p>
-                                                <p className="text-[10px] text-slate-400">{p.location.kebele}</p>
                                             </td>
                                             <td className="px-4 py-3">
                                                 <p className="text-sm font-black text-indigo-600">{p.demographics?.total_population?.toLocaleString() || 'N/A'}</p>
@@ -735,7 +842,7 @@ const WoredaProfile: React.FC = () => {
     };
 
     const filtered = profiles.filter(p =>
-        [p.location.woreda, p.location.zone, p.location.region, p.location.kebele].some(v =>
+        [p.location.woreda, p.location.subcity].some(v =>
             v?.toLowerCase().includes(search.toLowerCase())
         )
     );
@@ -791,7 +898,7 @@ const WoredaProfile: React.FC = () => {
                 <div className="flex items-center gap-3 mb-6">
                     <div className="relative flex-1 max-w-md">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by woreda, zone, region..."
+                        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by woreda, subcity..."
                             className="w-full pl-12 pr-5 py-3 bg-white rounded-2xl border border-slate-100 text-sm font-medium text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-indigo-200 shadow-sm" />
                     </div>
                     <span className="text-xs font-bold text-slate-400 px-2">{filtered.length} profiles</span>
