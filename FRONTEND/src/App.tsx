@@ -36,6 +36,7 @@ import Analytics from "./pages/DRM/Analytics";
 import FormResponsePage from "./pages/DRM/FormResponsePage";
 import ResponseExplorerPage from "./pages/DRM/ResponseExplorerPage";
 import WoredaProfile from "./pages/DRM/WoredaProfile";
+import MappingConfig from "./pages/DRM/MappingConfig";
 import PublicFeedbackPage from "./pages/portal/PublicFeedbackPage";
 import NotFound from "./pages/OtherPage/NotFound";
 import Videos from "./pages/UiElements/Videos";
@@ -109,6 +110,7 @@ export default function App() {
                   <Route path="/admin/template-library" element={<TemplateLibrary />} />
                   <Route path="/admin/form-builder" element={<FormBuilder />} />
                   <Route path="/admin/form-builder/:id" element={<FormBuilder />} />
+                  <Route path="/admin/profile-mapping" element={<MappingConfig />} />
                   <Route path="/admin/responses/:templateId" element={<ResponseExplorerPage />} />
 
                   {/* Others Page */}

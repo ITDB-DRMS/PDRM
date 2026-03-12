@@ -177,9 +177,18 @@ const woredaProfileSchema = new mongoose.Schema({
         enum: ['Draft', 'Submitted', 'Reviewed'],
         default: 'Draft'
     },
+    syncSources: {
+        type: Map,
+        of: new mongoose.Schema({
+            responseId: { type: mongoose.Schema.Types.ObjectId, ref: 'FormResponse' },
+            answerId: String,
+            sourceKey: String,
+            syncedAt: { type: Date, default: Date.now }
+        }, { _id: false })
+    },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
-woredaProfileSchema.index({ 'location.region': 1, 'location.woreda': 1 });
+woredaProfileSchema.index({ 'location.woreda': 1, 'location.subcity': 1 });
 
 export default mongoose.model('WoredaProfile', woredaProfileSchema);

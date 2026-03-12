@@ -7,7 +7,8 @@ import {
     updateWoredaProfile,
     deleteWoredaProfile,
     getWoredaProfileStats,
-    importWoredaProfile
+    importWoredaProfile,
+    syncFromInterview
 } from '../controllers/woredaProfileController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
@@ -20,6 +21,7 @@ router.get('/stats', getWoredaProfileStats);
 router.get('/', getWoredaProfiles);
 router.post('/', createWoredaProfile);
 router.post('/import', upload.single('file'), importWoredaProfile);
+router.post('/sync-interview', syncFromInterview);
 router.get('/:id', getWoredaProfileById);
 router.put('/:id', updateWoredaProfile);
 router.delete('/:id', deleteWoredaProfile);

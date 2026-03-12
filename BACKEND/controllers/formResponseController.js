@@ -28,13 +28,28 @@ export const submitResponse = async (req, res) => {
             return res.status(400).json({ message: 'Cannot submit to an archived template.' });
         }
 
+        // Process answers to ensure unique ID per response
+        const processedAnswers = new Map();
+        if (answers) {
+            Object.entries(answers).forEach(([key, val]) => {
+                if (typeof val === 'object' && val !== null && val.answerId) {
+                    processedAnswers.set(key, val);
+                } else {
+                    processedAnswers.set(key, {
+                        value: val,
+                        answerId: `ans-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+                    });
+                }
+            });
+        }
+
         const response = new FormResponse({
             templateId,
             templateVersion: templateVersion || template.version,
             moduleContextId,
             moduleContextType,
             respondentMetadata,
-            answers,
+            answers: processedAnswers,
             isDraft: isDraft || false,
             submittedBy: req.user?._id
         });

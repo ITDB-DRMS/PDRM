@@ -22,24 +22,35 @@ const ResponseDetailsModal: React.FC<{
     const getAnswer = (fieldCode: string) => {
         const answers = response.answers;
         if (!answers) return undefined;
-        return answers instanceof Map ? answers.get(fieldCode) : answers[fieldCode];
+        const val = answers instanceof Map ? answers.get(fieldCode) : answers[fieldCode];
+        
+        // Handle new structured value { value, answerId }
+        if (typeof val === 'object' && val !== null && 'value' in val) {
+            return val;
+        }
+        return { value: val };
     };
 
     const renderAnswerValue = (field: any) => {
-        const val = getAnswer(field.questionCode);
-        if (val === undefined || val === null || val === '') {
+        const { value, answerId } = getAnswer(field.questionCode) || {};
+        
+        if (value === undefined || value === null || value === '') {
             return <span className="text-gray-300 italic">No response</span>;
         }
 
-        if (typeof val === 'object') {
-            return (
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-[11px] font-mono text-slate-600 w-full overflow-x-auto">
-                    {JSON.stringify(val, null, 2)}
+        return (
+            <div className="space-y-1">
+                <div className="text-slate-900 font-medium">
+                    {typeof value === 'object' ? JSON.stringify(value) : String(value)}
                 </div>
-            );
-        }
-
-        return <span className="text-slate-900 font-medium">{String(val)}</span>;
+                {answerId && (
+                    <div className="flex items-center gap-1.5 ">
+                        <div className="w-1 h-1 rounded-full bg-slate-300" />
+                        <span className="text-[9px] font-mono text-slate-300 uppercase">UID: {answerId}</span>
+                    </div>
+                )}
+            </div>
+        );
     };
 
     return (

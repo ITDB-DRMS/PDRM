@@ -219,17 +219,35 @@ export const getWoredaProfileStats = async (): Promise<WoredaProfileStats> => {
     return response.data;
 };
 
-export const importWoredaProfile = async (file: File, options?: { dryRun?: boolean; status?: string }): Promise<{ message: string; count: number; profiles: WoredaProfile[] }> => {
+export const importWoredaProfile = async (
+    file: File, 
+    options?: { dryRun?: boolean; status?: string; mappingId?: string }
+): Promise<{ 
+    message: string; 
+    count: number; 
+    profiles: WoredaProfile[]; 
+    errors?: any[] 
+}> => {
     const formData = new FormData();
     formData.append('file', file);
     const params = new URLSearchParams();
     if (options?.dryRun) params.append('dryRun', 'true');
     if (options?.status) params.append('status', options.status);
+    if (options?.mappingId) params.append('mappingId', options.mappingId);
 
     const response = await api.post(`/woreda-profiles/import?${params.toString()}`, formData, {
         headers: {
             'Content-Type': 'multipart/form-data',
         },
     });
+    return response.data;
+};
+
+export const syncFromInterview = async (data: { 
+    responseId: string; 
+    mappingId: string; 
+    dryRun?: boolean 
+}): Promise<WoredaProfile | { message: string; data: any; validationErrors: any[] }> => {
+    const response = await api.post('/woreda-profiles/sync-interview', data);
     return response.data;
 };
