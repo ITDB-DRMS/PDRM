@@ -524,6 +524,7 @@ export default function Users() {
                                                 user={user}
                                                 onEdit={() => handleOpenModal(user, 'edit')}
                                                 onView={() => handleOpenModal(user, 'view')}
+                                                onManageRoles={() => handleOpenRoleModal(user)}
                                                 onDelete={handleDelete}
                                                 onStatusToggle={async (u) => {
                                                     const newStatus = u.status === 'active' ? 'suspended' : 'active';

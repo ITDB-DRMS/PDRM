@@ -11,8 +11,9 @@ import { toast } from 'react-toastify';
 import { useNavigate, useParams } from 'react-router';
 import api from '@/api/axios';
 import clsx from 'clsx';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import QuestionTypeSelector from './QuestionTypeSelector';
+import TableEditor from './TableEditor';
 
 // ─── Utility Components ──────────────────────────────────────────────────────
 const SettingToggle: React.FC<{
@@ -51,6 +52,8 @@ const QUESTION_TYPES: { type: AnswerType; label: string; icon: any; desc: string
     { type: 'checkbox', label: 'Checkboxes', icon: CheckSquare, desc: 'Pick many options' },
     { type: 'select', label: 'Dropdown', icon: ChevronDown, desc: 'Select from list' },
     { type: 'matrix', label: 'Grid', icon: Grid, desc: 'Matrix / grid' },
+    { type: 'table', label: 'Dynamic Table', icon: Table, desc: 'Multiple fields per row' },
+    { type: 'geo', label: 'Location', icon: MapPin, desc: 'Capture GPS location' },
     { type: 'phone', label: 'Phone', icon: Phone, desc: 'Phone number' },
     { type: 'email', label: 'Email', icon: Mail, desc: 'Email address' },
     { type: 'file', label: 'File Upload', icon: Upload, desc: 'Upload a file' },
@@ -61,8 +64,9 @@ const QUESTION_TYPES: { type: AnswerType; label: string; icon: any; desc: string
 const TYPE_COLORS: Record<string, string> = {
     text: '#673AB7', textarea: '#3F51B5', number: '#F44336',
     date: '#009688', radio: '#E91E63', checkbox: '#4CAF50',
-    select: '#FF9800', matrix: '#2196F3', phone: '#795548',
-    email: '#607D8B', file: '#9C27B0', header: '#455A64', note: '#FF5722',
+    select: '#FF9800', matrix: '#2196F3', table: '#0EA5E9',
+    geo: '#14B8A6', phone: '#795548', email: '#607D8B',
+    file: '#9C27B0', header: '#455A64', note: '#FF5722',
 };
 
 // ─── Schema Converter ─────────────────────────────────────────────────────────
@@ -84,30 +88,41 @@ const convertToBackendSchema = (template: any) =>
                 required: q.required,
                 options: q.options?.map((o: any) => ({ label: o.label, value: o.value })) || [],
                 matrixConfig: q.answerType === 'matrix' ? q.matrixConfig : undefined,
+                tableConfig: q.answerType === 'table' ? q.tableConfig : undefined,
                 validation: q.validation || {},
                 permissions: { visibleToRoles: [], editableByRoles: [] }
             }))
         }]
     }));
 
-const convertFromBackendSchema = (data: any) => ({
-    templateName: data.name,
-    modules: data.modules.map((m: any) => ({
-        moduleId: m.moduleId,
-        moduleName: m.title,
-        questions: m.sections.flatMap((s: any) => s.fields.map((f: any) => ({
-            questionId: f.fieldId,
-            questionCode: f.questionCode,
-            label: f.label,
-            answerType: f.type,
-            helperText: f.helpText || '',
-            required: f.required || false,
-            options: f.options || [],
-            matrixConfig: f.matrixConfig || { rows: [], columns: [], cellType: 'radio' },
-            validation: f.validation || {}
-        })))
-    }))
-});
+const convertFromBackendSchema = (data: any) => {
+    const backendModules = Array.isArray(data?.modules) ? data.modules : [];
+
+    // Some draft templates may be saved with an empty modules array; keep the builder usable.
+    const modules = backendModules.length
+        ? backendModules.map((m: any) => ({
+            moduleId: m.moduleId,
+            moduleName: m.title,
+            questions: (m.sections || []).flatMap((s: any) => (s.fields || []).map((f: any) => ({
+                questionId: f.fieldId,
+                questionCode: f.questionCode,
+                label: f.label,
+                answerType: f.type,
+                helperText: f.helpText || '',
+                required: f.required || false,
+                options: f.options || [],
+                matrixConfig: f.matrixConfig || { rows: [], columns: [], cellType: 'radio' },
+                tableConfig: f.tableConfig || { columns: [], allowAddRow: true },
+                validation: f.validation || {}
+            })))
+        }))
+        : [{ moduleId: `m_${Date.now()}_${Math.floor(Math.random() * 1e6)}`, moduleName: 'Module 1', questions: [] }];
+
+    return {
+        templateName: data?.name || 'New Questionnaire',
+        modules
+    };
+};
 
 // ─── Type Badge ───────────────────────────────────────────────────────────────
 const TypeBadge: React.FC<{ type: AnswerType }> = ({ type }) => {
@@ -422,9 +437,31 @@ const QuestionCard: React.FC<{
                         </div>
                     )}
                     {question.answerType === 'table' && (
-                        <div className="flex flex-col gap-2 mt-2 p-4 bg-gray-50 border border-gray-100 rounded-lg text-xs text-gray-400">
-                            <div className="flex items-center gap-2 opacity-60"><Table size={14} /> Dynamic Data Table</div>
-                            <div className="h-20 border border-gray-200 rounded animate-pulse" />
+                        <div className="mt-2">
+                            {isActive ? (
+                                <TableEditor
+                                    config={question.tableConfig}
+                                    onChange={(tc) => updateQuestion({ tableConfig: tc })}
+                                />
+                            ) : (
+                                <div className="flex flex-col gap-2 p-4 bg-gray-50 border border-gray-100 rounded-lg text-xs text-gray-400">
+                                    <div className="flex items-center gap-2 opacity-60"><Table size={14} /> Dynamic Data Table</div>
+                                    {question.tableConfig?.columns?.length ? (
+                                        <div className="grid grid-cols-3 gap-3">
+                                            {question.tableConfig.columns.slice(0, 3).map((col, i) => (
+                                                <div key={`${col.label}_${i}`} className="space-y-1">
+                                                    <div className="text-[10px] font-black text-gray-400 uppercase">{col.label || `Column ${i + 1}`}</div>
+                                                    <div className="h-7 bg-white border border-gray-200 rounded" />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="h-20 border border-gray-200 rounded flex items-center justify-center">
+                                            <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">No columns yet</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -564,6 +601,13 @@ const ModuleBlock: React.FC<{ module: Module; order: number }> = ({ module, orde
                         </div>
                         <div className="flex items-center gap-1">
                             <button
+                                onClick={() => dispatch({ type: 'ADD_MODULE_AT', name: 'New Section', index: order + 1 })}
+                                className="p-2 bg-gray-50 hover:bg-purple-100 text-gray-400 hover:text-purple-600 rounded-lg transition-all"
+                                title="Insert Section Below"
+                            >
+                                <Plus size={18} />
+                            </button>
+                            <button
                                 onClick={() => dispatch({ type: 'MOVE_MODULE', moduleId: module.moduleId, direction: 'up' })}
                                 className="p-2 bg-gray-50 hover:bg-blue-100 text-gray-400 hover:text-blue-600 rounded-lg transition-all"
                                 title="Move Module Up"
@@ -591,12 +635,44 @@ const ModuleBlock: React.FC<{ module: Module; order: number }> = ({ module, orde
 
             {/* Question cards */}
             <AnimatePresence>
-                {module.questions.map((question) => (
-                    <QuestionCard
-                        key={question.questionId}
-                        question={question}
-                    />
-                ))}
+                <div className="mb-4">
+                    <button
+                        onClick={() => dispatch({ type: 'OPEN_TYPE_SELECTOR', moduleId: module.moduleId, insertIndex: 0 })}
+                        className="w-full border-2 border-dashed border-gray-200 rounded-xl py-3 text-xs font-black uppercase tracking-widest text-gray-400 hover:text-purple-600 hover:border-purple-200 hover:bg-purple-50/20 transition-all"
+                        title="Add question here"
+                    >
+                        + Add question here
+                    </button>
+                </div>
+
+                <Reorder.Group
+                    axis="y"
+                    values={module.questions}
+                    onReorder={(questions) => dispatch({ type: 'REORDER_QUESTIONS', moduleId: module.moduleId, questions })}
+                    className="space-y-4"
+                >
+                    {module.questions.map((question, qIdx) => (
+                        <React.Fragment key={question.questionId}>
+                            <Reorder.Item
+                                value={question}
+                                dragListener={state.activeQuestionId === question.questionId}
+                                className="cursor-grab active:cursor-grabbing"
+                            >
+                                <QuestionCard question={question} />
+                            </Reorder.Item>
+
+                            <div>
+                                <button
+                                    onClick={() => dispatch({ type: 'OPEN_TYPE_SELECTOR', moduleId: module.moduleId, insertIndex: qIdx + 1 })}
+                                    className="w-full border border-transparent rounded-xl py-2 text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-purple-600 hover:border-purple-100 hover:bg-purple-50/20 transition-all"
+                                    title="Add question below"
+                                >
+                                    + Add below
+                                </button>
+                            </div>
+                        </React.Fragment>
+                    ))}
+                </Reorder.Group>
             </AnimatePresence>
         </div>
     );
@@ -700,9 +776,37 @@ const PreviewModal: React.FC<{ template: any; onClose: () => void }> = ({ templa
                                             )}
 
                                             {q.answerType === 'table' && (
-                                                <div className="bg-gray-50 border border-gray-100 p-4 rounded-lg flex flex-col items-center justify-center min-h-[100px] text-gray-400">
-                                                    <Table size={24} className="mb-2 opacity-30" />
-                                                    <span className="text-xs">Dynamic Table Preview Component</span>
+                                                <div className="overflow-x-auto mt-2 rounded-lg border border-gray-100 bg-gray-50/30 p-3">
+                                                    {q.tableConfig?.columns?.length ? (
+                                                        <table className="w-full text-xs border border-gray-100 bg-white rounded-lg overflow-hidden">
+                                                            <thead>
+                                                                <tr className="bg-gray-50">
+                                                                    {q.tableConfig.columns.map((c, i) => (
+                                                                        <th key={`${c.label}_${i}`} className="p-2 border text-left font-bold text-gray-500">
+                                                                            {c.label || `Column ${i + 1}`}
+                                                                        </th>
+                                                                    ))}
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr>
+                                                                    {q.tableConfig.columns.map((c, i) => (
+                                                                        <td key={`${c.label}_${i}_cell`} className="p-2 border">
+                                                                            <div className="h-7 rounded bg-gray-50 border border-gray-100" />
+                                                                        </td>
+                                                                    ))}
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 text-gray-400 text-xs">
+                                                            <Table size={16} className="opacity-40" />
+                                                            <span>No columns configured yet</span>
+                                                        </div>
+                                                    )}
+                                                    {q.tableConfig?.allowAddRow !== false && (
+                                                        <div className="mt-2 text-[10px] font-black text-blue-600 uppercase tracking-widest">+ Add new row</div>
+                                                    )}
                                                 </div>
                                             )}
 
@@ -731,11 +835,17 @@ const PreviewModal: React.FC<{ template: any; onClose: () => void }> = ({ templa
 };
 
 const SidebarActions: React.FC = () => {
-    const { dispatch } = useFormBuilder();
+    const { state, dispatch } = useFormBuilder();
+
+    const activeModuleIndex = state.activeQuestionId
+        ? state.template.modules.findIndex(m => m.questions.some(q => q.questionId === state.activeQuestionId))
+        : -1;
+
+    const insertSectionIndex = activeModuleIndex >= 0 ? activeModuleIndex + 1 : state.template.modules.length;
     return (
         <div className="fixed right-10 top-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 flex flex-col gap-2 z-40">
             <button
-                onClick={() => dispatch({ type: 'OPEN_TYPE_SELECTOR', moduleId: 'any' })} // Simplification for demo
+                onClick={() => dispatch({ type: 'OPEN_TYPE_SELECTOR', moduleId: 'any' })}
                 className="p-4 rounded-xl text-gray-500 hover:text-purple-600 hover:bg-purple-50 transition-all group relative"
                 title="Add Question"
             >
@@ -743,7 +853,7 @@ const SidebarActions: React.FC = () => {
                 <span className="absolute right-full mr-4 bg-gray-900 text-white text-[10px] font-bold py-1 px-3 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">Add Question</span>
             </button>
             <button
-                onClick={() => dispatch({ type: 'ADD_MODULE', name: 'New Section' })}
+                onClick={() => dispatch({ type: 'ADD_MODULE_AT', name: 'New Section', index: insertSectionIndex })}
                 className="p-4 rounded-xl text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all group relative"
                 title="Add Section"
             >
@@ -949,9 +1059,22 @@ const InnerFormBuilder: React.FC = () => {
                         </div>
                     </div>
 
-                    {state.template.modules.map((m, idx) => (
-                        <ModuleBlock key={m.moduleId} module={m} order={idx} />
-                    ))}
+                    <Reorder.Group
+                        axis="y"
+                        values={state.template.modules}
+                        onReorder={(modules) => dispatch({ type: 'REORDER_MODULES', modules })}
+                        className="space-y-8"
+                    >
+                        {state.template.modules.map((m, idx) => (
+                            <Reorder.Item
+                                key={m.moduleId}
+                                value={m}
+                                className="cursor-grab active:cursor-grabbing"
+                            >
+                                <ModuleBlock module={m} order={idx} />
+                            </Reorder.Item>
+                        ))}
+                    </Reorder.Group>
 
                     <div className="flex justify-center mt-12 pb-24">
                         <button

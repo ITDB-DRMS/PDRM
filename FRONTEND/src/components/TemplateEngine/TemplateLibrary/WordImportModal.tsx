@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    X, Upload, FileText, CheckCircle2, AlertCircle,
+    X, Upload, FileText, AlertCircle,
     Loader2, ChevronDown, ChevronRight, Tag, Layers,
     HelpCircle, List, Hash, AlignLeft, Table2,
     Save, Eye, EyeOff, Sparkles, Cloud

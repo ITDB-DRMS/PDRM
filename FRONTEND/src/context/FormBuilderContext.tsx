@@ -60,6 +60,7 @@ interface FormState {
     isSettingsOpen: boolean;
     isThemeOpen: boolean;
     targetModuleId: string | null;
+    targetInsertIndex: number | null;
     theme: {
         primaryColor: string;
         headerImage: string;
@@ -78,9 +79,10 @@ interface FormState {
 type Action =
     | { type: 'SET_TEMPLATE_NAME'; name: string }
     | { type: 'ADD_MODULE'; name: string }
+    | { type: 'ADD_MODULE_AT'; name: string; index: number }
     | { type: 'REMOVE_MODULE'; moduleId: string }
     | { type: 'UPDATE_MODULE_NAME'; moduleId: string; name: string }
-    | { type: 'OPEN_TYPE_SELECTOR'; moduleId: string }
+    | { type: 'OPEN_TYPE_SELECTOR'; moduleId: string; insertIndex?: number }
     | { type: 'CLOSE_TYPE_SELECTOR' }
     | { type: 'ADD_QUESTION'; moduleId: string; answerType: AnswerType }
     | { type: 'UPDATE_QUESTION'; questionId: string; updates: Partial<Question> }
@@ -91,6 +93,8 @@ type Action =
     | { type: 'TOGGLE_THEME'; open?: boolean }
     | { type: 'MOVE_MODULE'; moduleId: string; direction: 'up' | 'down' }
     | { type: 'MOVE_QUESTION'; questionId: string; direction: 'up' | 'down' }
+    | { type: 'REORDER_MODULES'; modules: Module[] }
+    | { type: 'REORDER_QUESTIONS'; moduleId: string; questions: Question[] }
     | { type: 'UPDATE_THEME'; updates: Partial<FormState['theme']> }
     | { type: 'UPDATE_SETTINGS'; updates: Partial<FormState['settings']> }
     | { type: 'LOAD_TEMPLATE'; template: FormTemplate };
@@ -109,6 +113,13 @@ const formReducer = (state: FormState, action: Action): FormState => {
                     modules: [...state.template.modules, { moduleId: uuidv4(), moduleName: action.name, questions: [] }]
                 }
             };
+
+        case 'ADD_MODULE_AT': {
+            const modules = [...state.template.modules];
+            const clampedIndex = Math.max(0, Math.min(action.index, modules.length));
+            modules.splice(clampedIndex, 0, { moduleId: uuidv4(), moduleName: action.name, questions: [] });
+            return { ...state, template: { ...state.template, modules } };
+        }
 
         case 'REMOVE_MODULE':
             if (state.template.modules.length <= 1) return state; // Keep at least one
@@ -130,16 +141,41 @@ const formReducer = (state: FormState, action: Action): FormState => {
             };
 
         case 'OPEN_TYPE_SELECTOR': {
+            if (action.moduleId !== 'any') {
+                return {
+                    ...state,
+                    isSelectingType: true,
+                    targetModuleId: action.moduleId,
+                    targetInsertIndex: action.insertIndex ?? null
+                };
+            }
+
             const lastModuleId = state.template.modules[state.template.modules.length - 1]?.moduleId;
+            if (lastModuleId) {
+                return {
+                    ...state,
+                    isSelectingType: true,
+                    targetModuleId: lastModuleId,
+                    targetInsertIndex: action.insertIndex ?? null
+                };
+            }
+
+            // If a backend template loads with no modules, create a default one so questions can be added.
+            const newModuleId = uuidv4();
             return {
                 ...state,
                 isSelectingType: true,
-                targetModuleId: action.moduleId === 'any' ? lastModuleId : action.moduleId
+                targetModuleId: newModuleId,
+                targetInsertIndex: action.insertIndex ?? null,
+                template: {
+                    ...state.template,
+                    modules: [{ moduleId: newModuleId, moduleName: 'Module 1', questions: [] }]
+                }
             };
         }
 
         case 'CLOSE_TYPE_SELECTOR':
-            return { ...state, isSelectingType: false, targetModuleId: null };
+            return { ...state, isSelectingType: false, targetModuleId: null, targetInsertIndex: null };
 
         case 'ADD_QUESTION': {
             const newQuestion: Question = {
@@ -159,13 +195,23 @@ const formReducer = (state: FormState, action: Action): FormState => {
                 ...state,
                 isSelectingType: false,
                 targetModuleId: null,
+                targetInsertIndex: null,
                 activeQuestionId: newQuestion.questionId,
                 template: {
                     ...state.template,
                     modules: state.template.modules.map(m =>
-                        m.moduleId === action.moduleId
-                            ? { ...m, questions: [...m.questions, newQuestion] }
-                            : m
+                        m.moduleId !== action.moduleId
+                            ? m
+                            : (() => {
+                                const questions = [...m.questions];
+                                const insertAt = state.targetInsertIndex;
+                                if (typeof insertAt === 'number' && insertAt >= 0 && insertAt <= questions.length) {
+                                    questions.splice(insertAt, 0, newQuestion);
+                                } else {
+                                    questions.push(newQuestion);
+                                }
+                                return { ...m, questions };
+                            })()
                     )
                 }
             };
@@ -266,6 +312,20 @@ const formReducer = (state: FormState, action: Action): FormState => {
             return { ...state, template: { ...state.template, modules } };
         }
 
+        case 'REORDER_MODULES':
+            return { ...state, template: { ...state.template, modules: action.modules } };
+
+        case 'REORDER_QUESTIONS':
+            return {
+                ...state,
+                template: {
+                    ...state.template,
+                    modules: state.template.modules.map(m =>
+                        m.moduleId === action.moduleId ? { ...m, questions: action.questions } : m
+                    )
+                }
+            };
+
         case 'UPDATE_THEME':
             return { ...state, theme: { ...state.theme, ...action.updates } };
 
@@ -292,6 +352,7 @@ const initialState: FormState = {
     isSettingsOpen: false,
     isThemeOpen: false,
     targetModuleId: null,
+    targetInsertIndex: null,
     theme: {
         primaryColor: '#673AB7',
         headerImage: "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&q=80&w=1200",

@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
+    "seed:alert-subscription-template": "node scripts/seed_alert_subscription_template.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

@@ -1,9 +1,23 @@
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Globe, LogIn } from "lucide-react";
+import { Menu, X, LogIn } from "lucide-react";
 import { Link } from "react-router";
+import { resolvePortalAssetUrl } from "@/utils/resolvePortalAssetUrl";
 
-const Header: React.FC = () => {
+type NavLink = { label: string; href: string };
+
+const defaultNavLinks: NavLink[] = [
+    { label: "Home", href: "/" },
+    { label: "About", href: "/#about" },
+    { label: "Services", href: "/#services" },
+    { label: "Feedback", href: "/feedback" },
+    { label: "Contact Us", href: "/#contact" },
+];
+
+const Header: React.FC<{
+    branding?: { portalName?: string; logoUrl?: string };
+    header?: { navLinks?: NavLink[]; ctaLabel?: string; ctaHref?: string };
+}> = ({ branding, header }) => {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -15,12 +29,15 @@ const Header: React.FC = () => {
         return () => window.removeEventListener("scroll", handleScroll);
     }, []);
 
-    const navLinks = [
-        { name: "Home", href: "/" },
-        { name: "About", href: "/#about" },
-        { name: "Feedback", href: "/feedback" },
-        { name: "Contact Us", href: "/#contact" },
-    ];
+    const navLinks = useMemo(() => {
+        if (Array.isArray(header?.navLinks) && header?.navLinks.length > 0) return header.navLinks;
+        return defaultNavLinks;
+    }, [header?.navLinks]);
+
+    const ctaLabel = header?.ctaLabel || "My Portal";
+    const ctaHref = header?.ctaHref || "/login";
+    const portalName = branding?.portalName || "PDRM";
+    const logoUrl = resolvePortalAssetUrl(branding?.logoUrl) || "/images/logo/logo.png";
 
     return (
         <header
@@ -35,14 +52,14 @@ const Header: React.FC = () => {
                     <Link to="/" className="flex items-center gap-3 group">
                         <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-lg flex items-center justify-center transform group-hover:rotate-12 transition-transform duration-300 shadow-sm border border-slate-100 dark:border-slate-700">
                             <img
-                                src="/images/logo/logo.png"
+                                src={logoUrl}
                                 alt="PDRM Logo"
                                 className="w-8 h-8 object-contain"
                             />
                         </div>
                         <span className={`text-2xl font-black tracking-tight ${isScrolled ? "text-slate-900 dark:text-white" : "text-slate-900 dark:text-white md:text-white"
                             }`}>
-                            PDRM
+                            {portalName}
                         </span>
                     </Link>
 
@@ -50,20 +67,20 @@ const Header: React.FC = () => {
                     <div className="hidden md:flex items-center gap-8">
                         {navLinks.map((link) => (
                             <a
-                                key={link.name}
+                                key={link.label}
                                 href={link.href}
-                                className={`text-sm font-medium relative group transition-colors ${isScrolled ? "text-slate-600 hover:text-indigo-600" : "text-white/90 hover:text-white"
+                                className={`text-sm font-medium relative group transition-colors ${isScrolled ? "text-slate-600 hover:text-brand-500" : "text-white/90 hover:text-white"
                                     }`}
                             >
-                                {link.name}
-                                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-600 transition-all duration-300 group-hover:w-full"></span>
+                                {link.label}
+                                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-accent-500 transition-all duration-300 group-hover:w-full"></span>
                             </a>
                         ))}
                         <Link
-                            to="/login"
-                            className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-full transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-indigo-500/25 flex items-center gap-2"
+                            to={ctaHref}
+                            className="px-6 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold rounded-full transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-brand-500/25 flex items-center gap-2"
                         >
-                            My Portal
+                            {ctaLabel}
                             <LogIn className="w-4 h-4" />
                         </Link>
                     </div>
@@ -91,20 +108,20 @@ const Header: React.FC = () => {
                         <div className="flex flex-col p-4 gap-4">
                             {navLinks.map((link) => (
                                 <a
-                                    key={link.name}
+                                    key={link.label}
                                     href={link.href}
-                                    className="text-slate-600 dark:text-slate-300 font-medium py-2 px-4 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
+                                    className="text-slate-600 dark:text-slate-300 font-medium py-2 px-4 hover:bg-brand-50 dark:hover:bg-brand-500/15 rounded-lg transition-colors"
                                     onClick={() => setIsMobileMenuOpen(false)}
                                 >
-                                    {link.name}
+                                    {link.label}
                                 </a>
                             ))}
                             <Link
-                                to="/login"
-                                className="mx-4 mt-2 px-6 py-3 bg-indigo-600 text-white text-center font-semibold rounded-lg shadow-md flex items-center justify-center gap-2"
+                                to={ctaHref}
+                                className="mx-4 mt-2 px-6 py-3 bg-brand-500 text-white text-center font-semibold rounded-lg shadow-md flex items-center justify-center gap-2"
                                 onClick={() => setIsMobileMenuOpen(false)}
                             >
-                                My Portal
+                                {ctaLabel}
                                 <LogIn className="w-4 h-4" />
                             </Link>
                         </div>

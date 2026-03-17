@@ -143,16 +143,16 @@ const BuilderCanvas: React.FC = () => {
                                                                                 <thead>
                                                                                     <tr>
                                                                                         <th className="p-2 text-left bg-gray-100/50 rounded-tl-md">Item</th>
-                                                                                        {field.matrixConfig.columns?.map((col: any, idx: number) => (
+                                                                                        {field.matrixConfig?.columns?.map((col: any, idx: number) => (
                                                                                             <th key={idx} className="p-2 text-center bg-gray-100/50">{col.label}</th>
                                                                                         ))}
                                                                                     </tr>
                                                                                 </thead>
                                                                                 <tbody>
-                                                                                    {field.matrixConfig.rows?.slice(0, 3).map((row: any, idx: number) => (
+                                                                                    {field.matrixConfig?.rows?.slice(0, 3).map((row: any, idx: number) => (
                                                                                         <tr key={idx} className="border-t border-gray-100">
                                                                                             <td className="p-2 font-medium bg-white">{row.label}</td>
-                                                                                            {field.matrixConfig.columns?.map((_: any, cidx: number) => (
+                                                                                            {field.matrixConfig?.columns?.map((_: any, cidx: number) => (
                                                                                                 <td key={cidx} className="p-2 text-center bg-white">
                                                                                                     <div className="w-3 h-3 rounded-full border border-gray-300 mx-auto" />
                                                                                                 </td>
@@ -161,11 +161,11 @@ const BuilderCanvas: React.FC = () => {
                                                                                     ))}
                                                                                 </tbody>
                                                                             </table>
-                                                                            {field.matrixConfig.rows?.length > 3 && (
+                                                                            {field.matrixConfig?.rows?.length && field.matrixConfig.rows.length > 3 ? (
                                                                                 <div className="p-1 px-2 text-[9px] text-gray-400 font-bold italic">
                                                                                     Showing 3 of {field.matrixConfig.rows.length} rows...
                                                                                 </div>
-                                                                            )}
+                                                                            ) : null}
                                                                         </div>
                                                                     )}
                                                                 </div>

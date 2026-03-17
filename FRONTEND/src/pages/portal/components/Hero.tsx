@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, EffectFade, Pagination } from "swiper/modules";
 import { motion } from "framer-motion";
@@ -6,27 +6,47 @@ import { ArrowRight, Zap, Shield, Database } from "lucide-react";
 import "swiper/css";
 import "swiper/css/effect-fade";
 import "swiper/css/pagination";
+import { resolvePortalAssetUrl } from "@/utils/resolvePortalAssetUrl";
 
-const slides = [
+type HeroSlide = {
+    title: string;
+    subtitle: string;
+    image: string;
+    iconKey?: string;
+};
+
+const defaultSlides: HeroSlide[] = [
     {
         title: "Secure Disaster Risk Management",
         subtitle: "Empowering communities with smart data and real-time response capabilities.",
         image: "/assets/images/hero1.png",
-        icon: <Shield className="w-12 h-12 text-indigo-400" />,
+        iconKey: "shield",
     },
     {
         title: "Digital Workflow & Efficiency",
         subtitle: "Streamlining complex administrative processes with automated approval systems.",
         image: "/assets/images/hero2.png",
-        icon: <Zap className="w-12 h-12 text-teal-400" />,
+        iconKey: "zap",
     },
     {
         title: "Advanced Reporting & Analytics",
         subtitle: "Get deep insights into risks, mitigation strategies, and resource allocation.",
         image: "/assets/images/hero3.png",
-        icon: <Database className="w-12 h-12 text-blue-400" />,
+        iconKey: "database",
     },
 ];
+
+const iconFor = (iconKey?: string) => {
+    switch ((iconKey || "").toLowerCase()) {
+        case "zap":
+            return <Zap className="w-12 h-12 text-teal-400" />;
+        case "database":
+            return <Database className="w-12 h-12 text-blue-400" />;
+        case "shield":
+        default:
+            return <Shield className="w-12 h-12 text-brand-300" />;
+    }
+};
 
 const NodeNetwork: React.FC = () => {
     return (
@@ -89,7 +109,16 @@ const NodeNetwork: React.FC = () => {
     );
 };
 
-const Hero: React.FC = () => {
+const Hero: React.FC<{
+    slides?: HeroSlide[];
+    primaryCta?: { label?: string; href?: string };
+    secondaryCta?: { label?: string; href?: string };
+}> = ({ slides, primaryCta, secondaryCta }) => {
+    const resolvedSlides = useMemo(() => {
+        if (Array.isArray(slides) && slides.length > 0) return slides;
+        return defaultSlides;
+    }, [slides]);
+
     return (
         <section className="relative h-screen min-h-[700px] w-full overflow-hidden bg-slate-900">
             <Swiper
@@ -100,12 +129,12 @@ const Hero: React.FC = () => {
                 pagination={{ clickable: true, el: ".swiper-custom-pagination" }}
                 className="h-full w-full"
             >
-                {slides.map((slide, index) => (
+                {resolvedSlides.map((slide, index) => (
                     <SwiperSlide key={index} className="relative h-full w-full">
                         {/* Background Image with Gradient Overlay */}
                         <div
                             className="absolute inset-0 bg-cover bg-center transition-transform duration-[5s] scale-110 group-active:scale-100"
-                            style={{ backgroundImage: `url(${slide.image})` }}
+                            style={{ backgroundImage: `url(${resolvePortalAssetUrl(slide.image)})` }}
                         >
                             <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-900/80 to-transparent" />
                             <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent opacity-60" />
@@ -119,7 +148,7 @@ const Hero: React.FC = () => {
                                 transition={{ duration: 0.8, delay: 0.2 }}
                                 className="mb-4 bg-white/10 backdrop-blur-md rounded-2xl p-4 inline-block shadow-lg border border-white/10"
                             >
-                                {slide.icon}
+                                {iconFor(slide.iconKey)}
                             </motion.div>
                             <motion.h1
                                 initial={{ opacity: 0, x: -50 }}
@@ -143,13 +172,19 @@ const Hero: React.FC = () => {
                                 transition={{ duration: 0.5, delay: 0.7 }}
                                 className="flex flex-wrap gap-4"
                             >
-                                <button className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-2xl shadow-indigo-600/30 transition-all hover:translate-y-[-2px] flex items-center gap-2 group">
-                                    Learn More
+                                <a
+                                    href={primaryCta?.href || "/#about"}
+                                    className="px-8 py-4 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-xl shadow-2xl shadow-brand-500/30 transition-all hover:translate-y-[-2px] flex items-center gap-2 group"
+                                >
+                                    {primaryCta?.label || "Learn More"}
                                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                                </button>
-                                <button className="px-8 py-4 bg-white/10 backdrop-blur-md hover:bg-white/20 text-white font-bold rounded-xl border border-white/10 transition-all flex items-center gap-2">
-                                    View Demo
-                                </button>
+                                </a>
+                                <a
+                                    href={secondaryCta?.href || "/feedback"}
+                                    className="px-8 py-4 bg-white/10 backdrop-blur-md hover:bg-white/20 text-white font-bold rounded-xl border border-white/10 transition-all flex items-center gap-2"
+                                >
+                                    {secondaryCta?.label || "Give Feedback"}
+                                </a>
                             </motion.div>
                         </div>
                         {/* Animated Graphics background */}

@@ -19,6 +19,8 @@ import StructureGraph from "./pages/admin/StructureGraph";
 import HierarchyManagement from "./pages/admin/HierarchyManagement";
 import AuditLogs from "./pages/admin/AuditLogs";
 import EmailLogs from "./pages/admin/EmailLogs";
+import PortalContentPage from "./pages/admin/PortalContent";
+import AlertSubscriptions from "./pages/admin/AlertSubscriptions";
 
 // Template Engine
 import TemplateLibrary from "./components/TemplateEngine/TemplateLibrary/TemplateLibrary";
@@ -37,6 +39,8 @@ import FormResponsePage from "./pages/DRM/FormResponsePage";
 import ResponseExplorerPage from "./pages/DRM/ResponseExplorerPage";
 import WoredaProfile from "./pages/DRM/WoredaProfile";
 import PublicFeedbackPage from "./pages/portal/PublicFeedbackPage";
+import PublicServicePage from "./pages/portal/PublicServicePage";
+import AlertSubscriptionPage from "./pages/portal/AlertSubscriptionPage";
 import NotFound from "./pages/OtherPage/NotFound";
 import Videos from "./pages/UiElements/Videos";
 import Images from "./pages/UiElements/Images";
@@ -104,6 +108,10 @@ export default function App() {
                   <Route path="/admin/hierarchy" element={<HierarchyManagement />} />
                   <Route path="/admin/audit-logs" element={<AuditLogs />} />
                   <Route path="/admin/email-logs" element={<EmailLogs />} />
+                  <Route path="/admin/site-settings" element={<PortalContentPage />} />
+                  <Route path="/admin/alert-subscriptions" element={<AlertSubscriptions />} />
+                  {/* Backward compatible */}
+                  <Route path="/admin/portal-content" element={<PortalContentPage />} />
 
                   {/* Template Engine Routes */}
                   <Route path="/admin/template-library" element={<TemplateLibrary />} />
@@ -148,6 +156,8 @@ export default function App() {
               <Route index path="/" element={<LandingPage />} />
               <Route path="/portal" element={<LandingPage />} />
               <Route path="/feedback" element={<PublicFeedbackPage />} />
+              <Route path="/portal/services/:serviceSlug" element={<PublicServicePage />} />
+              <Route path="/alert-subscription" element={<AlertSubscriptionPage />} />
 
               <Route path="/signin" element={<Login />} />
               <Route path="/signup" element={<Register />} />

@@ -53,7 +53,6 @@ const DiamondBackground = () => (
 export default function Roles() {
     const [roles, setRoles] = useState<Role[]>([]);
     const [permissions, setPermissions] = useState<Permission[]>([]);
-    const [loading, setLoading] = useState(true);
     const [editRole, setEditRole] = useState<Role | null>(null);
 
     // Form State
@@ -81,7 +80,6 @@ export default function Roles() {
     }, []);
 
     const fetchData = async () => {
-        setLoading(true);
         try {
             const [rolesRes, permsRes] = await Promise.all([
                 getRoles(),
@@ -91,8 +89,6 @@ export default function Roles() {
             setPermissions(permsRes?.data || permsRes || []);
         } catch (error) {
             console.error("Failed to fetch roles/permissions", error);
-        } finally {
-            setLoading(false);
         }
     };
 

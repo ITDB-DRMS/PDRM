@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Trash2, Settings2, Info } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { Option } from '../../../context/FormBuilderContext';
 
 interface OptionsEditorProps {

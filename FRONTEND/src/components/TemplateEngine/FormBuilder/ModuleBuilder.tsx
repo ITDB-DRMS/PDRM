@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Database, Grid, Table, Info } from 'lucide-react';
+import { Plus, Database, Info } from 'lucide-react';
 import { useFormBuilder, Question } from '../../../context/FormBuilderContext';
 import { clsx } from 'clsx';
 import { FIELD_TYPES } from './QuestionTypeSelector';
@@ -13,7 +13,7 @@ const QuestionCard: React.FC<{ question: Question }> = ({ question }) => {
     const fieldInfo = FIELD_TYPES.find(f => f.type === question.answerType);
     const Icon = fieldInfo?.icon || Database;
 
-    const handleOptionClick = (e: React.MouseEvent, val: string) => {
+    const handleOptionClick = (val: string) => {
         // We do NOT stop propagation here, so clicking the option also selects the question card
         if (question.answerType === 'radio' || question.answerType === 'select') {
             setPreviewSelected([val]); // Single selection
@@ -75,7 +75,7 @@ const QuestionCard: React.FC<{ question: Question }> = ({ question }) => {
                                     return (
                                         <div
                                             key={i}
-                                            onClick={(e) => handleOptionClick(e, opt.value)}
+                                            onClick={() => handleOptionClick(opt.value)}
                                             className="flex items-center gap-3 p-2 rounded-xl transition-colors hover:bg-gray-50 border border-transparent hover:border-gray-100 group/opt cursor-pointer"
                                         >
                                             <div className={clsx(

@@ -101,6 +101,32 @@ const navItems: NavItem[] = [
 
 const adminItems: NavItem[] = [
   {
+    icon: <FolderIcon />,
+    name: "Site Management",
+    superAdminOnly: true,
+    subItems: [
+      {
+        name: "Site Settings",
+        path: "/admin/site-settings",
+        icon: <DocsIcon />,
+        permission: "view_template",
+      },
+    ],
+  },
+  {
+    icon: <ListIcon />,
+    name: "Menu",
+    superAdminOnly: true,
+    subItems: [
+      {
+        name: "Alert Subscriptions",
+        path: "/admin/alert-subscriptions",
+        icon: <MailIcon />,
+        permission: "view_template",
+      },
+    ],
+  },
+  {
     icon: <BoxCubeIcon />,
     name: "Structure",
     superAdminOnly: true,

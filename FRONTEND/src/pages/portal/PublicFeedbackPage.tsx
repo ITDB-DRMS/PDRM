@@ -4,7 +4,7 @@ import api from '@/api/axios';
 import FormRenderer from '@/components/TemplateEngine/FormRenderer/FormRenderer';
 import { toast } from 'react-toastify';
 import {
-    Loader2, MessageSquare, CheckCircle2, ArrowLeft,
+    CheckCircle2,
     Sparkles, Send, ShieldCheck, HelpCircle,
     UserPlus, Heart, Zap, Globe
 } from 'lucide-react';
@@ -12,19 +12,32 @@ import { motion, AnimatePresence } from 'framer-motion';
 import PageMeta from '@/components/common/PageMeta';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import { usePortalContent } from '@/hooks/usePortalContent';
+import { resolvePortalAssetUrl } from '@/utils/resolvePortalAssetUrl';
 
 const PublicFeedbackPage: React.FC = () => {
     const navigate = useNavigate();
     const [template, setTemplate] = useState<any>(null);
+    const { portalContent, loading: portalLoading } = usePortalContent();
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const sectionsVisibility = portalContent?.sectionsVisibility;
+    const showHeader = sectionsVisibility?.header !== false;
+    const showFooter = sectionsVisibility?.footer !== false;
+    const showContact = sectionsVisibility?.contact !== false;
+    const showFeedbackPage = sectionsVisibility?.feedback !== false;
 
     useEffect(() => {
         const findFeedbackTemplate = async () => {
             try {
                 setLoading(true);
-                const response = await api.get('/templates?status=Published&search=Portal Feedback');
+                if (!portalContent && portalLoading) return;
+
+                const templateSearch =
+                    portalContent?.pages?.feedback?.templateSearch || 'Portal Feedback';
+
+                const response = await api.get(`/templates?status=Published&search=${encodeURIComponent(templateSearch)}`);
 
                 if (response.data && response.data.length > 0) {
                     setTemplate(response.data[0]);
@@ -39,7 +52,7 @@ const PublicFeedbackPage: React.FC = () => {
         };
 
         findFeedbackTemplate();
-    }, []);
+    }, [portalContent, portalLoading]);
 
     const onSubmit = async (data: any) => {
         try {
@@ -80,18 +93,57 @@ const PublicFeedbackPage: React.FC = () => {
         );
     }
 
+    if (!showFeedbackPage) {
+        return (
+            <div className="min-h-screen bg-[#F8FAFF] font-outfit">
+                <PageMeta title="Feedback | IDRMIS Portal" description="Feedback is currently unavailable" />
+                {showHeader ? <Header branding={portalContent?.branding} header={portalContent?.header} /> : null}
+                <main className="pt-28 px-6 pb-24">
+                    <div className="max-w-3xl mx-auto bg-white border border-slate-100 rounded-[40px] p-10 shadow-sm text-center">
+                        <div className="w-20 h-20 bg-rose-50 rounded-[28px] flex items-center justify-center mx-auto mb-6 text-rose-500">
+                            <HelpCircle size={44} />
+                        </div>
+                        <h1 className="text-3xl font-black text-slate-900 mb-3">Feedback is turned off</h1>
+                        <p className="text-slate-500 font-medium mb-8">
+                            This section is currently hidden in site settings.
+                        </p>
+                        <button
+                            onClick={() => navigate("/portal")}
+                            className="px-10 py-4 bg-slate-950 text-white rounded-2xl font-black hover:bg-indigo-600 transition-all"
+                        >
+                            Back to portal
+                        </button>
+                    </div>
+                </main>
+                {showFooter ? (
+                    <Footer
+                        branding={portalContent?.branding}
+                        contact={portalContent?.contact}
+                        footer={portalContent?.footer}
+                        showContact={showContact}
+                    />
+                ) : null}
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-[#F8FAFF] font-outfit overflow-x-hidden">
-            <PageMeta title="Feedback | IDRMIS Portal" description="Give us your feedback" />
+            <PageMeta
+                title={`${portalContent?.pages?.feedback?.title || "Feedback"} | IDRMIS Portal`}
+                description={portalContent?.pages?.feedback?.subtitle || "Give us your feedback"}
+            />
 
-            <Header />
+            {showHeader ? <Header branding={portalContent?.branding} header={portalContent?.header} /> : null}
 
             {/* --- HERO SECTION --- */}
             <div className="relative pt-24 pb-28 overflow-hidden bg-slate-950">
                 {/* Background Image with Gradient Overlay (Same as Home Page) */}
                 <div
                     className="absolute inset-0 bg-cover bg-center opacity-40 transition-transform duration-[10s] scale-105"
-                    style={{ backgroundImage: `url('/assets/images/hero1.png')` }}
+                    style={{
+                        backgroundImage: `url('${resolvePortalAssetUrl(portalContent?.pages?.feedback?.heroImage) || "/assets/images/hero1.png"}')`,
+                    }}
                 >
                     <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/80 to-transparent" />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-60" />
@@ -351,7 +403,14 @@ const PublicFeedbackPage: React.FC = () => {
                 </div>
             </div>
 
-            <Footer />
+            {showFooter ? (
+                <Footer
+                    branding={portalContent?.branding}
+                    contact={portalContent?.contact}
+                    footer={portalContent?.footer}
+                    showContact={showContact}
+                />
+            ) : null}
 
             {/* --- SUBMISSION OVERLAY --- */}
             <AnimatePresence>

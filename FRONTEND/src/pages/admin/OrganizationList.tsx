@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '../../hooks/useToast';
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
@@ -46,7 +46,6 @@ const DiamondBackground = () => (
 
 export default function OrganizationList() {
     const [organizations, setOrganizations] = useState<Organization[]>([]);
-    const [loading, setLoading] = useState(true);
     const [editOrg, setEditOrg] = useState<Organization | null>(null);
     const [isViewMode, setIsViewMode] = useState(false);
     // UI State
@@ -87,14 +86,11 @@ export default function OrganizationList() {
     }, []);
 
     const fetchData = async () => {
-        setLoading(true);
         try {
             const data = await getOrganizations();
             setOrganizations(data);
         } catch (error) {
             console.error("Failed to fetch organizations", error);
-        } finally {
-            setLoading(false);
         }
     };
 

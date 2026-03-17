@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Phone, Shield, MapPin, MoreVertical, Edit2, Trash2, Eye } from 'lucide-react';
+import { Mail, Phone, Shield, MapPin, Edit2, Trash2, Eye, KeyRound } from 'lucide-react';
 import { Can } from '../auth/PermissionGuard';
 
 interface User {
@@ -24,6 +24,7 @@ interface UserCardProps {
     onView: (user: User) => void;
     onDelete: (id: string) => void;
     onStatusToggle: (user: User) => void;
+    onManageRoles?: (user: User) => void;
 }
 
 const getStatusColor = (status: string) => {
@@ -46,7 +47,7 @@ const getAccessLevelStyles = (level: string) => {
     return map[level] || 'from-slate-500 to-slate-600 shadow-slate-500/20';
 };
 
-export const UserCard: React.FC<UserCardProps> = ({ user, onEdit, onView, onDelete, onStatusToggle }) => {
+export const UserCard: React.FC<UserCardProps> = ({ user, onEdit, onView, onDelete, onStatusToggle, onManageRoles }) => {
     return (
         <motion.div
             layout
@@ -82,6 +83,17 @@ export const UserCard: React.FC<UserCardProps> = ({ user, onEdit, onView, onDele
                                 <Eye size={18} />
                             </button>
                         </Can>
+                        {onManageRoles ? (
+                            <Can resource="User" action="update">
+                                <button
+                                    onClick={() => onManageRoles(user)}
+                                    title="Manage Roles"
+                                    className="rounded-full bg-slate-100 p-2 text-slate-500 hover:bg-primary/10 hover:text-primary dark:bg-white/10 dark:text-white/70 dark:hover:bg-white/20 dark:hover:text-white"
+                                >
+                                    <KeyRound size={18} />
+                                </button>
+                            </Can>
+                        ) : null}
                         <Can resource="User" action="update">
                             <button onClick={() => onEdit(user)} title="Edit User" className="rounded-full bg-slate-100 p-2 text-slate-500 hover:bg-primary/10 hover:text-primary dark:bg-white/10 dark:text-white/70 dark:hover:bg-white/20 dark:hover:text-white">
                                 <Edit2 size={18} />

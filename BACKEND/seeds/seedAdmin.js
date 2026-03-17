@@ -1,11 +1,11 @@
 
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
-import User from './models/User.js';
-import Role from './models/Role.js';
-import Permission from './models/Permission.js';
-import RolePermission from './models/RolePermission.js';
-import Organization from './models/Organization.js';
+import User from '../models/User.js';
+import Role from '../models/Role.js';
+import Permission from '../models/Permission.js';
+import RolePermission from '../models/RolePermission.js';
+import Organization from '../models/Organization.js';
 import bcrypt from 'bcryptjs';
 
 dotenv.config();

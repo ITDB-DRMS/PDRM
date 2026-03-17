@@ -2,25 +2,45 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Info, Target, Users, Layout } from "lucide-react";
 
-const aboutItems = [
+type AboutItem = { title: string; description: string; iconKey?: string };
+
+const defaultAboutItems: AboutItem[] = [
     {
-        icon: <Target className="w-8 h-8 text-indigo-500" />,
+        iconKey: "target",
         title: "Mission",
         description: "To build resilient communities through advanced data management and strategic risk mitigation.",
     },
     {
-        icon: <Users className="w-8 h-8 text-indigo-500" />,
+        iconKey: "users",
         title: "Community First",
         description: "Centering disaster management around people, ensuring rapid response and inclusive safety measures.",
     },
     {
-        icon: <Layout className="w-8 h-8 text-indigo-500" />,
+        iconKey: "layout",
         title: "Smart Integration",
         description: "Seamlessly connecting various disaster management modules for a unified visibility and control.",
     },
 ];
 
-const About: React.FC = () => {
+const iconFor = (iconKey?: string) => {
+    switch ((iconKey || "").toLowerCase()) {
+        case "users":
+            return <Users className="w-8 h-8 text-brand-600" />;
+        case "layout":
+            return <Layout className="w-8 h-8 text-brand-600" />;
+        case "target":
+        default:
+            return <Target className="w-8 h-8 text-brand-600" />;
+    }
+};
+
+const About: React.FC<{ badge?: string; title?: string; description?: string; items?: AboutItem[] }> = ({
+    badge,
+    title,
+    description,
+    items
+}) => {
+    const resolvedItems = Array.isArray(items) && items.length > 0 ? items : defaultAboutItems;
     return (
         <section id="about" className="py-24 bg-white overflow-hidden">
             <div className="container mx-auto px-4 md:px-6">
@@ -35,23 +55,31 @@ const About: React.FC = () => {
                     >
                         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 text-indigo-600 font-semibold text-sm border border-indigo-100 dark:bg-indigo-900/40 dark:text-indigo-400 dark:border-indigo-800">
                             <Info className="w-4 h-4" />
-                            <span>About IDRMIS</span>
+                            <span>{badge || "About IDRMIS"}</span>
                         </div>
                         <h2 className="text-4xl md:text-5xl font-bold text-slate-900 leading-tight">
-                            Pioneering Innovative <span className="text-indigo-600">Disaster Management</span> Solutions
+                          {title ? (
+                            title
+                          ) : (
+                            <>
+                              Welcome to Addis Ababa City{" "}
+                              <span className="text-indigo-600">Disaster Management System</span> Solutions
+                            </>
+                          )}
                         </h2>
                         <p className="text-lg text-slate-600 leading-relaxed max-w-xl">
-                            Our platform provides a comprehensive ecosystem for managing disaster risks, ensuring that organizations can respond faster, plan smarter, and save lives through data-driven decisions.
+                            {description ||
+                              "Our platform provides a comprehensive ecosystem for managing disaster risks, ensuring that organizations can respond faster, plan smarter, and save lives through data-driven decisions."}
                         </p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6">
-                            {aboutItems.map((item, index) => (
+                            {resolvedItems.map((item, index) => (
                                 <motion.div
                                     key={index}
                                     whileHover={{ x: 10 }}
                                     className="flex items-start gap-5 p-6 rounded-2xl bg-slate-50 shadow-sm border border-slate-100 hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300"
                                 >
                                     <div className="flex-shrink-0 p-3 rounded-xl bg-indigo-50">
-                                        {item.icon}
+                                        {iconFor(item.iconKey)}
                                     </div>
                                     <div>
                                         <h3 className="font-bold text-slate-900 text-xl mb-1">{item.title}</h3>
