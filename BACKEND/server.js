@@ -16,10 +16,6 @@ import dashboardRoutes from './routes/dashboardRoutes.js';
 import templateRoutes from './routes/templateRoutes.js';
 import formResponseRoutes from './routes/formResponseRoutes.js';
 import woredaProfileRoutes from './routes/woredaProfileRoutes.js';
-import portalContentRoutes from './routes/portalContentRoutes.js';
-import alertSubscriptionRoutes from './routes/alertSubscriptionRoutes.js';
-import uploadRoutes from './routes/uploadRoutes.js';
-import incidentReportRoutes from './routes/incidentReportRoutes.js';
 import { errorHandler } from './middleware/errorMiddleware.js';
 import cors from 'cors';
 
@@ -66,13 +62,6 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/responses', formResponseRoutes);
 app.use('/api/woreda-profiles', woredaProfileRoutes);
-app.use('/api/portal-content', portalContentRoutes);
-// Alias: "site settings" (preferred name)
-app.use('/api/site-settings', portalContentRoutes);
-
-app.use('/api/alert-subscriptions', alertSubscriptionRoutes);
-app.use('/api/incident-reports', incidentReportRoutes);
-app.use('/api/uploads', uploadRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 

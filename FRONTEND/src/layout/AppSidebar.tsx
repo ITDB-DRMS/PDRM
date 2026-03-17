@@ -231,6 +231,12 @@ const adminItems: NavItem[] = [
         icon: <PencilIcon />,
         permission: "create_template",
       },
+      {
+        name: "Profile Mapping",
+        path: "/admin/profile-mapping",
+        icon: <GroupIcon />,
+        permission: "view_template",
+      },
     ],
   },
 ];

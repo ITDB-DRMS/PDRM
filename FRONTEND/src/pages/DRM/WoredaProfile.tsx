@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router';
 import PageMeta from '../../components/common/PageMeta';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
@@ -7,15 +8,17 @@ import {
     Search, RefreshCw, ChevronRight, Loader2, BarChart3,
     FileText, CheckCircle, Clock, Edit3, Trash2, Eye,
     Building2, Wheat, AlertTriangle, ArrowLeft,
-    Upload, FileSpreadsheet
+    Upload, FileSpreadsheet, ArrowRightLeft, AlertCircle
 } from 'lucide-react';
 import {
     getWoredaProfiles, getWoredaProfileStats, createWoredaProfile,
     updateWoredaProfile, deleteWoredaProfile, importWoredaProfile,
+    syncFromInterview,
     type WoredaProfile as WProfile,
     type WoredaProfileInput,
     type WoredaProfileStats
 } from '../../api/woredaProfileService';
+import { getProfileMappings, type ProfileMapping } from '../../api/profileMappingService';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 const TABS = [
@@ -26,6 +29,9 @@ const TABS = [
     { id: 'facilities',  label: 'Critical Facilities',icon: Building2 },
     { id: 'vulnerable',  label: 'Vulnerable Groups',  icon: Heart },
     { id: 'capacity',    label: 'Community Capacity', icon: ShieldCheck },
+    { id: 'hazards',     label: 'Hazards & Risks',    icon: AlertTriangle },
+    { id: 'risk',        label: 'Risk Assessment',    icon: BarChart3 },
+    { id: 'indicators',  label: 'Social & Env. Indicators', icon: ShieldCheck },
 ];
 
 const FACILITY_TYPES = ['Health Center', 'School', 'Police Station', 'Fire Station', 'Emergency Shelter'];
@@ -41,7 +47,7 @@ const statusColor = (s?: string) => {
 };
 
 const emptyProfile = (): WoredaProfileInput => ({
-    location: { region: '', zone: '', woreda: '', kebele: '', got: '' },
+    location: { subcity: '', woreda: '', block: '', house_no: '' },
     assessment_date: new Date().toISOString().split('T')[0],
     remarks: '',
     demographics: { total_population: 0, male_population: 0, female_population: 0, children_0_17: 0, youth_18_29: 0, adults_30_59: 0, elderly_60_plus: 0, total_households: 0, female_headed_households: 0, informal_settlement_population: 0, low_income_households: 0, unemployment_rate: 0, internally_displaced_population: 0, education_levels: EDUCATION_CATS.map(c => ({ category: c, count: 0 })) },
@@ -50,6 +56,10 @@ const emptyProfile = (): WoredaProfileInput => ({
     critical_facilities: FACILITY_TYPES.map(f => ({ facility_type: f, distance_to_nearest_emergency_service: 0, structural_safety: '', emergency_equipment_available: false })),
     vulnerable_groups: VG_TYPES.map(t => ({ group_type: t, number: 0 })),
     community_capacity: CAPACITY_TYPES.map(t => ({ capacity_type: t, available: false, remarks: '' })),
+    hazards: [],
+    vulnerability_assessments: [],
+    capacity_assessments: [],
+    risk_assessments: [],
     status: 'Draft',
 });
 
@@ -74,23 +84,27 @@ const ProfileCard: React.FC<{ profile: WProfile; onView: () => void; onEdit: () 
                 </div>
                 <div>
                     <h3 className="font-bold text-slate-900">{profile.location.woreda} Woreda</h3>
-                    <p className="text-xs text-slate-400">{profile.location.kebele} • {profile.location.zone}</p>
+                    <p className="text-xs text-slate-400">{profile.location.subcity} Subcity</p>
                 </div>
             </div>
             <span className={`text-[10px] font-bold px-3 py-1 rounded-full border ${statusColor(profile.status)}`}>{profile.status}</span>
         </div>
-        <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="grid grid-cols-4 gap-2 mb-4">
             <div className="bg-slate-50 rounded-2xl p-3 text-center">
-                <p className="text-lg font-black text-slate-900">{profile.demographics?.total_population?.toLocaleString() || '—'}</p>
-                <p className="text-[9px] text-slate-400 uppercase tracking-wider">Population</p>
-            </div>
-            <div className="bg-slate-50 rounded-2xl p-3 text-center">
-                <p className="text-lg font-black text-slate-900">{profile.demographics?.total_households?.toLocaleString() || '—'}</p>
-                <p className="text-[9px] text-slate-400 uppercase tracking-wider">Households</p>
+                <p className="text-lg font-black text-slate-900">{(profile.demographics?.total_population || 0).toLocaleString()}</p>
+                <p className="text-[9px] text-slate-400 uppercase tracking-wider">Pop.</p>
             </div>
             <div className="bg-slate-50 rounded-2xl p-3 text-center">
                 <p className="text-lg font-black text-slate-900">{(profile.vulnerable_groups?.reduce((a, g) => a + (g.number || 0), 0) || 0).toLocaleString()}</p>
-                <p className="text-[9px] text-slate-400 uppercase tracking-wider">Vulnerable</p>
+                <p className="text-[9px] text-slate-400 uppercase tracking-wider">Vuln.</p>
+            </div>
+            <div className="bg-slate-50 rounded-2xl p-3 text-center">
+                <p className="text-lg font-black text-slate-900">{profile.risk_index?.overall_woreda_risk_score || '—'}</p>
+                <p className="text-[9px] text-slate-400 uppercase tracking-wider">Risk</p>
+            </div>
+            <div className={`rounded-2xl p-3 text-center ${profile.status === 'Submitted' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                <p className="text-lg font-black">{(profile.risk_assessments?.length || 0)}</p>
+                <p className="text-[9px] uppercase tracking-wider">Hazards</p>
             </div>
         </div>
         <div className="flex items-center justify-between">
@@ -156,8 +170,8 @@ const FormWizard: React.FC<{ initial?: WProfile | null; onSave: (d: WoredaProfil
                 <div className="flex-1 overflow-y-auto p-8">
                     {step === 0 && (
                         <div className="grid grid-cols-2 gap-4">
-                            {[['region','Region'],['zone','Zone'],['woreda','Woreda'],['kebele','Kebele'],['got','Got (Village)']].map(([k,l]) => (
-                                <div key={k} className={k === 'got' ? 'col-span-2' : ''}>
+                            {[['subcity','Subcity'],['woreda','Woreda'],['block','Block'],['house_no','House No']].map(([k,l]) => (
+                                <div key={k} className={k === 'block' || k === 'house_no' ? 'col-span-1' : ''}>
                                     <label className={labelCls}>{l}</label>
                                     <input className={inputCls} value={(form.location as any)[k] || ''} onChange={e => setLoc(k, e.target.value)} placeholder={`Enter ${l}`} />
                                 </div>
@@ -349,8 +363,8 @@ const DetailView: React.FC<{ profile: WProfile; onBack: () => void; onEdit: () =
                     <button onClick={onBack} className="w-10 h-10 rounded-2xl bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 flex items-center justify-center shadow-sm transition-all"><ArrowLeft size={18} /></button>
                     <div>
                         <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Woreda Profile</p>
-                        <h2 className="text-2xl font-black text-slate-900">{profile.location.woreda} — {profile.location.kebele}</h2>
-                        <p className="text-xs text-slate-400">{profile.location.zone} Zone, {profile.location.region}</p>
+                        <h2 className="text-2xl font-black text-slate-900">{profile.location.woreda} Woreda</h2>
+                        <p className="text-xs text-slate-400">{profile.location.subcity} Subcity</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -530,19 +544,211 @@ const DetailView: React.FC<{ profile: WProfile; onBack: () => void; onEdit: () =
                         ))}
                     </div>
                 )}
+
+                {tab === 'hazards' && (
+                    <div className="space-y-6">
+                        <div className="space-y-3">
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Community Hazards</p>
+                            {profile.hazards?.length ? profile.hazards.map((h, i) => (
+                                <div key={i} className="bg-slate-50 rounded-2xl p-5">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <p className="font-black text-slate-900">{h.hazard_name}</p>
+                                        <div className="flex gap-2">
+                                            <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${h.severity === 'High' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>Severity: {h.severity}</span>
+                                            <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-slate-200 text-slate-700">Freq: {h.frequency}</span>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div><p className="text-[9px] text-slate-400 uppercase">Seasonality</p><p className="text-xs font-bold text-slate-700">{h.seasonality || 'N/A'}</p></div>
+                                        <div><p className="text-[9px] text-slate-400 uppercase">History</p><p className="text-xs text-slate-600">{h.historical_events || 'No history recorded'}</p></div>
+                                    </div>
+                                </div>
+                            )) : <p className="text-sm text-slate-400 italic">No hazard data recorded.</p>}
+                        </div>
+
+                        <div className="space-y-3">
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Vulnerability Assessments</p>
+                            {profile.vulnerability_assessments?.length ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {profile.vulnerability_assessments.map((v, i) => (
+                                        <div key={i} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+                                            <p className="text-[10px] font-bold text-indigo-500 uppercase mb-1">{v.hazard_name}</p>
+                                            <p className="font-bold text-slate-800 mb-2">{v.element_at_risk}</p>
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <span className={`text-[9px] font-black px-2 py-0.5 rounded ${v.vulnerability_level === 'High' ? 'bg-rose-600 text-white' : 'bg-amber-500 text-white'}`}>{v.vulnerability_level} Risk</span>
+                                            </div>
+                                            <p className="text-[10px] text-slate-400 leading-relaxed"><span className="font-bold">Reason:</span> {v.reasons}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : <p className="text-sm text-slate-400 italic">No vulnerability data recorded.</p>}
+                        </div>
+                    </div>
+                )}
+
+                {tab === 'risk' && (
+                    <div className="space-y-8">
+                        {profile.risk_index && (
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                                {[['Hazard', profile.risk_index.hazard_index, 'text-rose-600'], ['Vulnerability', profile.risk_index.vulnerability_index, 'text-amber-600'], ['Exposure', profile.risk_index.exposure_index, 'text-orange-600'], ['Capacity', profile.risk_index.capacity_index, 'text-emerald-600'], ['Score', profile.risk_index.overall_woreda_risk_score, 'text-indigo-700 bg-indigo-50 rounded-2xl pt-2']].map(([l, v, c]) => (
+                                    <div key={String(l)} className={`text-center p-3 ${String(c)}`}>
+                                        <p className="text-[9px] font-bold uppercase tracking-wider">{l}</p>
+                                        <p className="text-2xl font-black">{v ?? '—'}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="space-y-4">
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Risk Evaluation</p>
+                            {profile.risk_assessments?.length ? profile.risk_assessments.map((r, i) => (
+                                <div key={i} className="flex flex-col md:flex-row gap-6 p-6 bg-slate-50 rounded-3xl items-start">
+                                    <div className="bg-white p-4 rounded-2xl shadow-sm text-center min-w-[100px]">
+                                        <p className="text-[9px] text-slate-400 uppercase font-black mb-1">Score</p>
+                                        <p className="text-3xl font-black text-slate-900">{r.risk_score}</p>
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${r.risk_level?.includes('High') ? 'text-rose-600 bg-rose-50' : 'text-amber-600 bg-amber-50'}`}>{r.risk_level}</span>
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-[10px] flex items-center justify-center font-bold">#{r.priority_rank}</span>
+                                            <h4 className="font-bold text-slate-900 text-lg">{r.hazard_name} Risk</h4>
+                                        </div>
+                                        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4">
+                                            <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider mb-1">Recommended Action</p>
+                                            <p className="text-sm text-indigo-900 font-medium">{r.recommended_action}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )) : <p className="text-sm text-slate-400 italic">No risk assessments recorded.</p>}
+                        </div>
+
+                        {profile.capacity_assessments?.length ? (
+                            <div className="space-y-3">
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Capacity Indices</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {profile.capacity_assessments.map((c, i) => (
+                                        <div key={i} className="flex items-center gap-4 p-4 bg-white border border-slate-100 rounded-2xl transition-all hover:shadow-sm">
+                                            <div className="flex-1">
+                                                <p className="text-[9px] font-bold text-indigo-500 uppercase">{c.hazard_name}</p>
+                                                <p className="text-sm font-bold text-slate-800">{c.capacity_type}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className={`text-[10px] font-black px-3 py-1 rounded-full ${c.capacity_level === 'Strong' ? 'bg-emerald-100 text-emerald-700' : c.capacity_level === 'Moderate' ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}`}>{c.capacity_level}</span>
+                                                {c.remarks && <p className="text-[10px] text-slate-400 mt-1">{c.remarks}</p>}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : null}
+                    </div>
+                )}
+
+                {tab === 'indicators' && (
+                    <div className="space-y-12">
+                        {/* Economic Risk Indicators */}
+                        <section>
+                            <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-3">
+                                <div className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Economic Risk
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                {[
+                                    ['Informal Businesses', profile.economic_risk_indicators?.concentration_small_informal_businesses],
+                                    ['Market Exposure', profile.economic_risk_indicators?.market_exposure],
+                                    ['Daily Labor Dependency', profile.economic_risk_indicators?.daily_labor_dependency],
+                                    ['Business Interruption', profile.economic_risk_indicators?.business_interruption_risk],
+                                    ['Industrial Exposure', profile.economic_risk_indicators?.industrial_hazard_exposure],
+                                    ['Insurance Coverage', profile.economic_risk_indicators?.insurance_coverage_level],
+                                ].map(([label, val]) => (
+                                    <div key={label} className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">{label}</p>
+                                        <p className="text-sm font-black text-slate-900">{val || '—'}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+
+                        {/* Environmental Indicators */}
+                        <section>
+                            <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-3">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Environmental
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                {[
+                                    ['Green Space / Capita', profile.environmental_indicators?.green_space_per_capita],
+                                    ['Wetland Encroachment', profile.environmental_indicators?.wetland_encroachment],
+                                    ['Soil Sealing', profile.environmental_indicators?.soil_sealing_coverage],
+                                    ['Waste Dumping', profile.environmental_indicators?.waste_dumping_sites],
+                                    ['Drainage Blockage', profile.environmental_indicators?.urban_drainage_blockage_frequency],
+                                    ['Pollution Hotspots', profile.environmental_indicators?.pollution_hotspots],
+                                ].map(([label, val]) => (
+                                    <div key={label} className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">{label}</p>
+                                        <p className="text-sm font-black text-slate-900">{val || '—'}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+
+                        {/* Preparedness & Recovery */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                            <section>
+                                <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-3">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" /> Preparedness
+                                </h4>
+                                <div className="space-y-4">
+                                    {[
+                                        ['Shelters Availability', profile.preparedness_indicators?.emergency_shelters_availability],
+                                        ['Evacuation Mapping', profile.preparedness_indicators?.evacuation_routes_mapped],
+                                        ['Firefighting Equip.', profile.preparedness_indicators?.firefighting_equipment_availability],
+                                        ['Ambulance Coverage', profile.preparedness_indicators?.ambulance_coverage],
+                                        ['Emergency Drills', profile.preparedness_indicators?.emergency_drills_frequency],
+                                        ['Community Awareness', profile.preparedness_indicators?.community_awareness_level],
+                                    ].map(([label, val]) => (
+                                        <div key={label} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
+                                            <span className="text-xs font-bold text-slate-600">{label}</span>
+                                            <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full">{val || '—'}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+
+                            <section>
+                                <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-3">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-rose-500" /> Recovery
+                                </h4>
+                                <div className="space-y-4">
+                                    {[
+                                        ['Recovery Plans', profile.recovery_indicators?.post_disaster_recovery_plans],
+                                        ['Livelihood Divers.', profile.recovery_indicators?.livelihood_diversification],
+                                        ['Credit Access', profile.recovery_indicators?.access_to_credit_safety_nets],
+                                        ['Self-Help Groups', profile.recovery_indicators?.community_self_help_groups],
+                                        ['Urban Upgrading', profile.recovery_indicators?.urban_upgrading_programs],
+                                        ['Climate Adaptation', profile.recovery_indicators?.climate_adaptation_initiatives],
+                                    ].map(([label, val]) => (
+                                        <div key={label} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
+                                            <span className="text-xs font-bold text-slate-600">{label}</span>
+                                            <span className="text-xs font-black text-rose-700 bg-rose-50 px-3 py-1 rounded-full">{val || '—'}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
 };
 
 // ─── Import Modal ────────────────────────────────────────────────────────────
-const ImportModal: React.FC<{ 
-    onClose: () => void; 
-    onImport: (file: File, status: string) => void; 
-    importing: boolean 
+const ImportModal: React.FC<{
+    onClose: () => void;
+    onImport: (file: File, params: string) => void;
+    importing: boolean
 }> = ({ onClose, onImport, importing }) => {
     const [file, setFile] = useState<File | null>(null);
-    const [previewProfiles, setPreviewProfiles] = useState<WProfile[] | null>(null);
+    const [previewProfiles, setPreviewProfiles] = useState<any[] | null>(null);
     const [previewLoading, setPreviewLoading] = useState(false);
 
     const handlePreview = async () => {
@@ -563,7 +769,7 @@ const ImportModal: React.FC<{
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" />
             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
                 className={`relative bg-white rounded-[2.5rem] w-full ${previewProfiles ? 'max-w-4xl' : 'max-w-md'} flex flex-col shadow-2xl border border-slate-100 overflow-hidden transition-all duration-500`}>
-                
+
                 <div className="p-8 border-b border-slate-50 flex items-center justify-between">
                     <div>
                         <h2 className="text-xl font-black text-slate-900">
@@ -578,32 +784,55 @@ const ImportModal: React.FC<{
 
                 <div className="p-8 overflow-y-auto max-h-[60vh]">
                     {!previewProfiles ? (
-                        <div className={`border-2 border-dashed rounded-3xl p-10 flex flex-col items-center justify-center transition-all ${file ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100 hover:border-slate-200 bg-slate-50'}`}>
-                            <input type="file" id="excel-upload" className="hidden" accept=".xlsx, .xls" onChange={e => { setFile(e.target.files?.[0] || null); setPreviewProfiles(null); }} />
-                            <label htmlFor="excel-upload" className="flex flex-col items-center cursor-pointer text-center">
-                                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 shadow-sm ${file ? 'bg-indigo-600 text-white' : 'bg-white text-slate-400'}`}>
-                                    {file ? <FileSpreadsheet size={32} /> : <Upload size={32} />}
+                        <div className="space-y-6">
+                            <div className={`border-2 border-dashed rounded-3xl p-10 flex flex-col items-center justify-center transition-all ${file ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100 hover:border-slate-200 bg-slate-50'}`}>
+                                <input type="file" id="excel-upload" className="hidden" accept=".xlsx, .xls" onChange={e => { setFile(e.target.files?.[0] || null); setPreviewProfiles(null); }} />
+                                <label htmlFor="excel-upload" className="flex flex-col items-center cursor-pointer text-center">
+                                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 shadow-sm ${file ? 'bg-indigo-600 text-white' : 'bg-white text-slate-400'}`}>
+                                        {file ? <FileSpreadsheet size={32} /> : <Upload size={32} />}
+                                    </div>
+                                    {file ? (
+                                        <>
+                                            <p className="text-sm font-bold text-slate-800 truncate max-w-[200px]">{file.name}</p>
+                                            <p className="text-[10px] text-slate-400 mt-1">{(file.size / 1024).toFixed(1)} KB</p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <p className="text-sm font-bold text-slate-700">Click to upload or drag & drop</p>
+                                            <p className="text-[10px] text-slate-400 mt-1">Accepts .xlsx, .xls files</p>
+                                        </>
+                                    )}
+                                </label>
+                            </div>
+
+                            {file && (
+                                <div className="space-y-4">
+                                    <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100">
+                                        <h4 className="text-[10px] font-bold text-indigo-900 uppercase tracking-wider mb-2">Import Requirements</h4>
+                                        <ul className="space-y-1.5">
+                                            <li className="flex items-center gap-2 text-[10px] text-indigo-700 font-medium">
+                                                <div className="w-1 h-1 rounded-full bg-indigo-400" />
+                                                Sheets: admin_location, community, demographics, livelihoods
+                                            </li>
+                                            <li className="flex items-center gap-2 text-[10px] text-indigo-700 font-medium">
+                                                <div className="w-1 h-1 rounded-full bg-indigo-400" />
+                                                Required Columns: location_id, subcity, woreda, assessment_date
+                                            </li>
+                                        </ul>
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 font-medium bg-slate-50 p-3 rounded-xl border border-dashed border-slate-200">
+                                        Note: Excel imports use the standardized format. No profile mapping is required for this method.
+                                    </p>
                                 </div>
-                                {file ? (
-                                    <>
-                                        <p className="text-sm font-bold text-slate-800 truncate max-w-[200px]">{file.name}</p>
-                                        <p className="text-[10px] text-slate-400 mt-1">{(file.size / 1024).toFixed(1)} KB</p>
-                                    </>
-                                ) : (
-                                    <>
-                                        <p className="text-sm font-bold text-slate-700">Click to upload or drag & drop</p>
-                                        <p className="text-[10px] text-slate-400 mt-1">Accepts .xlsx, .xls files</p>
-                                    </>
-                                )}
-                            </label>
+                            )}
                         </div>
                     ) : (
                         <div className="overflow-x-auto border border-slate-100 rounded-2xl">
                             <table className="w-full text-left">
                                 <thead className="bg-slate-50 border-b border-slate-100">
                                     <tr>
-                                        <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Region/Zone</th>
-                                        <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Woreda/Kebele</th>
+                                        <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Subcity</th>
+                                        <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Woreda</th>
                                         <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Population</th>
                                         <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Assessment Date</th>
                                     </tr>
@@ -612,12 +841,10 @@ const ImportModal: React.FC<{
                                     {previewProfiles.map((p, i) => (
                                         <tr key={i} className="hover:bg-slate-50 transition-colors">
                                             <td className="px-4 py-3">
-                                                <p className="text-sm font-bold text-slate-800">{p.location.region}</p>
-                                                <p className="text-[10px] text-slate-400">{p.location.zone}</p>
+                                                <p className="text-sm font-bold text-slate-800">{p.location.subcity}</p>
                                             </td>
                                             <td className="px-4 py-3">
                                                 <p className="text-sm font-bold text-slate-800">{p.location.woreda}</p>
-                                                <p className="text-[10px] text-slate-400">{p.location.kebele}</p>
                                             </td>
                                             <td className="px-4 py-3">
                                                 <p className="text-sm font-black text-indigo-600">{p.demographics?.total_population?.toLocaleString() || 'N/A'}</p>
@@ -634,27 +861,206 @@ const ImportModal: React.FC<{
                 </div>
 
                 <div className="p-8 border-t border-slate-50 flex items-center gap-3 bg-white">
-                    <button onClick={() => { if (previewProfiles) setPreviewProfiles(null); else onClose(); }} 
+                    <button onClick={() => { if (previewProfiles) setPreviewProfiles(null); else onClose(); }}
                         className="px-6 py-3 rounded-2xl border border-slate-100 text-sm font-bold text-slate-500 hover:bg-slate-50 transition-all">
                         {previewProfiles ? 'Back' : 'Cancel'}
                     </button>
                     {!previewProfiles ? (
-                        <button disabled={!file || previewLoading} onClick={handlePreview} className="flex-1 py-3 px-6 bg-slate-900 text-white rounded-2xl text-sm font-bold hover:bg-black transition-all shadow-lg flex items-center justify-center gap-2">
+                        <button disabled={!file || previewLoading} onClick={handlePreview} className="flex-1 py-3 px-6 bg-slate-900 text-white rounded-2xl text-sm font-bold hover:bg-black transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50">
                             {previewLoading ? <Loader2 size={16} className="animate-spin" /> : <Eye size={16} />}
                             {previewLoading ? 'Analyzing…' : 'Review Data'}
                         </button>
                     ) : (
                         <>
-                            <button disabled={importing} onClick={() => file && onImport(file, 'Draft')} className="flex-1 py-3 px-6 bg-slate-100 text-slate-700 rounded-2xl text-sm font-bold hover:bg-slate-200 transition-all flex items-center justify-center gap-2">
+                            <button disabled={importing} onClick={() => file && onImport(file, JSON.stringify({ status: 'Draft' }))} className="flex-1 py-3 px-6 bg-slate-100 text-slate-700 rounded-2xl text-sm font-bold hover:bg-slate-200 transition-all flex items-center justify-center gap-2">
                                 {importing ? <Loader2 size={16} className="animate-spin" /> : <Clock size={16} />}
                                 Save as Draft
                             </button>
-                            <button disabled={importing} onClick={() => file && onImport(file, 'Submitted')} className="flex-1 py-3 px-6 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2">
+                            <button disabled={importing} onClick={() => file && onImport(file, JSON.stringify({ status: 'Submitted' }))} className="flex-1 py-3 px-6 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2">
                                 {importing ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
                                 Submit for Registration
                             </button>
                         </>
                     )}
+                </div>
+            </motion.div>
+        </div>
+    );
+};
+
+// ─── Sync Interview Modal ───────────────────────────────────────────────────
+const SyncInterviewModal: React.FC<{
+    onClose: () => void;
+    onSync: (data: { responseId: string; mappingId: string; dryRun?: boolean }) => Promise<void>;
+    mappings: ProfileMapping[];
+    syncing: boolean;
+}> = ({ onClose, onSync, mappings, syncing }) => {
+    const [responseId, setResponseId] = useState('');
+    const [mappingId, setMappingId] = useState('');
+    const [isDryRun, setIsDryRun] = useState(true);
+
+    return (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
+                className="relative bg-white rounded-[2.5rem] w-full max-w-md flex flex-col shadow-2xl border border-slate-100 overflow-hidden">
+                
+                <div className="p-8 border-b border-slate-50 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-xl font-black text-slate-900">Sync from Interview</h2>
+                        <p className="text-xs text-slate-400">Import profile data from a specific interview response</p>
+                    </div>
+                    <button onClick={onClose} className="w-10 h-10 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-400 flex items-center justify-center transition-all"><X size={18} /></button>
+                </div>
+
+                <div className="p-8 space-y-6">
+                    <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Response ID</label>
+                        <input 
+                            className="w-full px-4 py-3 rounded-2xl border border-slate-100 bg-slate-50 text-slate-800 font-bold text-sm focus:outline-none focus:border-indigo-300 focus:bg-white transition-all"
+                            value={responseId} onChange={e => setResponseId(e.target.value)} placeholder="Enter Interview Response ID"
+                        />
+                    </div>
+                    <div>
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Select Mapping Configuration</label>
+                            <Link to="/admin/profile-mapping" className="text-[10px] font-bold text-indigo-600 hover:underline">Create New Mapping</Link>
+                        </div>
+                        <select 
+                            className="w-full px-4 py-3 rounded-2xl border border-slate-100 bg-slate-50 text-slate-800 font-bold text-sm focus:outline-none focus:border-indigo-300 focus:bg-white transition-all"
+                            value={mappingId} onChange={e => setMappingId(e.target.value)}
+                        >
+                            <option value="">Select a mapping...</option>
+                            {mappings.filter(m => m.sourceType === 'InterviewTemplate').map(m => (
+                                <option key={m._id} value={m._id}>{m.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex items-center justify-between bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center text-indigo-600 shadow-sm">
+                                <Eye size={16} />
+                            </div>
+                            <div>
+                                <p className="text-xs font-bold text-indigo-900">Dry Run First</p>
+                                <p className="text-[10px] text-indigo-500">Preview changes before applying</p>
+                            </div>
+                        </div>
+                        <button type="button"
+                            onClick={() => setIsDryRun(!isDryRun)}
+                            className={`w-12 h-6 rounded-full transition-all relative ${isDryRun ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+                            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${isDryRun ? 'left-6' : 'left-0.5'}`} />
+                        </button>
+                    </div>
+                </div>
+
+                <div className="p-8 border-t border-slate-50 bg-white">
+                    <button 
+                        disabled={!responseId || !mappingId || syncing} 
+                        onClick={() => onSync({ responseId, mappingId, dryRun: isDryRun })} 
+                        className="w-full py-4 bg-slate-900 text-white rounded-2xl text-sm font-bold hover:bg-black transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                        {syncing ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}
+                        {syncing ? 'Synchronizing...' : isDryRun ? 'Review Sync' : 'Apply Synchronization'}
+                    </button>
+                </div>
+            </motion.div>
+        </div>
+    );
+};
+
+// ─── Sync Preview Modal ─────────────────────────────────────────────────────
+const SyncPreviewModal: React.FC<{
+    data: any;
+    onClose: () => void;
+    onConfirm: () => void;
+    syncing: boolean;
+}> = ({ data, onClose, onConfirm, syncing }) => {
+    const profile = data.data; // The transformed profile data
+    const errors = data.validationErrors || [];
+
+    return (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
+                className="relative bg-white rounded-[2.5rem] w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl border border-slate-100 overflow-hidden">
+                
+                <div className="p-8 border-b border-slate-50 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-xl font-black text-slate-900">Sync Preview</h2>
+                        <p className="text-xs text-slate-400">Review transformed data before saving</p>
+                    </div>
+                    <button onClick={onClose} className="w-10 h-10 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-400 flex items-center justify-center transition-all"><X size={18} /></button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-8 space-y-8">
+                    {errors.length > 0 && (
+                        <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl">
+                            <h4 className="text-rose-700 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <AlertCircle size={14} /> Validation Warnings
+                            </h4>
+                            <ul className="space-y-1">
+                                {errors.map((err: any, idx: number) => (
+                                    <li key={idx} className="text-rose-600 text-xs font-medium">• {err.message} ({err.field})</li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    <div className="space-y-6">
+                        <section>
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Location & Identity</h4>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="p-4 bg-slate-50 rounded-2xl">
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase">Woreda</p>
+                                    <p className="text-sm font-black text-slate-800">{profile.location?.woreda || 'N/A'}</p>
+                                </div>
+                                <div className="p-4 bg-slate-50 rounded-2xl">
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase">Subcity</p>
+                                    <p className="text-sm font-black text-slate-800">{profile.location?.subcity || 'N/A'}</p>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section>
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Mapped Demographics</h4>
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="p-4 bg-slate-50 rounded-2xl">
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase">Total Pop</p>
+                                    <p className="text-sm font-black text-slate-800">{profile.demographics?.total_population || 0}</p>
+                                </div>
+                                <div className="p-4 bg-slate-50 rounded-2xl">
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase">Households</p>
+                                    <p className="text-sm font-black text-slate-800">{profile.demographics?.total_households || 0}</p>
+                                </div>
+                                <div className="p-4 bg-slate-50 rounded-2xl">
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase">HH Managed By Women</p>
+                                    <p className="text-sm font-black text-slate-800">{profile.demographics?.female_headed_households || 0}</p>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section className="bg-indigo-50/50 p-6 rounded-3xl border border-indigo-100">
+                            <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-4">Full Data Object (JSON)</h4>
+                            <pre className="text-[10px] font-mono text-indigo-700 overflow-x-auto whitespace-pre-wrap">
+                                {JSON.stringify(profile, null, 2)}
+                            </pre>
+                        </section>
+                    </div>
+                </div>
+
+                <div className="p-8 border-t border-slate-50 bg-white flex items-center gap-4">
+                    <button onClick={onClose} className="px-6 py-4 rounded-2xl text-sm font-bold text-slate-500 hover:bg-slate-50 transition-all flex-1">
+                        Cancel
+                    </button>
+                    <button 
+                        disabled={syncing} 
+                        onClick={onConfirm} 
+                        className="px-10 py-4 bg-emerald-600 text-white rounded-2xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-lg flex items-center justify-center gap-2 flex-[2]"
+                    >
+                        {syncing ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
+                        {syncing ? 'Applying Changes...' : 'Confirm & Save Profile'}
+                    </button>
                 </div>
             </motion.div>
         </div>
@@ -669,17 +1075,25 @@ const WoredaProfile: React.FC = () => {
     const [search, setSearch] = useState('');
     const [showForm, setShowForm] = useState(false);
     const [showImport, setShowImport] = useState(false);
+    const [showSync, setShowSync] = useState(false);
+    const [mappings, setMappings] = useState<ProfileMapping[]>([]);
     const [editProfile, setEditProfile] = useState<WProfile | null>(null);
     const [viewProfile, setViewProfile] = useState<WProfile | null>(null);
     const [saving, setSaving] = useState(false);
     const [importing, setImporting] = useState(false);
+    const [syncPreviewData, setSyncPreviewData] = useState<any | null>(null);
 
     const fetchData = useCallback(async () => {
         try {
             setLoading(true);
-            const [pList, pStats] = await Promise.all([getWoredaProfiles(), getWoredaProfileStats()]);
+            const [pList, pStats, mList] = await Promise.all([
+                getWoredaProfiles(), 
+                getWoredaProfileStats(),
+                getProfileMappings()
+            ]);
             setProfiles(pList);
             setStats(pStats);
+            setMappings(mList);
         } catch {
             toast.error('Failed to load Woreda Profiles');
         } finally {
@@ -709,10 +1123,18 @@ const WoredaProfile: React.FC = () => {
         }
     };
 
-    const handleImport = async (file: File, status: string) => {
+    const handleImport = async (file: File, paramsJson: string) => {
         try {
+            const params = JSON.parse(paramsJson);
             setImporting(true);
-            const result = await importWoredaProfile(file, { status });
+            
+            // For standard Excel import, mappingId is not required.
+            // We only pass status and dryRun if applicable.
+            const result = await importWoredaProfile(file, { 
+                status: params.status,
+                mappingId: params.mappingId 
+            });
+            
             toast.success(result.message || 'Import successful');
             setShowImport(false);
             fetchData();
@@ -720,6 +1142,27 @@ const WoredaProfile: React.FC = () => {
             toast.error(error.response?.data?.message || 'Failed to import Excel');
         } finally {
             setImporting(false);
+        }
+    };
+
+    const handleSync = async (data: { responseId: string; mappingId: string; dryRun?: boolean }) => {
+        try {
+            setSaving(true);
+            const result = await syncFromInterview(data);
+            if (data.dryRun) {
+                setSyncPreviewData({ ...result, requestData: data });
+                setShowSync(false);
+                toast.info('Dry run successful. Please review the preview.');
+            } else {
+                toast.success('Data synchronized successfully');
+                setShowSync(false);
+                setSyncPreviewData(null);
+                fetchData();
+            }
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Synchronization failed');
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -735,7 +1178,7 @@ const WoredaProfile: React.FC = () => {
     };
 
     const filtered = profiles.filter(p =>
-        [p.location.woreda, p.location.zone, p.location.region, p.location.kebele].some(v =>
+        [p.location.woreda, p.location.subcity].some(v =>
             v?.toLowerCase().includes(search.toLowerCase())
         )
     );
@@ -767,6 +1210,17 @@ const WoredaProfile: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-3">
                         <button onClick={fetchData} className="w-10 h-10 rounded-2xl bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 flex items-center justify-center shadow-sm transition-all"><RefreshCw size={16} /></button>
+                        <button 
+                            onClick={() => {
+                                if (mappings.length === 0) {
+                                    toast.warn('No profile mappings configured. Please create one first.');
+                                }
+                                setShowSync(true);
+                            }} 
+                            className="flex items-center gap-2 px-5 py-3 bg-white border border-slate-100 text-slate-700 rounded-2xl text-sm font-bold hover:bg-slate-50 transition-all shadow-sm"
+                        >
+                            <ArrowRightLeft size={16} className="text-indigo-600" /> Sync Interview
+                        </button>
                         <button onClick={() => setShowImport(true)} className="flex items-center gap-2 px-5 py-3 bg-white border border-slate-100 text-slate-700 rounded-2xl text-sm font-bold hover:bg-slate-50 transition-all shadow-sm">
                             <Upload size={16} className="text-indigo-600" /> Import Excel
                         </button>
@@ -791,7 +1245,7 @@ const WoredaProfile: React.FC = () => {
                 <div className="flex items-center gap-3 mb-6">
                     <div className="relative flex-1 max-w-md">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by woreda, zone, region..."
+                        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by woreda, subcity..."
                             className="w-full pl-12 pr-5 py-3 bg-white rounded-2xl border border-slate-100 text-sm font-medium text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-indigo-200 shadow-sm" />
                     </div>
                     <span className="text-xs font-bold text-slate-400 px-2">{filtered.length} profiles</span>
@@ -839,6 +1293,22 @@ const WoredaProfile: React.FC = () => {
             <AnimatePresence>
                 {showImport && (
                     <ImportModal onClose={() => setShowImport(false)} onImport={handleImport} importing={importing} />
+                )}
+                {showSync && (
+                    <SyncInterviewModal 
+                        onClose={() => setShowSync(false)}
+                        onSync={handleSync}
+                        mappings={mappings}
+                        syncing={saving}
+                    />
+                )}
+                {syncPreviewData && (
+                    <SyncPreviewModal 
+                        data={syncPreviewData} 
+                        onClose={() => setSyncPreviewData(null)} 
+                        onConfirm={() => handleSync({ ...syncPreviewData.requestData, dryRun: false })}
+                        syncing={saving}
+                    />
                 )}
             </AnimatePresence>
         </div>
