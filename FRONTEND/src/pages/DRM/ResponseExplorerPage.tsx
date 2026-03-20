@@ -5,7 +5,8 @@ import {
     ArrowLeft, Search, Download,
     User, Clock, ChevronRight,
     Database, Calendar, X,
-    FileText, CheckCircle2
+    FileText, CheckCircle2,
+    Eye, Edit3, RefreshCw, Copy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
@@ -92,7 +93,7 @@ const ResponseDetailsModal: React.FC<{
                     <div className="max-w-4xl mx-auto space-y-12">
 
                         {/* Profile Summary Card */}
-                        <div className="bg-white rounded-[32px] p-8 shadow-sm border border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-8">
+                        <div className="bg-white rounded-[32px] p-8 shadow-sm border border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-8 hover:shadow-lg transition-all">
                             <div className="space-y-1">
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Enumerator</p>
                                 <div className="flex items-center gap-2 text-slate-900">
@@ -163,7 +164,7 @@ const ResponseDetailsModal: React.FC<{
                     </button>
                     <button
                         onClick={() => window.print()}
-                        className="px-10 py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-black transition-all shadow-xl shadow-slate-200"
+                        className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200"
                     >
                         Export PDF
                     </button>
@@ -219,10 +220,31 @@ const ResponseExplorerPage: React.FC = () => {
         }
     };
 
-    const filteredResponses = responses.filter(r =>
-        r.respondentMetadata?.fullName?.toLowerCase().includes(search.toLowerCase()) ||
-        r._id.toLowerCase().includes(search.toLowerCase())
-    );
+    const handleSync = (resId: string) => {
+        navigator.clipboard.writeText(resId).then(() => {
+            toast.success("Response ID copied! Switching to Woreda Profile...");
+            setTimeout(() => {
+                navigate(`/woreda-profile?syncResponseId=${resId}`);
+            }, 1200);
+        });
+    };
+
+    const filteredResponses = responses.filter(r => {
+        const searchText = search.toLowerCase();
+        const matchesBasic = (
+            r.respondentMetadata?.fullName?.toLowerCase().includes(searchText) ||
+            r._id.toLowerCase().includes(searchText)
+        );
+        
+        // Search in answers for keys containing 'house'
+        const matchesHouse = Object.entries(r.answers || {}).some(([k, v]: [string, any]) => {
+            if (!k.toLowerCase().includes('house')) return false;
+            const val = (v?.value ?? v)?.toString() || '';
+            return val.toLowerCase().includes(searchText);
+        });
+
+        return matchesBasic || matchesHouse;
+    });
 
     if (loading) {
         return (
@@ -234,66 +256,71 @@ const ResponseExplorerPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] pb-20 px-6 font-sans">
+        <div className="min-h-screen bg-slate-50 pb-20 font-sans relative">
             <PageMeta title={`Database | ${template?.name}`} description="Response management" />
 
+            {/* Gradient Header Decorator */}
+            <div className="absolute top-0 left-0 w-full h-[60vh] bg-gradient-to-b from-indigo-50/80 to-transparent pointer-events-none z-0" />
+
             {/* Top Navigation & Title */}
-            <header className="max-w-[1400px] mx-auto pt-8 pb-12 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <header className="relative z-10 max-w-[1400px] mx-auto px-6 pt-10 pb-12 flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="flex items-center gap-6">
                     <button
                         onClick={() => navigate(-1)}
-                        className="w-12 h-12 bg-white rounded-2xl text-slate-400 hover:text-indigo-600 hover:shadow-xl transition-all flex items-center justify-center border border-slate-100"
+                        className="w-12 h-12 bg-white rounded-2xl text-slate-400 hover:text-indigo-600 hover:shadow-xl shadow-sm transition-all flex items-center justify-center border border-slate-100"
                     >
                         <ArrowLeft size={20} />
                     </button>
                     <div>
-                        <div className="flex items-center gap-2 mb-1.5">
-                            <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded-md">Template Vault</span>
-                            <span className="text-slate-200">/</span>
-                            <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Ver {template?.version}</span>
+                        <div className="flex items-center gap-3 mb-2">
+                            <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest bg-indigo-100/50 backdrop-blur-sm px-3 py-1 rounded-lg">Response Explorer</span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                            <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Version {template?.version}</span>
                         </div>
-                        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{template?.name}</h1>
+                        <h1 className="text-3xl font-black text-slate-900 tracking-tight">{template?.name}</h1>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-3">
                     <button
                         onClick={handleExportCSV}
-                        className="flex items-center gap-2 px-6 py-3.5 bg-slate-900 text-white rounded-2xl font-bold hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200"
+                        className="flex items-center gap-2 px-8 py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-indigo-600 hover:shadow-xl hover:shadow-indigo-200 transition-all"
                     >
-                        <Download size={18} /> Download Excel
+                        <Download size={18} /> Export Results XLS
                     </button>
                 </div>
             </header>
 
-            <main className="max-w-[1400px] mx-auto space-y-8">
+            <main className="relative z-10 max-w-[1400px] mx-auto px-6 space-y-8">
                 {/* Stats Overview */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm relative overflow-hidden transition-all hover:shadow-md">
+                    <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm relative overflow-hidden group">
                         <div className="relative z-10">
-                            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-2">Collected Data</p>
-                            <h2 className="text-4xl font-bold text-slate-900">{responses.length} <span className="text-lg font-medium text-slate-300">submissions</span></h2>
+                            <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 mb-6 group-hover:scale-110 transition-transform">
+                                <Database size={24} />
+                            </div>
+                            <h2 className="text-4xl font-black text-slate-900 mb-2">{responses.length}</h2>
+                            <p className="text-slate-400 text-sm font-bold uppercase tracking-widest">Total Logs Captured</p>
                         </div>
-                        <Database size={100} className="absolute -right-6 -bottom-6 text-slate-50 rotate-12" />
-                    </div>
+                    </motion.div>
                 </div>
 
                 {/* Data List Container */}
-                <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+                <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="bg-white rounded-[40px] border border-slate-100 shadow-xl shadow-slate-100/50 overflow-hidden flex flex-col">
                     {/* Search & Tool Bar */}
                     <div className="p-8 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                        <div className="relative w-full md:w-[400px]">
+                        <div className="relative w-full md:w-[480px]">
                             <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                             <input
                                 type="text"
-                                placeholder="Search by name or reference ID..."
+                                placeholder="Search by ID, Enumerator or House Number..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                className="w-full pl-14 pr-6 py-4 bg-slate-50 border border-transparent rounded-2xl outline-none focus:bg-white focus:border-indigo-100 transition-all font-medium text-slate-600 placeholder:text-slate-300"
+                                className="w-full pl-14 pr-6 py-4 bg-slate-50/50 border border-slate-100 rounded-2xl outline-none focus:bg-white focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 transition-all font-semibold text-slate-700 placeholder:text-slate-400"
                             />
                         </div>
                         <div className="flex items-center gap-4 text-slate-400 text-xs font-bold uppercase tracking-widest px-4">
-                            Showing {filteredResponses.length} records
+                            Matching {filteredResponses.length} Entries
                         </div>
                     </div>
 
@@ -301,67 +328,113 @@ const ResponseExplorerPage: React.FC = () => {
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
                             <thead>
-                                <tr className="bg-slate-50/50">
-                                    <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Entry ID</th>
-                                    <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Enumerator</th>
-                                    <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Log Date</th>
-                                    <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
-                                    <th className="px-8 py-5 text-right w-20"></th>
+                                <tr className="bg-slate-50/50 backdrop-blur-sm">
+                                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Record Track ID</th>
+                                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">House No</th>
+                                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Captured By</th>
+                                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Timestamp</th>
+                                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Verification</th>
+                                    <th className="px-8 py-5 text-right w-48 text-[10px] font-black text-slate-400 uppercase tracking-widest">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-50">
+                            <tbody className="divide-y divide-slate-50 relative">
                                 {filteredResponses.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="px-8 py-20 text-center text-slate-300 italic text-sm">No data logs found.</td>
+                                        <td colSpan={6} className="px-8 py-32 text-center">
+                                            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-50 text-slate-300 mb-4">
+                                                <Search size={24} />
+                                            </div>
+                                            <p className="text-slate-400 font-bold">No tracking records found.</p>
+                                        </td>
                                     </tr>
                                 ) : (
                                     filteredResponses.map((res: any) => (
                                         <tr
                                             key={res._id}
-                                            onClick={() => setSelectedResponse(res)}
-                                            className="group hover:bg-indigo-50/30 cursor-pointer transition-all"
+                                            className="group hover:bg-slate-50/50 transition-all"
                                         >
-                                            <td className="px-8 py-6">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 bg-slate-50 group-hover:bg-indigo-600 transition-colors rounded-xl flex items-center justify-center text-slate-400 group-hover:text-white font-mono text-[10px] font-bold">
+                                            <td className="px-8 py-5" onClick={() => setSelectedResponse(res)}>
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-10 bg-indigo-50/50 text-indigo-600 rounded-2xl flex items-center justify-center font-mono text-[10px] font-bold group-hover:bg-indigo-600 group-hover:text-white transition-colors">
                                                         #{res._id.slice(-4).toUpperCase()}
                                                     </div>
-                                                    <span className="text-[11px] font-mono text-slate-400 group-hover:text-indigo-600 transition-colors truncate max-w-[120px]">{res._id}</span>
+                                                    <span className="text-[12px] font-mono text-slate-500 font-semibold cursor-pointer group-hover:text-indigo-600 transition-colors" title="Copy Full ID" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(res._id); toast.success('ID Copied!'); }}>{res._id}</span>
                                                 </div>
                                             </td>
-                                            <td className="px-8 py-6">
+                                            <td className="px-8 py-5" onClick={() => setSelectedResponse(res)}>
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-black text-slate-800">
+                                                        {(() => {
+                                                            const houseEntry = Object.entries(res.answers || {}).find(([k]) => k.toLowerCase().includes('house'));
+                                                            const val = houseEntry?.[1] as any;
+                                                            return val?.value ?? val ?? 'N/A';
+                                                        })()}
+                                                    </span>
+                                                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Premise ID</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-5" onClick={() => setSelectedResponse(res)}>
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 group-hover:scale-110 transition-transform">
+                                                    <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 group-hover:text-indigo-500 transition-colors">
                                                         <User size={16} />
                                                     </div>
                                                     <div>
-                                                        <p className="text-[13px] font-bold text-slate-900 leading-tight mb-0.5">{res.respondentMetadata?.fullName || 'Anonymous'}</p>
-                                                        <p className="text-[10px] text-slate-400 font-medium">Enumerator</p>
+                                                        <p className="text-sm font-bold text-slate-900 leading-tight mb-0.5">{res.respondentMetadata?.fullName || 'Anonymous'}</p>
+                                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Field User</p>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-8 py-6">
-                                                <div className="flex flex-col gap-0.5">
-                                                    <div className="flex items-center gap-2 text-slate-900 text-[13px] font-semibold">
-                                                        <Calendar size={14} className="text-slate-300" />
+                                            <td className="px-8 py-5" onClick={() => setSelectedResponse(res)}>
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-2 text-slate-700 text-sm font-semibold">
                                                         {new Date(res.submittedAt).toLocaleDateString()}
                                                     </div>
-                                                    <div className="flex items-center gap-2 text-slate-400 text-[10px]">
+                                                    <div className="flex items-center gap-1.5 text-slate-400 text-[11px] font-bold">
                                                         <Clock size={12} />
                                                         {new Date(res.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-8 py-6">
-                                                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold tracking-tight ${res.isDraft ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                                            <td className="px-8 py-5" onClick={() => setSelectedResponse(res)}>
+                                                <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-[10px] text-[10px] font-bold tracking-widest uppercase ${res.isDraft ? 'bg-amber-50 text-amber-600 border border-amber-100/50' : 'bg-emerald-50 text-emerald-600 border border-emerald-100/50'
                                                     }`}>
-                                                    <span className={`w-1 h-1 rounded-full ${res.isDraft ? 'bg-amber-400' : 'bg-emerald-400'}`} />
-                                                    {res.isDraft ? 'Pending Draft' : 'Verified Final'}
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${res.isDraft ? 'bg-amber-400' : 'bg-emerald-400'}`} />
+                                                    {res.isDraft ? 'Draft Mode' : 'Verified'}
                                                 </span>
                                             </td>
-                                            <td className="px-8 py-6 text-right">
-                                                <div className="w-10 h-10 rounded-full border border-slate-100 group-hover:border-indigo-200 group-hover:bg-indigo-100 group-hover:text-indigo-600 text-slate-300 flex items-center justify-center transition-all ml-auto">
-                                                    <ChevronRight size={18} />
+                                            <td className="px-8 py-5 text-right relative z-10">
+                                                <div className="flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
+                                                    <button 
+                                                        onClick={() => handleSync(res._id)}
+                                                        title={
+                                                            res.syncStatus === 'SYNCED' ? 'Already Synced' : 
+                                                            res.syncStatus === 'UPDATED' ? 'Update Required (Data Changed)' : 
+                                                            'Sync to Profile'
+                                                        }
+                                                        className={`w-10 h-10 rounded-2xl border transition-all shadow-sm group/btn flex items-center justify-center ${
+                                                            res.syncStatus === 'SYNCED' 
+                                                                ? 'bg-emerald-50 border-emerald-200 text-emerald-600' :
+                                                            res.syncStatus === 'UPDATED'
+                                                                ? 'bg-blue-50 border-blue-200 text-blue-600' :
+                                                            'bg-amber-50 border-amber-200 text-amber-600 animate-pulse-subtle'
+                                                        } hover:scale-110`}
+                                                    >
+                                                        <RefreshCw size={16} className={`${res.syncStatus === 'UNSYNCED' ? 'animate-spin-slow' : ''} group-hover/btn:rotate-180 transition-transform duration-500`} />
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => navigate(`/responses/${templateId}?edit=${res._id}`)}
+                                                        title="Edit Survey"
+                                                        className="w-10 h-10 rounded-2xl bg-white border border-slate-200 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600 text-slate-400 flex items-center justify-center transition-all shadow-sm"
+                                                    >
+                                                        <Edit3 size={16} />
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => setSelectedResponse(res)}
+                                                        title="View Record"
+                                                        className="w-10 h-10 rounded-2xl bg-slate-900 hover:bg-indigo-600 text-white flex items-center justify-center transition-all shadow-md shadow-slate-200"
+                                                    >
+                                                        <Eye size={16} />
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -370,7 +443,7 @@ const ResponseExplorerPage: React.FC = () => {
                             </tbody>
                         </table>
                     </div>
-                </div>
+                </motion.div>
             </main>
 
             {/* Modal Layer */}

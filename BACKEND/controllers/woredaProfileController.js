@@ -2,15 +2,231 @@ import WoredaProfile from '../models/WoredaProfile.js';
 import ProfileMapping from '../models/ProfileMapping.js';
 import FormResponse from '../models/FormResponse.js';
 import * as MappingService from '../services/MappingService.js';
+import * as auditService from '../services/auditService.js';
 import * as XLSX from 'xlsx';
+
+const aggregateProfiles = (profiles, level) => {
+    const grouped = {};
+
+    // Deduplicate profiles by full location to avoid double counting
+    const uniqueProfiles = [];
+    const seenLocations = new Set();
+    profiles.forEach(p => {
+        const sc = (p.location?.subcity || '').toLowerCase().replace(/\bsub[\s-]?city\b/g, '').trim();
+        const wo = (p.location?.woreda || '').toLowerCase().replace(/\bworeda\b/g, '').trim();
+        const bl = (p.location?.block || '').toLowerCase().replace(/\bblock\b/g, '').trim();
+        const hn = (p.location?.house_no || '').toString().toLowerCase().trim();
+        const locKey = `${sc}-${wo}-${bl}-${hn}`;
+        if (!seenLocations.has(locKey)) {
+            seenLocations.add(locKey);
+            uniqueProfiles.push(p);
+        }
+    });
+
+    uniqueProfiles.forEach(p => {
+        const normalize = (str, type) => {
+            if (!str) return 'Unknown';
+            let norm = str.toLowerCase().replace(/_/g, ' ').trim();
+            if (type === 'subcity') norm = norm.replace(/\bsub[\s-]?city\b/gi, '').trim();
+            if (type === 'woreda') norm = norm.replace(/\bworeda\b/gi, '').trim();
+            if (type === 'block') norm = norm.replace(/\bblock\b/gi, '').trim();
+            return norm.split(/\s+/).filter(Boolean).map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || 'Unknown';
+        };
+
+        const subcity = normalize(p.location?.subcity, 'subcity');
+        const woreda = normalize(p.location?.woreda, 'woreda');
+        const block = level === 'block' ? normalize(p.location?.block, 'block') : 'Unknown';
+        
+        // Determine group key
+        let key = 'all';
+        if (level === 'subcity') key = subcity;
+        else if (level === 'woreda') key = `${subcity}-${woreda}`;
+        else if (level === 'block') key = `${subcity}-${woreda}-${block}`;
+        
+        if (!grouped[key]) {
+            // Initialize a blank aggregated profile
+            grouped[key] = {
+                _id: key, // Fake ID for frontend mapping
+                location: {
+                    subcity: level === 'all' ? 'All Subcities' : subcity,
+                    woreda: level === 'woreda' || level === 'block' ? woreda : 'All Woredas',
+                    block: level === 'block' ? block : 'All Blocks',
+                    house_no: 'Aggregated Data'
+                },
+                assessment_date: p.assessment_date || new Date(),
+                remarks: `Aggregated data at ${level} level.`,
+                status: 'Reviewed',
+                demographics: {
+                    total_population: 0,
+                    male_population: 0,
+                    female_population: 0,
+                    children_0_17: 0,
+                    youth_18_29: 0,
+                    adults_30_59: 0,
+                    elderly_60_plus: 0,
+                    total_households: 0,
+                    female_headed_households: 0,
+                    informal_settlement_population: 0,
+                    low_income_households: 0,
+                    unemployment_rate: 0, // we will average this
+                    internally_displaced_population: 0,
+                    education_levels: []
+                },
+                livelihoods: [],
+                basic_services: {
+                    water_source: p.basic_services?.water_source || 'Mixed',
+                    electricity: false,
+                    road_access: p.basic_services?.road_access || 'Mixed',
+                    drainage_system_coverage: false,
+                    solid_waste_management_coverage: false,
+                    telecommunications_access: false,
+                    critical_lifeline_redundancy: false
+                },
+                critical_facilities: p.critical_facilities || [],
+                vulnerable_groups: [],
+                community_capacity: p.community_capacity || [],
+                hazards: p.hazards || [],
+                vulnerability_assessments: p.vulnerability_assessments || [],
+                housing_indicators: p.housing_indicators || {},
+                capacity_assessments: p.capacity_assessments || [],
+                economic_risk_indicators: p.economic_risk_indicators || {},
+                environmental_indicators: p.environmental_indicators || {},
+                preparedness_indicators: p.preparedness_indicators || {},
+                recovery_indicators: p.recovery_indicators || {},
+                risk_index: {
+                    hazard_index: 0,
+                    vulnerability_index: 0,
+                    exposure_index: 0,
+                    capacity_index: 0,
+                    overall_woreda_risk_score: 0
+                },
+                risk_assessments: p.risk_assessments || [],
+                _count: 0 // to help average later
+            };
+        }
+
+        const g = grouped[key];
+        g._count += 1;
+        
+        // Latest date
+        if (new Date(p.assessment_date) > new Date(g.assessment_date)) {
+            g.assessment_date = p.assessment_date;
+        }
+
+        // Demographics
+        if (p.demographics) {
+            const d = p.demographics;
+            g.demographics.total_population += (d.total_population || 0);
+            g.demographics.male_population += (d.male_population || 0);
+            g.demographics.female_population += (d.female_population || 0);
+            g.demographics.children_0_17 += (d.children_0_17 || 0);
+            g.demographics.youth_18_29 += (d.youth_18_29 || 0);
+            g.demographics.adults_30_59 += (d.adults_30_59 || 0);
+            g.demographics.elderly_60_plus += (d.elderly_60_plus || 0);
+            g.demographics.total_households += (d.total_households || 0);
+            g.demographics.female_headed_households += (d.female_headed_households || 0);
+            g.demographics.informal_settlement_population += (d.informal_settlement_population || 0);
+            g.demographics.low_income_households += (d.low_income_households || 0);
+            g.demographics.unemployment_rate += (d.unemployment_rate || 0);
+            g.demographics.internally_displaced_population += (d.internally_displaced_population || 0);
+
+            if (d.education_levels) {
+                d.education_levels.forEach(ed => {
+                    const existing = g.demographics.education_levels.find(e => e.category === ed.category);
+                    if (existing) {
+                        existing.count += (ed.count || 0);
+                    } else {
+                        g.demographics.education_levels.push({ category: ed.category, count: (ed.count || 0) });
+                    }
+                });
+            }
+        }
+
+        // Livelihoods
+        if (p.livelihoods) {
+            p.livelihoods.forEach(l => {
+                const existing = g.livelihoods.find(el => el.livelihood_type === l.livelihood_type);
+                if (existing) {
+                    existing.households += (l.households || 0);
+                } else {
+                    g.livelihoods.push({ livelihood_type: l.livelihood_type, households: (l.households || 0), percentage: 0 });
+                }
+            });
+        }
+
+        // Basic Services (OR for boolean)
+        if (p.basic_services) {
+            g.basic_services.electricity = g.basic_services.electricity || p.basic_services.electricity;
+            g.basic_services.drainage_system_coverage = g.basic_services.drainage_system_coverage || p.basic_services.drainage_system_coverage;
+            g.basic_services.solid_waste_management_coverage = g.basic_services.solid_waste_management_coverage || p.basic_services.solid_waste_management_coverage;
+            g.basic_services.telecommunications_access = g.basic_services.telecommunications_access || p.basic_services.telecommunications_access;
+            g.basic_services.critical_lifeline_redundancy = g.basic_services.critical_lifeline_redundancy || p.basic_services.critical_lifeline_redundancy;
+        }
+
+        // Vulnerable Groups
+        if (p.vulnerable_groups) {
+            p.vulnerable_groups.forEach(vg => {
+                const existing = g.vulnerable_groups.find(evg => evg.group_type === vg.group_type);
+                if (existing) {
+                    existing.number += (vg.number || 0);
+                } else {
+                    g.vulnerable_groups.push({ group_type: vg.group_type, number: (vg.number || 0) });
+                }
+            });
+        }
+
+        // Risk Index summation
+        if (p.risk_index) {
+            g.risk_index.hazard_index += (p.risk_index.hazard_index || 0);
+            g.risk_index.vulnerability_index += (p.risk_index.vulnerability_index || 0);
+            g.risk_index.exposure_index += (p.risk_index.exposure_index || 0);
+            g.risk_index.capacity_index += (p.risk_index.capacity_index || 0);
+            g.risk_index.overall_woreda_risk_score += (p.risk_index.overall_woreda_risk_score || 0);
+        }
+    });
+
+    // Finalize averages and percentages
+    return Object.values(grouped).map(g => {
+        if (g._count > 0) {
+            g.demographics.unemployment_rate = Math.round(g.demographics.unemployment_rate / g._count);
+            
+            const totalLivelihoodHH = g.livelihoods.reduce((acc, l) => acc + l.households, 0);
+            if (totalLivelihoodHH > 0) {
+                g.livelihoods.forEach(l => {
+                    l.percentage = Math.round((l.households / totalLivelihoodHH) * 100);
+                });
+            }
+
+            g.risk_index.hazard_index = Math.round(g.risk_index.hazard_index / g._count);
+            g.risk_index.vulnerability_index = Math.round(g.risk_index.vulnerability_index / g._count);
+            g.risk_index.exposure_index = Math.round(g.risk_index.exposure_index / g._count);
+            g.risk_index.capacity_index = Math.round(g.risk_index.capacity_index / g._count);
+            g.risk_index.overall_woreda_risk_score = Math.round(g.risk_index.overall_woreda_risk_score / g._count);
+        }
+        delete g._count;
+        return g;
+    });
+};
+
+
+
+
+
+
+
 
 // @desc    Get all Woreda Profiles
 // @route   GET /api/woreda-profiles
 export const getWoredaProfiles = async (req, res) => {
     try {
-        const { woreda, status } = req.query;
+        const { subcity, woreda, block, status, level } = req.query;
         let query = {};
-        if (woreda) query['location.woreda'] = { $regex: woreda, $options: 'i' };
+        
+        // Use soft regex matching to catch variations like "Bole" vs "Bole Subcity" during drill-down fetches.
+        if (subcity) query['location.subcity'] = { $regex: new RegExp(`^${subcity.replace(/\bsub[\s-]?city\b/ig, '').trim()}`, 'i') };
+        if (woreda) query['location.woreda'] = { $regex: new RegExp(`^${woreda.replace(/\bworeda\b/ig, '').trim()}`, 'i') };
+        if (block) query['location.block'] = { $regex: new RegExp(`^${block.replace(/\bblock\b/ig, '').trim()}`, 'i') };
+        
         if (status) query.status = status;
 
         const profiles = await WoredaProfile.find(query)
@@ -18,7 +234,27 @@ export const getWoredaProfiles = async (req, res) => {
             .populate('assessed_by', 'fullname')
             .populate('createdBy', 'fullname');
 
-        res.json(profiles);
+        if (['all', 'subcity', 'woreda', 'block'].includes(level)) {
+            const aggregated = aggregateProfiles(profiles, level);
+            return res.json(aggregated);
+        }
+
+        // For Household Level, guarantee exactly one card per house (taking latest update)
+        const uniqueHouseholds = [];
+        const seen = new Set();
+        for (const p of profiles) {
+            const sc = (p.location?.subcity||'').toLowerCase().replace(/\bsub[\s-]?city\b/g, '').trim();
+            const wo = (p.location?.woreda||'').toLowerCase().replace(/\bworeda\b/g, '').trim();
+            const bl = (p.location?.block||'').toLowerCase().replace(/\bblock\b/g, '').trim();
+            const hn = (p.location?.house_no||'').toString().toLowerCase().trim();
+            
+            const hKey = `${sc}-${wo}-${bl}-${hn}`;
+            if (!seen.has(hKey)) {
+                seen.add(hKey);
+                uniqueHouseholds.push(p);
+            }
+        }
+        return res.json(uniqueHouseholds);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -49,6 +285,16 @@ export const createWoredaProfile = async (req, res) => {
             assessed_by: req.user?._id
         });
         const saved = await profile.save();
+
+        await auditService.logAction({
+            userId: req.user?._id,
+            action: 'WOREDA_PROFILE_CREATE',
+            resource: 'WoredaProfile',
+            resourceId: saved._id,
+            after: saved,
+            ip: req.ip
+        });
+
         res.status(201).json(saved);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -62,8 +308,20 @@ export const updateWoredaProfile = async (req, res) => {
         const profile = await WoredaProfile.findById(req.params.id);
         if (!profile) return res.status(404).json({ message: 'Woreda Profile not found' });
 
+        const before = profile.toObject();
         Object.assign(profile, req.body);
         const updated = await profile.save();
+
+        await auditService.logAction({
+            userId: req.user?._id,
+            action: 'WOREDA_PROFILE_UPDATE',
+            resource: 'WoredaProfile',
+            resourceId: updated._id,
+            before,
+            after: updated,
+            ip: req.ip
+        });
+
         res.json(updated);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -74,8 +332,21 @@ export const updateWoredaProfile = async (req, res) => {
 // @route   DELETE /api/woreda-profiles/:id
 export const deleteWoredaProfile = async (req, res) => {
     try {
-        const profile = await WoredaProfile.findByIdAndDelete(req.params.id);
+        const profile = await WoredaProfile.findById(req.params.id);
         if (!profile) return res.status(404).json({ message: 'Woreda Profile not found' });
+
+        const before = profile.toObject();
+        await WoredaProfile.findByIdAndDelete(req.params.id);
+
+        await auditService.logAction({
+            userId: req.user?._id,
+            action: 'WOREDA_PROFILE_DELETE',
+            resource: 'WoredaProfile',
+            resourceId: req.params.id,
+            before,
+            ip: req.ip
+        });
+
         res.json({ message: 'Woreda Profile deleted successfully' });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -387,6 +658,17 @@ export const importWoredaProfile = async (req, res) => {
             }
         }
 
+        // Final audit for bulk import
+        if (commit && importedProfiles.length > 0) {
+            await auditService.logAction({
+                userId: req.user?._id,
+                action: 'WOREDA_PROFILE_IMPORT',
+                resource: 'WoredaProfile',
+                details: { count: importedProfiles.length, status: finalStatus },
+                ip: req.ip
+            });
+        }
+
         return res.status(commit ? 201 : 200).json({
             message: commit ? `Successfully processed ${importedProfiles.length} profiles` : 'Preview generated',
             count: importedProfiles.length,
@@ -409,6 +691,12 @@ export const syncFromInterview = async (req, res) => {
 
         const mapping = await ProfileMapping.findById(mappingId);
         if (!mapping) return res.status(404).json({ message: 'Profile mapping not found' });
+        
+        if (mapping.status !== 'Published') {
+            return res.status(403).json({ 
+                message: 'Only published profile mappings can perform live synchronization' 
+            });
+        }
 
         const answersObj = Object.fromEntries(response.answers);
 
@@ -436,10 +724,16 @@ export const syncFromInterview = async (req, res) => {
             });
         }
 
-        const existing = await WoredaProfile.findOne({ 
+        // Robust search criteria matching Excel import to find EXACT household
+        const matchCriteria = { 
             'location.woreda': transformedData.location?.woreda,
             'location.subcity': transformedData.location?.subcity
-        });
+        };
+        if (transformedData.location?.block) matchCriteria['location.block'] = transformedData.location.block;
+        if (transformedData.location?.house_no) matchCriteria['location.house_no'] = transformedData.location.house_no;
+        
+        console.log("Matching Criteria:", matchCriteria);
+        const existing = await WoredaProfile.findOne(matchCriteria);
 
         // Prepare syncSources update
         const syncSources = {};
@@ -454,12 +748,26 @@ export const syncFromInterview = async (req, res) => {
 
         let saved;
         if (existing) {
-            Object.assign(existing, transformedData);
-            // Update syncSources using the Map set method or direct assignment
+            // Use path-based update to avoid clobbering siblings in nested objects
+            const recursiveSet = (doc, obj, prefix = '') => {
+                Object.entries(obj).forEach(([key, val]) => {
+                    const fullPath = prefix ? `${prefix}.${key}` : key;
+                    if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+                        recursiveSet(doc, val, fullPath);
+                    } else {
+                        doc.set(fullPath, val);
+                    }
+                });
+            };
+            
+            recursiveSet(existing, transformedData);
+
+            // Update syncSources using the Map set method
             if (!existing.syncSources) existing.syncSources = new Map();
             Object.entries(syncSources).forEach(([k, v]) => {
                 existing.syncSources.set(k, v);
             });
+            
             saved = await existing.save();
         } else {
             const profile = new WoredaProfile({
@@ -468,6 +776,21 @@ export const syncFromInterview = async (req, res) => {
             });
             saved = await profile.save();
         }
+
+        // Update the source response status
+        response.syncStatus = 'SYNCED';
+        response.lastSyncedAt = new Date();
+        await response.save();
+
+        await auditService.logAction({
+            userId: req.user?._id,
+            action: 'WOREDA_PROFILE_SYNC',
+            resource: 'WoredaProfile',
+            resourceId: saved._id,
+            details: { responseId },
+            after: saved,
+            ip: req.ip
+        });
 
         res.status(201).json(saved);
     } catch (error) {

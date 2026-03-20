@@ -22,6 +22,7 @@ export interface ProfileMapping {
     sourceId?: any;
     version: number;
     mappings: ProfileMappingItem[];
+    status: 'Draft' | 'Published' | 'Archived';
     isActive: boolean;
     createdBy?: { _id: string; fullname: string };
     createdAt: string;
@@ -34,6 +35,7 @@ export interface ProfileMappingInput {
     sourceType: 'InterviewTemplate';
     sourceId?: any;
     mappings: ProfileMappingItem[];
+    status?: 'Draft' | 'Published' | 'Archived';
 }
 
 export const getProfileMappings = async (): Promise<ProfileMapping[]> => {
@@ -58,4 +60,8 @@ export const updateProfileMapping = async (id: string, data: Partial<ProfileMapp
 
 export const deleteProfileMapping = async (id: string): Promise<void> => {
     await api.delete(`/profile-mappings/${id}`);
+};
+
+export const permanentlyDeleteProfileMapping = async (id: string): Promise<void> => {
+    await api.delete(`/profile-mappings/${id}/permanent`);
 };

@@ -1,4 +1,5 @@
 import IncidentReport from '../models/IncidentReport.js';
+import * as auditService from '../services/auditService.js';
 
 const sanitizeIncomingPayload = (payload) => {
   const clean = payload && typeof payload === 'object' ? { ...payload } : {};
@@ -47,6 +48,15 @@ export const createIncidentReportPublic = async (req, res) => {
       ...payload,
       reportCode,
       ...(req.user?._id ? { createdByUser: req.user._id, lastUpdatedByUser: req.user._id } : {}),
+    });
+
+    await auditService.logAction({
+        userId: req.user?._id || 'PUBLIC_USER',
+        action: 'INCIDENT_REPORT_CREATE',
+        resource: 'IncidentReport',
+        resourceId: doc._id,
+        after: doc,
+        ip: req.ip
     });
 
     res.status(201).json(doc);
@@ -103,12 +113,26 @@ export const getIncidentReportById = async (req, res) => {
 export const updateIncidentReport = async (req, res) => {
   try {
     const payload = sanitizeIncomingPayload(req.body || {});
+    const beforeDoc = await IncidentReport.findById(req.params.id);
+    if (!beforeDoc) return res.status(404).json({ message: 'Report not found' });
+    const before = beforeDoc.toObject();
+
     const doc = await IncidentReport.findByIdAndUpdate(
       req.params.id,
       { $set: payload },
       { new: true }
     );
-    if (!doc) return res.status(404).json({ message: 'Report not found' });
+
+    await auditService.logAction({
+        userId: req.user?._id,
+        action: 'INCIDENT_REPORT_UPDATE',
+        resource: 'IncidentReport',
+        resourceId: doc._id,
+        before,
+        after: doc,
+        ip: req.ip
+    });
+
     res.json(doc);
   } catch (error) {
     console.error('updateIncidentReport error:', error);

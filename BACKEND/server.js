@@ -16,6 +16,12 @@ import dashboardRoutes from './routes/dashboardRoutes.js';
 import templateRoutes from './routes/templateRoutes.js';
 import formResponseRoutes from './routes/formResponseRoutes.js';
 import woredaProfileRoutes from './routes/woredaProfileRoutes.js';
+import profileMappingRoutes from './routes/profileMappingRoutes.js';
+import portalContentRoutes from './routes/portalContentRoutes.js';
+import incidentReportRoutes from './routes/incidentReportRoutes.js';
+import alertSubscriptionRoutes from './routes/alertSubscriptionRoutes.js';
+import uploadRoutes from './routes/uploadRoutes.js';
+import adminLogRoutes from './routes/adminLogRoutes.js';
 import { errorHandler } from './middleware/errorMiddleware.js';
 import cors from 'cors';
 
@@ -37,10 +43,17 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 import fs from 'fs';
 const logFile = fs.createWriteStream('server_logs.txt', { flags: 'a' });
 
+
+
+//request logging middleware
 app.use((req, res, next) => {
-    const logLine = `${new Date().toISOString()} - ${req.method} ${req.originalUrl}\n`;
-    console.log(logLine.trim());
-    logFile.write(logLine);
+    const originalSend = res.send;
+    res.send = function(data) {
+        const logLine = `${new Date().toISOString()} - ${req.method} ${req.originalUrl} - STATUS: ${res.statusCode}\n`;
+        console.log(logLine.trim());
+        logFile.write(logLine);
+        return originalSend.apply(res, arguments);
+    };
     next();
 });
 
@@ -62,6 +75,12 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/responses', formResponseRoutes);
 app.use('/api/woreda-profiles', woredaProfileRoutes);
+app.use('/api/profile-mappings', profileMappingRoutes);
+app.use('/api/site-settings', portalContentRoutes);
+app.use('/api/incident-reports', incidentReportRoutes);
+app.use('/api/alert-subscriptions', alertSubscriptionRoutes);
+app.use('/api/uploads', uploadRoutes);
+app.use('/api/admin-logs', adminLogRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 

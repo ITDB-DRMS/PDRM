@@ -1,4 +1,5 @@
 import AlertSubscription from '../models/AlertSubscription.js';
+import * as auditService from '../services/auditService.js';
 
 const sanitizeIncomingPayload = (payload) => {
   const clean = payload && typeof payload === 'object' ? { ...payload } : {};
@@ -41,6 +42,15 @@ export const upsertAlertSubscriptionPublic = async (req, res) => {
       },
       { new: true, upsert: true }
     );
+
+    await auditService.logAction({
+        userId: req.user?._id || 'PUBLIC_SUBSCRIBER',
+        action: 'ALERT_SUBSCRIPTION_UPSERT',
+        resource: 'AlertSubscription',
+        resourceId: doc._id,
+        after: doc,
+        ip: req.ip
+    });
 
     res.status(200).json(doc);
   } catch (error) {
@@ -92,12 +102,26 @@ export const getAlertSubscriptionById = async (req, res) => {
 export const updateAlertSubscription = async (req, res) => {
   try {
     const payload = sanitizeIncomingPayload(req.body || {});
+    const beforeDoc = await AlertSubscription.findById(req.params.id);
+    if (!beforeDoc) return res.status(404).json({ message: 'Subscription not found' });
+    const before = beforeDoc.toObject();
+
     const doc = await AlertSubscription.findByIdAndUpdate(
       req.params.id,
       { $set: payload },
       { new: true }
     );
-    if (!doc) return res.status(404).json({ message: 'Subscription not found' });
+
+    await auditService.logAction({
+        userId: req.user?._id,
+        action: 'ALERT_SUBSCRIPTION_UPDATE',
+        resource: 'AlertSubscription',
+        resourceId: doc._id,
+        before,
+        after: doc,
+        ip: req.ip
+    });
+
     res.json(doc);
   } catch (error) {
     console.error('updateAlertSubscription error:', error);

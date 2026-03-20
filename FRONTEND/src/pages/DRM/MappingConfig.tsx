@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Plus, Edit3, Trash2, X, 
     CheckCircle, Database, Layers, ArrowRightLeft,
-    Calculator, Hash, RefreshCw, ChevronRight, 
-    Settings2, Info, Sparkles, Filter, Search,
-    ArrowRight, Binary, Zap, Code, ShieldCheck, Box
+    Calculator, Hash, RefreshCw, 
+    Info, Sparkles, Filter, Search,
+    ArrowRight, Binary, Zap, ShieldCheck, Box, Send, RotateCcw
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { 
@@ -13,6 +13,7 @@ import {
     createProfileMapping, 
     updateProfileMapping, 
     deleteProfileMapping,
+    permanentlyDeleteProfileMapping,
     type ProfileMapping,
     type ProfileMappingItem
 } from '../../api/profileMappingService';
@@ -70,11 +71,10 @@ const TRANSFORMATION_TYPES = [
 // ─── Helper Components ────────────────────────────────────────────────────────
 const MappingRow: React.FC<{ 
     item: ProfileMappingItem; 
-    idx: number; 
     templateFields: any[];
     updateRow: (u: Partial<ProfileMappingItem>) => void;
     removeRow: () => void;
-}> = ({ item, idx, templateFields, updateRow, removeRow }) => {
+}> = ({ item, templateFields, updateRow, removeRow }) => {
     const transformation = TRANSFORMATION_TYPES.find(t => t.value === item.transformation) || TRANSFORMATION_TYPES[0];
 
     return (
@@ -82,21 +82,17 @@ const MappingRow: React.FC<{
             initial={{ opacity: 0, y: 10, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, x: -50 }}
-            className="grid grid-cols-12 gap-6 bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-lg hover:border-indigo-100 transition-all items-center relative group"
+            className="grid grid-cols-12 gap-5 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-indigo-100 transition-all items-center relative group/row"
         >
-            <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-[10px] font-bold shadow-lg border-4 border-white">
-                {idx + 1}
-            </div>
-
-            <div className="col-span-4 space-y-3">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Input Source</label>
+            <div className="col-span-4 space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Source Variable</label>
                 <div className="relative">
                     <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
                     <select 
-                        className="w-full pl-10 pr-4 py-3.5 rounded-2xl bg-slate-50 border border-slate-100 text-[11px] font-bold text-slate-700 focus:outline-none focus:border-indigo-300 focus:bg-white transition-all appearance-none"
+                        className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-100 text-[11px] font-bold text-slate-700 focus:outline-none focus:border-indigo-200 focus:bg-white transition-all appearance-none"
                         value={item.sourceKey} onChange={e => updateRow({ sourceKey: e.target.value })}
                     >
-                        <option value="">Link Input Question...</option>
+                        <option value="">Choose Input...</option>
                         {templateFields.map((f: any) => (
                             <option key={f.code} value={f.code}>{f.code} — {f.label}</option>
                         ))}
@@ -104,33 +100,34 @@ const MappingRow: React.FC<{
                 </div>
             </div>
 
-            <div className="col-span-3 flex flex-col items-center gap-2">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 text-center">Data Transformer</label>
-                <button 
-                    onClick={() => {
-                        const currentIdx = TRANSFORMATION_TYPES.findIndex(t => t.value === item.transformation);
-                        const nextIdx = (currentIdx + 1) % TRANSFORMATION_TYPES.length;
-                        updateRow({ transformation: TRANSFORMATION_TYPES[nextIdx].value as any });
-                    }}
-                    className={`w-full flex items-center gap-4 px-5 py-3 rounded-2xl border transition-all shadow-sm ${transformation.bg} border-transparent hover:border-indigo-200 group/btn`}
-                >
-                    <transformation.icon className={transformation.color} size={18} />
-                    <div className="text-left flex-1">
-                        <p className={`text-[11px] font-black ${transformation.color}`}>{transformation.label}</p>
-                    </div>
-                    <ArrowRight size={14} className="text-slate-300 group-hover/btn:translate-x-1 transition-transform" />
-                </button>
+            <div className="col-span-3">
+                <div className="flex flex-col items-center gap-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Transformer</label>
+                    <button 
+                        onClick={() => {
+                            const currentIdx = TRANSFORMATION_TYPES.findIndex(t => t.value === item.transformation);
+                            const nextIdx = (currentIdx + 1) % TRANSFORMATION_TYPES.length;
+                            updateRow({ transformation: TRANSFORMATION_TYPES[nextIdx].value as any });
+                        }}
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all ${transformation.bg} border-transparent hover:border-indigo-200 group/btn`}
+                    >
+                        <transformation.icon className={transformation.color} size={16} />
+                        <div className="text-left flex-1 min-w-0">
+                            <p className={`text-[10px] font-black truncate ${transformation.color}`}>{transformation.label}</p>
+                        </div>
+                    </button>
+                </div>
             </div>
 
-            <div className="col-span-4 space-y-3">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Output Target</label>
+            <div className="col-span-4 space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Profile Target</label>
                 <div className="relative">
                     <Database className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
                     <select 
-                        className="w-full pl-10 pr-4 py-3.5 rounded-2xl bg-slate-50 border border-slate-100 text-[11px] font-bold text-slate-700 focus:outline-none focus:border-indigo-300 focus:bg-white transition-all appearance-none"
+                        className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-100 text-[11px] font-bold text-slate-700 focus:outline-none focus:border-indigo-200 focus:bg-white transition-all appearance-none"
                         value={item.targetFieldPath} onChange={e => updateRow({ targetFieldPath: e.target.value })}
                     >
-                        <option value="">Link Profile Database Field...</option>
+                        <option value="">Choose Database Field...</option>
                         {Object.entries(
                             WOREDA_PROFILE_FIELDS.reduce((acc: any, curr) => {
                                 if (!acc[curr.group]) acc[curr.group] = [];
@@ -151,9 +148,9 @@ const MappingRow: React.FC<{
             <div className="col-span-1 pt-6 flex justify-end">
                 <button 
                     onClick={removeRow} 
-                    className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                    className="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
                 >
-                    <Trash2 size={16} />
+                    <Trash2 size={14} />
                 </button>
             </div>
 
@@ -260,35 +257,121 @@ const MappingRow: React.FC<{
     );
 };
 
-const MappingCard: React.FC<{ mapping: ProfileMapping; onEdit: () => void; onDelete: () => void }> = ({ mapping, onEdit, onDelete }) => (
-    <motion.div layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ y: -5 }} className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-indigo-100/50 transition-all group flex flex-col justify-between">
-        <div>
-            <div className="flex items-start justify-between mb-6">
+const STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string }> = {
+    Published: { bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500' },
+    Draft: { bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-500' },
+    Archived: { bg: 'bg-gray-100', text: 'text-gray-600', dot: 'bg-gray-400' },
+};
+
+const MappingCard: React.FC<{ 
+    mapping: ProfileMapping; 
+    onEdit: () => void; 
+    onDelete: (permanent?: boolean) => void;
+    onStatusChange: (status: ProfileMapping['status']) => void;
+}> = ({ mapping, onEdit, onDelete, onStatusChange }) => (
+    <motion.div 
+        layout 
+        initial={{ opacity: 0, y: 20 }} 
+        animate={{ opacity: 1, y: 0 }} 
+        whileHover={{ y: -5 }} 
+        className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:border-indigo-200 transition-all duration-300 group flex flex-col overflow-hidden"
+    >
+        {/* Top color strip */}
+        <div className={`h-1.5 w-full ${mapping.status === 'Published' ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : mapping.status === 'Draft' ? 'bg-gradient-to-r from-amber-400 to-orange-500' : 'bg-slate-200'}`} />
+
+        <div className="p-6 flex-1">
+            <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-2">
-                    <div className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-[10px] font-black uppercase tracking-wider">{mapping.sourceType}</div>
-                    {mapping.isActive && <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-black uppercase"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live</div>}
-                </div>
-                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
-                    <button onClick={onEdit} className="p-2.5 bg-slate-50 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"><Edit3 size={16} /></button>
-                    <button onClick={onDelete} className="p-2.5 bg-slate-50 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all"><Trash2 size={16} /></button>
+                    <div className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-[10px] font-black uppercase tracking-wider">
+                        {mapping.sourceType}
+                    </div>
+                    <div className={`
+                        flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase
+                        ${STATUS_CONFIG[mapping.status]?.bg || STATUS_CONFIG.Draft.bg} 
+                        ${STATUS_CONFIG[mapping.status]?.text || STATUS_CONFIG.Draft.text}
+                    `}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${STATUS_CONFIG[mapping.status]?.dot || STATUS_CONFIG.Draft.dot} ${mapping.status === 'Published' ? 'animate-pulse' : ''}`} /> 
+                        {mapping.status}
+                    </div>
                 </div>
             </div>
-            <h3 className="text-xl font-black text-slate-900 mb-2 truncate">{mapping.name}</h3>
-            <p className="text-sm text-slate-500 line-clamp-2 mb-6 font-medium leading-relaxed">{mapping.description || 'Seamlessly synchronize interview responses into your core database.'}</p>
+
+            <h3 className="text-lg font-bold text-slate-900 mb-1 truncate">{mapping.name}</h3>
+            <p className="text-slate-500 text-sm line-clamp-2 mb-6 font-medium leading-relaxed min-h-[40px]">
+                {mapping.description || 'Seamlessly synchronize interview responses into your core database.'}
+            </p>
+
+            <div className="grid grid-cols-2 gap-4 border-t pt-4">
+                <div className="text-center border-r border-slate-50">
+                    <p className="text-xl font-black text-slate-900">{mapping.mappings.length}</p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Transformers</p>
+                </div>
+                <div className="text-center">
+                    <p className="text-xl font-black text-indigo-600">v{mapping.version}</p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Revision</p>
+                </div>
+            </div>
         </div>
-        <div>
-            <div className="flex items-center gap-4 py-4 border-t border-slate-50">
-                <div className="flex-1">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Transformers</p>
-                    <p className="text-lg font-black text-slate-900">{mapping.mappings.length}</p>
-                </div>
-                <div className="flex-1">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Version</p>
-                    <p className="text-lg font-black text-slate-900">v{mapping.version}</p>
-                </div>
-                <button onClick={onEdit} className="w-12 h-12 bg-slate-950 rounded-2xl flex items-center justify-center text-white shadow-lg group-hover:bg-indigo-600 transition-colors"><ChevronRight size={20} /></button>
+
+        <div className="bg-slate-50 px-6 py-3 flex justify-between items-center border-t border-slate-100">
+            <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-wider group-hover:text-slate-600 transition-colors">
+                <Box size={12} className="text-indigo-400" />
+                {mapping.createdBy?.fullname || 'System'}
             </div>
-            {mapping.createdBy && <p className="text-[9px] text-slate-300 font-bold uppercase tracking-wider mt-2">Architected by {mapping.createdBy.fullname}</p>}
+            <div className="flex items-center gap-1">
+                {mapping.status === 'Archived' ? (
+                    <>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onStatusChange('Draft'); }} 
+                            className="p-2 rounded-lg text-emerald-500 hover:bg-emerald-50 transition-all"
+                            title="Restore Connector"
+                        >
+                            <RotateCcw size={16} />
+                        </button>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onDelete(true); }} 
+                            className="p-2 rounded-lg text-rose-600 hover:bg-rose-50 transition-all"
+                            title="Delete Permanently"
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                    </>
+                ) : (
+                    <>
+                        {mapping.status === 'Draft' ? (
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); onStatusChange('Published'); }} 
+                                className="p-2 rounded-lg text-amber-500 hover:bg-amber-50 transition-all"
+                                title="Publish Mapping"
+                            >
+                                <Send size={16} />
+                            </button>
+                        ) : (
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); onStatusChange('Draft'); }} 
+                                className="p-2 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-all"
+                                title="Revert to Draft"
+                            >
+                                <RotateCcw size={16} />
+                            </button>
+                        )}
+                        <button 
+                            onClick={onEdit} 
+                            className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-white border border-transparent hover:border-indigo-100 transition-all"
+                            title="Edit Connector"
+                        >
+                            <Edit3 size={16} />
+                        </button>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onDelete(false); }} 
+                            className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-white border border-transparent hover:border-rose-100 transition-all"
+                            title="Archive Connector"
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                    </>
+                )}
+            </div>
         </div>
     </motion.div>
 );
@@ -303,6 +386,7 @@ const MappingForm: React.FC<{
     const [description, setDescription] = useState(initial?.description || '');
     const [sourceId, setSourceId] = useState(initial?.sourceId || '');
     const [mappings, setMappings] = useState<ProfileMappingItem[]>(initial?.mappings || []);
+    const [status, setStatus] = useState<'Draft' | 'Published' | 'Archived'>(initial?.status || 'Draft');
     const [saving, setSaving] = useState(false);
     const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
     const [activeTab, setActiveTab] = useState<'config' | 'mappings'>('config');
@@ -328,7 +412,12 @@ const MappingForm: React.FC<{
         if (!name || !sourceId) return toast.error('Check your configuration settings');
         try {
             setSaving(true);
-            const payload = { name, description, sourceType: 'InterviewTemplate' as const, sourceId, mappings };
+            const payload = { 
+                name, description, 
+                sourceType: 'InterviewTemplate' as const, 
+                sourceId, mappings,
+                status
+            };
             if (initial) {
                 await updateProfileMapping(initial._id, payload);
                 toast.success('Connector updated');
@@ -367,91 +456,153 @@ const MappingForm: React.FC<{
     return (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 md:p-8 overflow-hidden">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-950/60 backdrop-blur-xl" />
-            <motion.div initial={{ opacity: 0, y: 50, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 30, scale: 0.95 }} className="relative bg-white rounded-[3.5rem] w-full max-w-6xl h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-white/20">
-                <div className="px-12 py-8 bg-slate-50/50 flex items-center justify-between border-b border-slate-100">
-                    <div className="flex items-center gap-6">
-                        <div className="w-16 h-16 rounded-[1.75rem] bg-indigo-600 flex items-center justify-center text-white shadow-xl shadow-indigo-100"><ArrowRightLeft size={30} /></div>
+            <motion.div initial={{ opacity: 0, y: 50, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 30, scale: 0.95 }} className="relative bg-white rounded-3xl w-full max-w-6xl h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-100">
+                <div className="px-10 py-7 bg-white flex items-center justify-between border-b border-slate-100">
+                    <div className="flex items-center gap-5">
+                        <div className="w-14 h-14 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+                            <ArrowRightLeft size={24} />
+                        </div>
                         <div>
                             <div className="flex items-center gap-3">
-                                <h2 className="text-3xl font-black text-slate-900 tracking-tight">{initial ? 'Tune Connector' : 'Forge New Connector'}</h2>
-                                <div className="px-3 py-1 bg-white border border-slate-200 rounded-full text-[10px] font-black text-slate-400 uppercase tracking-widest">{mappings.length} Links</div>
+                                <h2 className="text-2xl font-black text-slate-900 tracking-tight">{initial ? 'Update Connector' : 'Create Connector'}</h2>
+                                <div className="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black text-slate-500 uppercase tracking-widest">{mappings.length} Fields</div>
                             </div>
-                            <p className="text-sm font-medium text-slate-500 mt-1">Design the data flow between templates and your profile register.</p>
+                            <p className="text-xs font-medium text-slate-400 mt-0.5">Define how interview data flows into your database.</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <div className="flex p-1.5 bg-white border border-slate-100 rounded-2xl mr-4 shadow-sm">
-                            <button onClick={() => setActiveTab('config')} className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${activeTab === 'config' ? 'bg-slate-950 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}>Properties</button>
-                            <button onClick={() => setActiveTab('mappings')} className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${activeTab === 'mappings' ? 'bg-slate-950 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}>Mapping Layer</button>
+                    <div className="flex items-center gap-4">
+                        <div className="flex p-1 bg-slate-50 rounded-xl mr-2">
+                            <button onClick={() => setActiveTab('config')} className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'config' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Settings</button>
+                            <button onClick={() => setActiveTab('mappings')} className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'mappings' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Mapping</button>
                         </div>
-                        <button onClick={onClose} className="w-12 h-12 rounded-2xl bg-white border border-slate-100 text-slate-400 hover:text-rose-500 hover:bg-rose-50 flex items-center justify-center shadow-sm transition-all"><X size={24} /></button>
+                        <button onClick={onClose} className="w-10 h-10 rounded-xl bg-white border border-slate-100 text-slate-400 hover:text-rose-500 hover:bg-rose-50 flex items-center justify-center transition-all">
+                            <X size={20} />
+                        </button>
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto no-scrollbar">
+                <div className="flex-1 overflow-y-auto bg-slate-50/30">
                     {activeTab === 'config' ? (
-                        <div className="p-12 max-w-3xl mx-auto space-y-12">
+                        <div className="p-10 max-w-2xl mx-auto space-y-10">
                             <div className="space-y-6">
-                                <div className="flex items-center gap-3 mb-2"><Settings2 size={18} className="text-indigo-600" /><h3 className="text-xl font-black text-slate-800 tracking-tight">Core Configuration</h3></div>
-                                <div className="grid grid-cols-1 gap-8">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest border-l-4 border-indigo-600 pl-3">General Settings</h3>
+                                </div>
+                                <div className="space-y-6">
                                     <div className="space-y-2">
-                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-2">Connector Metadata</label>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <input className="col-span-2 px-6 py-4 rounded-3xl bg-slate-50 border border-slate-100 text-slate-900 font-bold" value={name} onChange={e => setName(e.target.value)} placeholder="Connector name..." />
-                                            <textarea className="col-span-2 px-6 py-4 rounded-3xl bg-slate-50 border border-slate-100 text-slate-900 font-bold min-h-[120px]" value={description} onChange={e => setDescription(e.target.value)} placeholder="Description..." />
+                                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Connector Identity</label>
+                                        <input className="w-full px-5 py-3.5 rounded-2xl bg-white border border-slate-100 text-slate-900 font-bold placeholder:text-slate-300 shadow-sm focus:border-indigo-300 transition-all outline-none" value={name} onChange={e => setName(e.target.value)} placeholder="e.g., Woreda Profile Sync" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Documentation</label>
+                                        <textarea className="w-full px-5 py-3.5 rounded-2xl bg-white border border-slate-100 text-slate-900 font-medium placeholder:text-slate-300 shadow-sm focus:border-indigo-300 transition-all outline-none min-h-[100px]" value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe the purpose of this mapping..." />
+                                    </div>
+                                    <div className="space-y-2 pt-2">
+                                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Source Interview</label>
+                                        <div className="p-5 bg-indigo-50/50 rounded-2xl border border-indigo-100 border-dashed">
+                                            <select className="w-full px-5 py-3 rounded-xl bg-white border border-indigo-100 text-slate-900 font-black shadow-sm" value={sourceId} onChange={e => setSourceId(e.target.value)}>
+                                                <option value="">Choose a Template...</option>
+                                                {templates.map(t => <option key={t._id} value={t._id}>{t.name} (v{t.version})</option>)}
+                                            </select>
+                                            {selectedTemplate && (
+                                                <div className="flex items-center gap-4 mt-3 px-1 text-[10px] font-bold uppercase tracking-tight text-indigo-400">
+                                                    <span className="flex items-center gap-1.5"><Layers size={10} /> {selectedTemplate.modules.length} Modules</span>
+                                                    <span className="flex items-center gap-1.5"><Database size={10} /> {templateFields.length} Data Points</span>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
-                                    <div className="space-y-2 pt-4">
-                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-2">Source Blueprint</label>
-                                        <div className="p-6 bg-indigo-50/30 rounded-[2rem] border border-indigo-100 border-dashed">
-                                            <div className="flex flex-col gap-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-xl bg-white border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-sm"><Code size={18} /></div>
-                                                    <div><p className="text-[10px] font-black text-indigo-400 uppercase">Input Type</p><p className="text-sm font-bold text-indigo-900">Digital Interview Template</p></div>
+                                    {initial && (
+                                        <div className="space-y-4 pt-2 border-t border-slate-100 mt-6">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <p className="text-[11px] font-black text-slate-900 uppercase tracking-widest">Publication Status</p>
+                                                    <p className="text-[10px] font-medium text-slate-400">Only published mappings can sync live data.</p>
                                                 </div>
-                                                <select className="w-full px-6 py-4 rounded-3xl bg-white border border-indigo-100 text-slate-900 font-black" value={sourceId} onChange={e => setSourceId(e.target.value)}>
-                                                    <option value="">Select an active template...</option>
-                                                    {templates.map(t => <option key={t._id} value={t._id}>{t.name} (v{t.version})</option>)}
-                                                </select>
-                                                {selectedTemplate && <div className="flex items-center gap-6 px-2"><div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /><span className="text-[10px] font-black text-slate-500 uppercase">{selectedTemplate.modules.length} Modules</span></div><div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-indigo-500" /><span className="text-[10px] font-black text-slate-500 uppercase">{templateFields.length} Questions</span></div></div>}
+                                                <div className="flex p-0.5 bg-slate-100 rounded-lg">
+                                                    <button onClick={() => setStatus('Draft')} className={`px-4 py-1.5 rounded-md text-[10px] font-black uppercase transition-all ${status === 'Draft' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Draft</button>
+                                                    <button onClick={() => setStatus('Published')} className={`px-4 py-1.5 rounded-md text-[10px] font-black uppercase transition-all ${status === 'Published' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>Published</button>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
-                                <div className="pt-8"><button onClick={() => setActiveTab('mappings')} className="w-full py-5 bg-slate-950 text-white rounded-3xl font-black uppercase flex items-center justify-center gap-3 shadow-xl transition-all">Continue <ArrowRight /></button></div>
+                                <div className="pt-6">
+                                    <button onClick={() => setActiveTab('mappings')} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase flex items-center justify-center gap-3 shadow-xl hover:bg-indigo-600 transition-all">
+                                        Next Step: Configuration <ArrowRight size={18} />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ) : (
-                        <div className="flex-1 p-12 space-y-6">
-                            <div className="flex items-center justify-between mb-8">
+                        <div className="p-8 lg:p-10 space-y-6">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-2 border-b border-slate-100 pb-6 mb-8">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-600"><Binary size={20} /></div>
-                                    <div><h3 className="text-xl font-black text-slate-800">Connection Points</h3><p className="text-xs font-semibold text-slate-400">Defining {mappings.length} transformers</p></div>
+                                    <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                                        <Binary size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-black text-slate-900 tracking-tight">Transformer Layer</h3>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase">Configuring {mappings.length} point-to-point links</p>
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    <button onClick={autoMap} className="flex items-center gap-2 px-6 py-2.5 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-black uppercase border border-emerald-100 shadow-sm"><Sparkles size={16} /> Smart Sync</button>
-                                    <button onClick={() => setMappings([])} className="px-6 py-2.5 bg-rose-50 text-rose-600 rounded-xl text-xs font-black uppercase border border-rose-100 shadow-sm">Wipe All</button>
-                                    <button onClick={() => setMappings([...mappings, { targetFieldPath: '', sourceKey: '', transformation: 'direct' }])} className="flex items-center gap-2 px-6 py-2.5 bg-slate-950 text-white rounded-xl text-xs font-black uppercase shadow-lg"><Plus size={16} /> New Link</button>
+                                <div className="flex items-center gap-2">
+                                    <button onClick={autoMap} className="flex items-center gap-2 px-5 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-[11px] font-black uppercase border border-emerald-100 shadow-sm hover:bg-emerald-100 transition-all">
+                                        <Sparkles size={14} /> Auto-Sync
+                                    </button>
+                                    <div className="w-px h-8 bg-slate-200 mx-2" />
+                                    <button onClick={() => setMappings([...mappings, { targetFieldPath: '', sourceKey: '', transformation: 'direct' }])} className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-xl text-[11px] font-black uppercase shadow-lg shadow-indigo-100 hover:bg-slate-900 transition-all">
+                                        <Plus size={14} /> New Link
+                                    </button>
                                 </div>
                             </div>
-                            <div className="space-y-4">
-                                <AnimatePresence>{mappings.map((m, idx) => <MappingRow key={idx} item={m} idx={idx} templateFields={templateFields} updateRow={(updates) => setMappings(mappings.map((row, i) => i === idx ? { ...row, ...updates } : row))} removeRow={() => setMappings(mappings.filter((_, i) => i !== idx))} />)}</AnimatePresence>
-                                {mappings.length === 0 && <div className="flex flex-col items-center justify-center py-20 bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-100"><Info size={48} className="text-slate-200 mb-4" /><p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px]">Canvas Empty</p></div>}
+                            <div className="space-y-3">
+                                <AnimatePresence>
+                                    {mappings.map((m, idx) => <MappingRow key={idx} item={m} templateFields={templateFields} updateRow={(updates) => setMappings(mappings.map((row, i) => i === idx ? { ...row, ...updates } : row))} removeRow={() => setMappings(mappings.filter((_, i) => i !== idx))} />)}
+                                </AnimatePresence>
+                                {mappings.length === 0 && (
+                                    <div className="flex flex-col items-center justify-center py-24 bg-white/50 rounded-3xl border-2 border-dashed border-slate-200">
+                                        <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4 text-slate-200 border-4 border-white shadow-sm">
+                                            <Info size={32} />
+                                        </div>
+                                        <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px]">Canvas is Empty</p>
+                                        <button onClick={() => setMappings([{ targetFieldPath: '', sourceKey: '', transformation: 'direct' }])} className="mt-4 text-[11px] font-black text-indigo-600 hover:underline px-4 py-2 bg-indigo-50 rounded-lg">Add First Link</button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
                 </div>
 
-                <div className="px-12 py-6 bg-white border-t border-slate-100 flex items-center justify-between shadow-sm">
-                    <div className="flex items-center gap-8">
-                        <div className="flex items-center gap-3"><div className={`w-2 h-2 rounded-full ${name && sourceId ? 'bg-emerald-500' : 'bg-slate-200'}`} /><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status: {name && sourceId ? 'Ready' : 'Pending'}</span></div>
-                        {selectedTemplate && <div className="flex items-center gap-2"><Box size={14} className="text-indigo-400" /><span className="text-[10px] font-black text-slate-800 uppercase max-w-[200px] truncate">Source: {selectedTemplate.name}</span></div>}
+                <div className="px-10 py-6 bg-white border-t border-slate-100 flex items-center justify-between">
+                    <div className="flex items-center gap-10">
+                        <div className="flex items-center gap-3">
+                            <div className={`w-2 h-2 rounded-full ${name && sourceId ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                Status: {name && sourceId ? 'Ready' : 'Incomplete'}
+                            </span>
+                        </div>
+                        {selectedTemplate && (
+                            <div className="hidden lg:flex items-center gap-2">
+                                <Box size={14} className="text-indigo-400" />
+                                <span className="text-[10px] font-black text-slate-600 uppercase">
+                                    Template: {selectedTemplate.name}
+                                </span>
+                            </div>
+                        )}
                     </div>
-                    <div className="flex items-center gap-4">
-                        <button onClick={onClose} className="px-8 py-3 text-sm font-bold text-slate-400 hover:text-slate-600">Discard</button>
-                        <button disabled={saving} onClick={handleSave} className="px-12 py-3.5 bg-indigo-600 text-white rounded-[1.25rem] text-sm font-black uppercase hover:bg-slate-900 transition-all shadow-xl flex items-center gap-3">
-                            {saving ? <RefreshCw className="animate-spin" size={18} /> : <CheckCircle size={18} />}
-                            {saving ? 'Syncing...' : initial ? 'Update Connector' : 'Commit Changes'}
+                    <div className="flex items-center gap-3">
+                        <button onClick={onClose} className="px-6 py-2.5 text-sm font-bold text-slate-400 hover:text-slate-900 transition-colors uppercase tracking-widest">Discard</button>
+                        <button 
+                            disabled={saving || !name || !sourceId} 
+                            onClick={handleSave} 
+                            className={`
+                                px-10 py-3 rounded-xl text-sm font-black uppercase tracking-tight flex items-center gap-2 transition-all shadow-md
+                                ${saving || !name || !sourceId ? 'bg-slate-100 text-slate-300 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-slate-900 hover:shadow-xl hover:-translate-y-0.5 shadow-indigo-100'}
+                            `}
+                        >
+                            {saving ? <RefreshCw className="animate-spin" size={16} /> : <CheckCircle size={16} />}
+                            {saving ? 'Syncing...' : initial ? 'Update Configuration' : 'Establish Link'}
                         </button>
                     </div>
                 </div>
@@ -468,6 +619,7 @@ const MappingConfig: React.FC = () => {
     const [editingMapping, setEditingMapping] = useState<ProfileMapping | null>(null);
     const [templates, setTemplates] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [filterStatus, setFilterStatus] = useState<'All' | 'Draft' | 'Published' | 'Archived'>('All');
 
     useEffect(() => {
         const load = async () => {
@@ -494,40 +646,133 @@ const MappingConfig: React.FC = () => {
         }
     };
 
-    const filteredMappings = mappings.filter(m => 
-        m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        m.description?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredMappings = mappings.filter(m => {
+        const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            m.description?.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesStatus = filterStatus === 'All' ? m.status !== 'Archived' : m.status === filterStatus;
+        return matchesSearch && matchesStatus;
+    });
 
-    const handleDelete = async (id: string) => {
-        if (!window.confirm('Are you sure you want to delete this mapping?')) return;
+    const handleDelete = async (id: string, isPermanent: boolean = false) => {
+        const msg = isPermanent 
+            ? 'This mapping will be gone forever. Continue?' 
+            : 'Archive this mapping? You can restore it later.';
+            
+        if (!window.confirm(msg)) return;
+        
         try {
-            await deleteProfileMapping(id);
-            toast.success('Mapping deleted');
+            if (isPermanent) {
+                await permanentlyDeleteProfileMapping(id);
+                toast.success('Mapping permanently removed');
+            } else {
+                await deleteProfileMapping(id);
+                toast.success('Mapping moved to Archive');
+            }
             fetchMappings();
         } catch (error) {
-            toast.error('Failed to delete mapping');
+            toast.error('Operation failed');
         }
     };
 
-    return (
-        <div className="min-h-screen bg-[#F8FAFC]">
-            <div className="max-w-[1440px] mx-auto p-8">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
-                    <div>
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="p-3 bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-100"><Layers className="text-white" size={24} /></div>
-                            <h1 className="text-4xl font-black text-slate-900 tracking-tight">Profile Connectors</h1>
-                        </div>
-                        <p className="text-slate-500 font-medium">Map interview data to your Woreda Profile database with precision.</p>
-                    </div>
+    const handleStatusUpdate = async (id: string, newStatus: ProfileMapping['status']) => {
+        try {
+            await updateProfileMapping(id, { status: newStatus });
+            toast.success(`Mapping marked as ${newStatus}`);
+            fetchMappings();
+        } catch (error) {
+            toast.error('Failed to update status');
+        }
+    };
 
-                    <div className="flex items-center gap-4">
-                        <div className="relative group">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600" size={18} />
-                            <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search mappings..." className="pl-11 pr-6 py-3.5 bg-white border border-slate-100 rounded-2xl shadow-sm focus:ring-2 focus:ring-indigo-100 w-full md:w-[300px] font-medium" />
+    const stats = useMemo(() => {
+        return {
+            total: mappings.length,
+            active: mappings.filter(m => m.isActive).length,
+            fields: mappings.reduce((acc, m) => acc + m.mappings.length, 0)
+        };
+    }, [mappings]);
+
+    return (
+        <div className="min-h-screen bg-slate-50 pb-20">
+            <div className="max-w-[1440px] mx-auto p-4 lg:p-10">
+                {/* ── Page Header ── */}
+                <header className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-10">
+                    <div>
+                        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Profile Connectors</h1>
+                        <p className="text-slate-500 mt-1 font-medium">Map interview data to your Woreda Profile database with precision.</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button 
+                            onClick={() => { setEditingMapping(null); setShowForm(true); }} 
+                            className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-blue-700 text-white px-8 py-3.5 rounded-xl font-bold hover:shadow-xl hover:shadow-indigo-100 transition-all"
+                        >
+                            <Plus size={20} />
+                            Create New Link
+                        </button>
+                    </div>
+                </header>
+
+                {/* ── Stats Bar ── */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-10">
+                    <div className="bg-white border border-slate-100 rounded-2xl p-6 flex items-center gap-5 shadow-sm">
+                        <div className="h-14 w-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                            <Layers size={24} />
                         </div>
-                        <button onClick={() => { setEditingMapping(null); setShowForm(true); }} className="flex items-center gap-2 px-8 py-3.5 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-slate-900 transition-all shadow-xl shadow-indigo-100"><Plus size={20} /> New Configuration</button>
+                        <div>
+                            <p className="text-3xl font-black text-slate-900">{stats.total}</p>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Connectors</p>
+                        </div>
+                    </div>
+                    <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 flex items-center gap-5">
+                        <div className="h-14 w-14 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600">
+                            <Zap size={24} />
+                        </div>
+                        <div>
+                            <p className="text-3xl font-black text-emerald-700">{stats.active}</p>
+                            <p className="text-xs font-bold text-emerald-500 uppercase tracking-widest">Active Channels</p>
+                        </div>
+                    </div>
+                    <div className="bg-white border border-slate-100 rounded-2xl p-6 flex items-center gap-5 shadow-sm">
+                        <div className="h-14 w-14 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600">
+                            <ArrowRightLeft size={24} />
+                        </div>
+                        <div>
+                            <p className="text-3xl font-black text-slate-900">{stats.fields}</p>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Mapped Fields</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ── Search & Filters ── */}
+                <div className="flex flex-col sm:flex-row gap-6 mb-10 items-center justify-between">
+                    <div className="flex bg-white p-1 rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                        {['All', 'Draft', 'Published', 'Archived'].map((s) => (
+                            <button
+                                key={s}
+                                onClick={() => setFilterStatus(s as any)}
+                                className={`px-6 py-2 text-xs font-black uppercase tracking-tight rounded-lg transition-all ${filterStatus === s
+                                    ? 'bg-indigo-600 text-white shadow-md'
+                                    : 'text-slate-400 hover:bg-slate-50'
+                                    }`}
+                            >
+                                {s}
+                            </button>
+                        ))}
+                    </div>
+                    
+                    <div className="flex flex-1 items-center gap-4 w-full">
+                        <div className="relative flex-1 group">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
+                            <input
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search connectors by name or description..."
+                                className="w-full pl-12 pr-6 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-medium text-sm shadow-sm"
+                            />
+                        </div>
+                        <button className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
+                            <Filter size={20} />
+                        </button>
                     </div>
                 </div>
 
@@ -545,7 +790,13 @@ const MappingConfig: React.FC = () => {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {filteredMappings.map(m => (
-                            <MappingCard key={m._id} mapping={m} onEdit={() => { setEditingMapping(m); setShowForm(true); }} onDelete={() => handleDelete(m._id)} />
+                                <MappingCard 
+                                    key={m._id} 
+                                    mapping={m} 
+                                    onEdit={() => { setEditingMapping(m); setShowForm(true); }} 
+                                    onDelete={(permanent) => handleDelete(m._id, permanent)} 
+                                    onStatusChange={(status) => handleStatusUpdate(m._id, status)}
+                                />
                         ))}
                     </div>
                 )}

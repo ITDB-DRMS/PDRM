@@ -1,5 +1,6 @@
 import FormResponse from '../models/FormResponse.js';
 import Template from '../models/Template.js';
+import * as auditService from '../services/auditService.js';
 
 // @desc    Submit a new form response
 // @route   POST /api/responses
@@ -55,6 +56,15 @@ export const submitResponse = async (req, res) => {
         });
 
         const savedResponse = await response.save();
+
+        await auditService.logAction({
+            userId: req.user?._id,
+            action: isDraft ? 'RESPONSE_DRAFT_CREATE' : 'RESPONSE_SUBMIT',
+            resource: 'FormResponse',
+            resourceId: savedResponse._id,
+            after: savedResponse,
+            ip: req.ip
+        });
 
         // Increment usage count of template on final submission
         if (!isDraft) {
@@ -121,8 +131,45 @@ export const updateResponse = async (req, res) => {
             // For now, let's allow it if it's an update.
         }
 
-        Object.assign(response, req.body);
+        if (response.syncStatus === 'SYNCED') {
+            response.syncStatus = 'UPDATED';
+        }
+
+        const { answers, ...rest } = req.body;
+        
+        // Process answers if they were sent
+        if (answers) {
+            const processedAnswers = response.answers || new Map();
+            Object.entries(answers).forEach(([key, val]) => {
+                // If value is already the structured object, keep it
+                if (typeof val === 'object' && val !== null && val.answerId) {
+                    processedAnswers.set(key, val);
+                } else {
+                    // Otherwise wrap/update the value but keep or generate ID
+                    const existing = processedAnswers.get(key);
+                    processedAnswers.set(key, {
+                        value: val,
+                        answerId: existing?.answerId || `ans-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+                    });
+                }
+            });
+            response.answers = processedAnswers;
+        }
+
+        const before = response.toObject();
+        Object.assign(response, rest);
         const updatedResponse = await response.save();
+
+        await auditService.logAction({
+            userId: req.user?._id,
+            action: 'RESPONSE_UPDATE',
+            resource: 'FormResponse',
+            resourceId: updatedResponse._id,
+            before,
+            after: updatedResponse,
+            ip: req.ip
+        });
+
         res.json(updatedResponse);
     } catch (error) {
         res.status(400).json({ message: error.message });

@@ -1,4 +1,5 @@
 import PortalContent from '../models/PortalContent.js';
+import * as auditService from '../services/auditService.js';
 
 export const getPortalContent = async (req, res) => {
   try {
@@ -18,11 +19,23 @@ export const upsertPortalContent = async (req, res) => {
     delete payload.createdAt;
     delete payload.updatedAt;
 
+    const beforeDoc = await PortalContent.findOne({ key: 'default' });
+    const before = beforeDoc ? beforeDoc.toObject() : null;
+
     const doc = await PortalContent.findOneAndUpdate(
       { key: 'default' },
       { $set: { key: 'default', ...payload } },
       { new: true, upsert: true }
     );
+
+    await auditService.logAction({
+        userId: req.user?._id,
+        action: 'PORTAL_CONTENT_UPDATE',
+        resource: 'PortalContent',
+        before,
+        after: doc,
+        ip: req.ip
+    });
 
     res.json(doc);
   } catch (error) {
@@ -30,4 +43,3 @@ export const upsertPortalContent = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-

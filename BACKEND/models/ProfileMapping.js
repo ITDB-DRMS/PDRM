@@ -37,7 +37,12 @@ const profileMappingSchema = new mongoose.Schema({
             type: { type: String, enum: ['string', 'number', 'boolean', 'date'] }
         }
     }],
-    isActive: { type: Boolean, default: true },
+    status: { 
+        type: String, 
+        enum: ['Draft', 'Published', 'Archived'], 
+        default: 'Draft' 
+    },
+    isActive: { type: Boolean, default: false },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 

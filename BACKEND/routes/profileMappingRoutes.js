@@ -4,7 +4,8 @@ import {
     getMappingBySource, 
     createProfileMapping, 
     updateProfileMapping, 
-    deleteProfileMapping 
+    deleteProfileMapping,
+    permanentlyDeleteProfileMapping
 } from '../controllers/profileMappingController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
@@ -20,5 +21,7 @@ router.route('/source/:sourceId')
 router.route('/:id')
     .put(protect, updateProfileMapping)
     .delete(protect, deleteProfileMapping);
+
+router.delete('/:id/permanent', protect, permanentlyDeleteProfileMapping);
 
 export default router;

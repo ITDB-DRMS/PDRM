@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import PageMeta from '../../components/common/PageMeta';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
@@ -40,10 +40,15 @@ const EDUCATION_CATS = ['No Education', 'Primary', 'Secondary', 'Higher Educatio
 const VG_TYPES = ['Women-headed HH', 'Persons with Disability (PWD)', 'Elderly living alone', 'Orphans', 'Chronically ill'];
 const CAPACITY_TYPES = ['Kebele DRM Committee', 'Community Volunteers', 'Early Warning System', 'Search & Rescue Team', 'First Aid Team'];
 
+const STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string; strip: string }> = {
+    Submitted: { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500', strip: 'bg-gradient-to-r from-emerald-400 to-teal-500' },
+    Reviewed: { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500', strip: 'bg-gradient-to-r from-blue-400 to-indigo-500' },
+    Draft: { bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-500', strip: 'bg-gradient-to-r from-amber-400 to-orange-500' },
+};
+
 const statusColor = (s?: string) => {
-    if (s === 'Submitted') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-    if (s === 'Reviewed')  return 'bg-blue-50 text-blue-700 border-blue-200';
-    return 'bg-amber-50 text-amber-700 border-amber-200';
+    const sc = STATUS_CONFIG[s || 'Draft'] || STATUS_CONFIG.Draft;
+    return `${sc.bg} ${sc.text} border-transparent`;
 };
 
 const emptyProfile = (): WoredaProfileInput => ({
@@ -73,50 +78,106 @@ const StatCard: React.FC<{ label: string; value: string | number; icon: React.El
 );
 
 // ─── Profile Card ────────────────────────────────────────────────────────────
-const ProfileCard: React.FC<{ profile: WProfile; onView: () => void; onEdit: () => void; onDelete: () => void }> = ({ profile, onView, onEdit, onDelete }) => (
-    <motion.div layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-        className="bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-lg transition-all p-6 group cursor-pointer"
-        onClick={onView}>
-        <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center">
-                    <MapPin size={22} className="text-indigo-600" />
+const ProfileCard: React.FC<{ 
+    profile: WProfile; 
+    onView: () => void; 
+    onDrillDown?: () => void;
+    onEdit?: () => void; 
+    onDelete?: () => void;
+    drillDownLabel?: string;
+}> = ({ profile, onView, onDrillDown, onEdit, onDelete, drillDownLabel }) => {
+    const sc = STATUS_CONFIG[profile.status] || STATUS_CONFIG.Draft;
+    
+    return (
+        <motion.div layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            className="bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all group cursor-pointer flex flex-col overflow-hidden"
+            onClick={onView}>
+            
+            {/* Top Color Strip */}
+            <div className={`h-1.5 w-full ${sc.strip}`} />
+
+            <div className="p-6 flex-1">
+                <div className="flex items-start justify-between mb-5">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center group-hover:bg-indigo-50 transition-colors">
+                            <MapPin size={22} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                        </div>
+                        <div>
+                            <h3 className="font-black text-slate-900 leading-tight">
+                                {profile.location.house_no && profile.location.house_no !== 'Aggregated Data' 
+                                    ? `House ${profile.location.house_no}` 
+                                    : profile.location.block && profile.location.block !== 'All Blocks'
+                                    ? `Block-${profile.location.block}`
+                                    : profile.location.woreda === 'All Woredas' 
+                                    ? (profile.location.subcity === 'All Subcities' ? 'All Addis Ababa' : `${profile.location.subcity} Subcity`)
+                                    : `Woreda ${profile.location.woreda}`}
+                            </h3>
+                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tight mt-0.5">
+                                {profile.location.block && profile.location.block !== 'All Blocks' && (!profile.location.house_no || profile.location.house_no === 'Aggregated Data') ? `Woreda ${profile.location.woreda} • ` : ''}
+                                {profile.location.house_no && profile.location.house_no !== 'Aggregated Data' 
+                                    ? (profile.location.block !== 'Unknown' && profile.location.block !== 'All Blocks' ? `Block-${profile.location.block} • ` : '') + `Woreda ${profile.location.woreda}` 
+                                    : (profile.location.subcity === 'All Subcities' ? 'City Level Summary' : `${profile.location.subcity} Subcity`)}
+                            </p>
+                        </div>
+                    </div>
+                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${sc.bg} ${sc.text}`}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${sc.dot} ${profile.status === 'Submitted' ? 'animate-pulse' : ''}`} />
+                        {profile.status}
+                    </div>
                 </div>
-                <div>
-                    <h3 className="font-bold text-slate-900">{profile.location.woreda} Woreda</h3>
-                    <p className="text-xs text-slate-400">{profile.location.subcity} Subcity</p>
+
+                <div className="grid grid-cols-4 gap-2 mb-6">
+                    <div className="bg-slate-50/50 rounded-2xl p-3 text-center border border-transparent hover:border-slate-100 transition-all">
+                        <p className="text-lg font-black text-slate-900">{(profile.demographics?.total_population || 0).toLocaleString()}</p>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Pop.</p>
+                    </div>
+                    <div className="bg-slate-50/50 rounded-2xl p-3 text-center border border-transparent hover:border-slate-100 transition-all">
+                        <p className="text-lg font-black text-slate-900">{(profile.vulnerable_groups?.reduce((a, g) => a + (g.number || 0), 0) || 0).toLocaleString()}</p>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Vuln.</p>
+                    </div>
+                    <div className="bg-slate-50/50 rounded-2xl p-3 text-center border border-transparent hover:border-slate-100 transition-all">
+                        <p className="text-lg font-black text-slate-900">{profile.risk_index?.overall_woreda_risk_score || '—'}</p>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Risk</p>
+                    </div>
+                    <div className={`rounded-2xl p-3 text-center border border-transparent transition-all ${profile.status === 'Submitted' ? 'bg-emerald-50 text-emerald-700 hover:border-emerald-100' : 'bg-amber-50 text-amber-700 hover:border-amber-100'}`}>
+                        <p className="text-lg font-black">{(profile.risk_assessments?.length || 0)}</p>
+                        <p className="text-[9px] font-bold uppercase tracking-widest">Hazards</p>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between border-t border-slate-50 pt-4">
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        <Clock size={12} className="text-slate-300" />
+                        {new Date(profile.assessment_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </div>
+                    
+                    <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                        {onDrillDown && (
+                            <button onClick={onDrillDown} className="px-4 h-9 rounded-xl bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white text-[10px] font-black uppercase tracking-wider flex items-center justify-center transition-all opacity-0 group-hover:opacity-100">
+                                {drillDownLabel || 'Explore'} <ChevronRight size={14} className="ml-1" />
+                            </button>
+                        )}
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+                            {onEdit && (
+                                <button onClick={onEdit} title="Edit Profile" className="w-9 h-9 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-white border border-transparent hover:border-indigo-100 flex items-center justify-center transition-all">
+                                    <Edit3 size={16} />
+                                </button>
+                            )}
+                            {onDelete && (
+                                <button onClick={onDelete} title="Delete Profile" className="w-9 h-9 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-white border border-transparent hover:border-rose-100 flex items-center justify-center transition-all">
+                                    <Trash2 size={16} />
+                                </button>
+                            )}
+                            <button onClick={onView} title="View Details" className="w-9 h-9 rounded-xl bg-slate-900 hover:bg-indigo-600 text-white flex items-center justify-center transition-all shadow-lg hover:shadow-indigo-200">
+                                <Eye size={16} />
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <span className={`text-[10px] font-bold px-3 py-1 rounded-full border ${statusColor(profile.status)}`}>{profile.status}</span>
-        </div>
-        <div className="grid grid-cols-4 gap-2 mb-4">
-            <div className="bg-slate-50 rounded-2xl p-3 text-center">
-                <p className="text-lg font-black text-slate-900">{(profile.demographics?.total_population || 0).toLocaleString()}</p>
-                <p className="text-[9px] text-slate-400 uppercase tracking-wider">Pop.</p>
-            </div>
-            <div className="bg-slate-50 rounded-2xl p-3 text-center">
-                <p className="text-lg font-black text-slate-900">{(profile.vulnerable_groups?.reduce((a, g) => a + (g.number || 0), 0) || 0).toLocaleString()}</p>
-                <p className="text-[9px] text-slate-400 uppercase tracking-wider">Vuln.</p>
-            </div>
-            <div className="bg-slate-50 rounded-2xl p-3 text-center">
-                <p className="text-lg font-black text-slate-900">{profile.risk_index?.overall_woreda_risk_score || '—'}</p>
-                <p className="text-[9px] text-slate-400 uppercase tracking-wider">Risk</p>
-            </div>
-            <div className={`rounded-2xl p-3 text-center ${profile.status === 'Submitted' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                <p className="text-lg font-black">{(profile.risk_assessments?.length || 0)}</p>
-                <p className="text-[9px] uppercase tracking-wider">Hazards</p>
-            </div>
-        </div>
-        <div className="flex items-center justify-between">
-            <p className="text-[10px] text-slate-400">{new Date(profile.assessment_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                <button onClick={onEdit} className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-400 flex items-center justify-center transition-all"><Edit3 size={14} /></button>
-                <button onClick={onDelete} className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-rose-50 hover:text-rose-500 text-slate-400 flex items-center justify-center transition-all"><Trash2 size={14} /></button>
-                <button onClick={onView} className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center"><ChevronRight size={14} /></button>
-            </div>
-        </div>
-    </motion.div>
-);
+        </motion.div>
+    );
+};
 
 // ─── Form Wizard ─────────────────────────────────────────────────────────────
 const STEPS = ['Location', 'Demographics', 'Livelihoods', 'Basic Services', 'Critical Facilities', 'Vulnerable Groups', 'Capacity'];
@@ -343,7 +404,7 @@ const FormWizard: React.FC<{ initial?: WProfile | null; onSave: (d: WoredaProfil
 };
 
 // ─── Detail View ─────────────────────────────────────────────────────────────
-const DetailView: React.FC<{ profile: WProfile; onBack: () => void; onEdit: () => void }> = ({ profile, onBack, onEdit }) => {
+const DetailView: React.FC<{ profile: WProfile; onBack: () => void; onEdit?: () => void }> = ({ profile, onBack, onEdit }) => {
     const [tab, setTab] = useState('overview');
     const d = profile.demographics;
     const totalVulnerable = profile.vulnerable_groups?.reduce((a, g) => a + (g.number || 0), 0) || 0;
@@ -362,16 +423,29 @@ const DetailView: React.FC<{ profile: WProfile; onBack: () => void; onEdit: () =
                 <div className="flex items-center gap-4">
                     <button onClick={onBack} className="w-10 h-10 rounded-2xl bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 flex items-center justify-center shadow-sm transition-all"><ArrowLeft size={18} /></button>
                     <div>
-                        <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Woreda Profile</p>
-                        <h2 className="text-2xl font-black text-slate-900">{profile.location.woreda} Woreda</h2>
-                        <p className="text-xs text-slate-400">{profile.location.subcity} Subcity</p>
+                        <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">{profile.location.house_no && profile.location.house_no !== 'Aggregated Data' ? 'Household Profile' : 'Woreda Profile'}</p>
+                        <h2 className="text-2xl font-black text-slate-900">
+                            {profile.location.house_no && profile.location.house_no !== 'Aggregated Data' 
+                                ? `House ${profile.location.house_no}` 
+                                : profile.location.block && profile.location.block !== 'All Blocks'
+                                ? `Block-${profile.location.block}`
+                                : profile.location.woreda === 'All Woredas' 
+                                ? (profile.location.subcity === 'All Subcities' ? 'All Addis Ababa' : `${profile.location.subcity} Subcity`)
+                                : `Woreda ${profile.location.woreda}`}
+                        </h2>
+                        <p className="text-xs text-slate-400">
+                            {profile.location.block && profile.location.block !== 'All Blocks' && (!profile.location.house_no || profile.location.house_no === 'Aggregated Data') ? `Woreda ${profile.location.woreda} • ` : ''}
+                            {profile.location.house_no && profile.location.house_no !== 'Aggregated Data' 
+                                ? (profile.location.block !== 'Unknown' && profile.location.block !== 'All Blocks' ? `Block-${profile.location.block} • ` : '') + `Woreda ${profile.location.woreda}` 
+                                : (profile.location.subcity === 'All Subcities' ? 'City Level Summary' : `${profile.location.subcity} Subcity`)}
+                        </p>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
                     <span className={`text-xs font-bold px-4 py-2 rounded-full border ${statusColor(profile.status)}`}>{profile.status}</span>
-                    <button onClick={onEdit} className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
+                    {onEdit && <button onClick={onEdit} className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
                         <Edit3 size={14} /> Edit
-                    </button>
+                    </button>}
                 </div>
             </div>
 
@@ -894,8 +968,9 @@ const SyncInterviewModal: React.FC<{
     onSync: (data: { responseId: string; mappingId: string; dryRun?: boolean }) => Promise<void>;
     mappings: ProfileMapping[];
     syncing: boolean;
-}> = ({ onClose, onSync, mappings, syncing }) => {
-    const [responseId, setResponseId] = useState('');
+    initialResponseId?: string;
+}> = ({ onClose, onSync, mappings, syncing, initialResponseId }) => {
+    const [responseId, setResponseId] = useState(initialResponseId || '');
     const [mappingId, setMappingId] = useState('');
     const [isDryRun, setIsDryRun] = useState(true);
 
@@ -931,7 +1006,7 @@ const SyncInterviewModal: React.FC<{
                             value={mappingId} onChange={e => setMappingId(e.target.value)}
                         >
                             <option value="">Select a mapping...</option>
-                            {mappings.filter(m => m.sourceType === 'InterviewTemplate').map(m => (
+                            {mappings.filter(m => m.sourceType === 'InterviewTemplate' && m.status === 'Published').map(m => (
                                 <option key={m._id} value={m._id}>{m.name}</option>
                             ))}
                         </select>
@@ -966,6 +1041,42 @@ const SyncInterviewModal: React.FC<{
                 </div>
             </motion.div>
         </div>
+    );
+};
+
+const ObjectViewerTable: React.FC<{ data: any }> = ({ data }) => {
+    if (typeof data !== 'object' || data === null) {
+        return <span className="text-slate-800 font-semibold text-sm">{String(data)}</span>;
+    }
+    if (Array.isArray(data)) {
+        return (
+            <div className="flex flex-col gap-2">
+                {data.map((item, idx) => (
+                    <div key={idx} className="bg-slate-50/80 rounded-lg p-2 border border-slate-100/50">
+                        <ObjectViewerTable data={item} />
+                    </div>
+                ))}
+            </div>
+        );
+    }
+    return (
+        <table className="w-full text-left border-collapse">
+            <tbody className="divide-y divide-slate-100">
+                {Object.entries(data).map(([key, value]) => {
+                    if (value === undefined || value === null || value === '') return null;
+                    return (
+                        <tr key={key} className="hover:bg-slate-50/30 transition-colors">
+                            <td className="py-3 pr-4 align-top w-[35%] text-[10px] font-bold text-slate-400 uppercase tracking-widest break-words border-r border-slate-100/80">
+                                {key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').trim()}
+                            </td>
+                            <td className="py-3 pl-4 align-top w-[65%]">
+                                <ObjectViewerTable data={value} />
+                            </td>
+                        </tr>
+                    );
+                })}
+            </tbody>
+        </table>
     );
 };
 
@@ -1040,11 +1151,11 @@ const SyncPreviewModal: React.FC<{
                             </div>
                         </section>
 
-                        <section className="bg-indigo-50/50 p-6 rounded-3xl border border-indigo-100">
-                            <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-4">Full Data Object (JSON)</h4>
-                            <pre className="text-[10px] font-mono text-indigo-700 overflow-x-auto whitespace-pre-wrap">
-                                {JSON.stringify(profile, null, 2)}
-                            </pre>
+                        <section className="bg-slate-50/50 p-6 rounded-3xl border border-slate-100">
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Complete Structured Data</h4>
+                            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                                <ObjectViewerTable data={profile} />
+                            </div>
                         </section>
                     </div>
                 </div>
@@ -1069,13 +1180,27 @@ const SyncPreviewModal: React.FC<{
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const WoredaProfile: React.FC = () => {
+    const location = useLocation();
+    
     const [profiles, setProfiles] = useState<WProfile[]>([]);
     const [stats, setStats] = useState<WoredaProfileStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
+    const [level, setLevel] = useState<'all' | 'subcity' | 'woreda' | 'block' | 'household'>('woreda');
+    const [path, setPath] = useState<{ subcity: string | null; woreda: string | null; block: string | null }>({ subcity: null, woreda: null, block: null });
     const [showForm, setShowForm] = useState(false);
     const [showImport, setShowImport] = useState(false);
     const [showSync, setShowSync] = useState(false);
+    
+    // Auto-open sync modal if navigated here from Response Explorer
+    const searchParams = new URLSearchParams(location.search);
+    const initialSyncId = searchParams.get('syncResponseId');
+    
+    useEffect(() => {
+        if (initialSyncId) {
+            setShowSync(true);
+        }
+    }, [initialSyncId]);
     const [mappings, setMappings] = useState<ProfileMapping[]>([]);
     const [editProfile, setEditProfile] = useState<WProfile | null>(null);
     const [viewProfile, setViewProfile] = useState<WProfile | null>(null);
@@ -1086,8 +1211,13 @@ const WoredaProfile: React.FC = () => {
     const fetchData = useCallback(async () => {
         try {
             setLoading(true);
+            const params: any = { level };
+            if (path.subcity) params.subcity = path.subcity;
+            if (path.woreda) params.woreda = path.woreda;
+            if (path.block) params.block = path.block;
+
             const [pList, pStats, mList] = await Promise.all([
-                getWoredaProfiles(), 
+                getWoredaProfiles(params), 
                 getWoredaProfileStats(),
                 getProfileMappings()
             ]);
@@ -1099,7 +1229,7 @@ const WoredaProfile: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [path, level]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -1187,7 +1317,7 @@ const WoredaProfile: React.FC = () => {
         return (
             <div className="min-h-screen bg-[#F8FAFC] p-6">
                 <PageMeta title={`${viewProfile.location.woreda} Profile | IDRMIS`} description="Woreda Profile Detail" />
-                <DetailView profile={viewProfile} onBack={() => setViewProfile(null)} onEdit={() => { setEditProfile(viewProfile); setViewProfile(null); setShowForm(true); }} />
+                <DetailView profile={viewProfile} onBack={() => setViewProfile(null)} onEdit={level === 'household' ? () => { setEditProfile(viewProfile); setViewProfile(null); setShowForm(true); } : undefined} />
             </div>
         );
     }
@@ -1241,14 +1371,32 @@ const WoredaProfile: React.FC = () => {
                     </div>
                 )}
 
-                {/* Search */}
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="relative flex-1 max-w-md">
+                {/* Tabs */}
+                <div className="flex bg-slate-100 p-1 rounded-2xl w-full md:w-auto overflow-x-auto text-[11px] font-black uppercase tracking-wider mb-6">
+                    {(['all', 'subcity', 'woreda', 'block', 'household'] as const).map(l => (
+                        <button key={l} onClick={() => {
+                            setLevel(l);
+                            if (l === 'all' || l === 'subcity') setPath({ subcity: null, woreda: null, block: null });
+                            else if (l === 'woreda') setPath({ ...path, woreda: null, block: null });
+                            else if (l === 'block') setPath({ ...path, block: null });
+                        }}
+                            className={`flex-[0_0_auto] px-6 py-3 rounded-xl transition-all ${level === l ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                            {l} Level
+                        </button>
+                    ))}
+                </div>
+
+                {/* Controls and Search */}
+                <div className="flex flex-col md:flex-row items-center gap-4 mb-6">
+                    <div className="relative flex-1 w-full max-w-md">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by woreda, subcity..."
-                            className="w-full pl-12 pr-5 py-3 bg-white rounded-2xl border border-slate-100 text-sm font-medium text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-indigo-200 shadow-sm" />
+                        <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Search in ${level}...`}
+                            className="w-full pl-12 pr-5 py-3 bg-white rounded-2xl border border-slate-100 text-sm font-medium text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 shadow-sm" />
                     </div>
-                    <span className="text-xs font-bold text-slate-400 px-2">{filtered.length} profiles</span>
+                    {path.subcity && <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-3 py-1.5 rounded-full uppercase">{path.subcity} Subcity</span>}
+                    {path.woreda && <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-3 py-1.5 rounded-full uppercase">Woreda {path.woreda}</span>}
+                    {path.block && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full uppercase">Block-{path.block}</span>}
+                    <span className="text-xs font-bold text-slate-400 px-2 whitespace-nowrap md:ml-auto">{filtered.length} profiles</span>
                 </div>
 
                 {/* Profile Grid */}
@@ -1274,8 +1422,14 @@ const WoredaProfile: React.FC = () => {
                             {filtered.map(p => (
                                 <ProfileCard key={p._id} profile={p}
                                     onView={() => setViewProfile(p)}
-                                    onEdit={() => { setEditProfile(p); setShowForm(true); }}
-                                    onDelete={() => handleDelete(p._id)} />
+                                    onDrillDown={level !== 'household' ? () => {
+                                        if (level === 'all') { setPath({ subcity: null, woreda: null, block: null }); setLevel('subcity'); }
+                                        else if (level === 'subcity') { setPath({ subcity: p.location.subcity || null, woreda: null, block: null }); setLevel('woreda'); }
+                                        else if (level === 'woreda') { setPath({ subcity: p.location.subcity || null, woreda: p.location.woreda || null, block: null }); setLevel('block'); }
+                                        else if (level === 'block') { setPath({ subcity: p.location.subcity || null, woreda: p.location.woreda || null, block: p.location.block && p.location.block !== 'All Blocks' ? p.location.block : 'Unknown' }); setLevel('household'); }
+                                    } : undefined}
+                                    onEdit={level === 'household' ? () => { setEditProfile(p); setShowForm(true); } : undefined}
+                                    onDelete={level === 'household' ? () => handleDelete(p._id) : undefined} />
                             ))}
                         </AnimatePresence>
                     </motion.div>
@@ -1300,6 +1454,7 @@ const WoredaProfile: React.FC = () => {
                         onSync={handleSync}
                         mappings={mappings}
                         syncing={saving}
+                        initialResponseId={initialSyncId || undefined}
                     />
                 )}
                 {syncPreviewData && (

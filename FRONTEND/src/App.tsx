@@ -18,6 +18,7 @@ import Teams from "./pages/admin/Teams";
 import StructureGraph from "./pages/admin/StructureGraph";
 import HierarchyManagement from "./pages/admin/HierarchyManagement";
 import AuditLogs from "./pages/admin/AuditLogs";
+import AdminLogs from "./pages/admin/AdminLogs";
 import EmailLogs from "./pages/admin/EmailLogs";
 import PortalContentPage from "./pages/admin/PortalContent";
 import AlertSubscriptions from "./pages/admin/AlertSubscriptions";
@@ -108,6 +109,7 @@ export default function App() {
                   <Route path="/admin/structure-graph" element={<StructureGraph />} />
                   <Route path="/admin/hierarchy" element={<HierarchyManagement />} />
                   <Route path="/admin/audit-logs" element={<AuditLogs />} />
+                  <Route path="/admin/admin-logs" element={<AdminLogs />} />
                   <Route path="/admin/email-logs" element={<EmailLogs />} />
                   <Route path="/admin/site-settings" element={<PortalContentPage />} />
                   <Route path="/admin/alert-subscriptions" element={<AlertSubscriptions />} />

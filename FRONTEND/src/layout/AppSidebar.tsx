@@ -57,7 +57,7 @@ const navItems: NavItem[] = [
     name: "Woreda Profile",
     path: "/woreda-profile",
   },
-  {
+  /* {
     icon: <DocsIcon />,
     name: "Disaster Risk Assessment",
     path: "/disaster-risk-assessment",
@@ -96,7 +96,7 @@ const navItems: NavItem[] = [
     icon: <PieChartIcon />,
     name: "Analytics",
     path: "/analytics",
-  },
+  }, */
 ];
 
 const adminItems: NavItem[] = [
@@ -204,6 +204,12 @@ const adminItems: NavItem[] = [
         name: "Audit Logs",
         path: "/admin/audit-logs",
         icon: <ListIcon />,
+        permission: "view_audit_log",
+      },
+      {
+        name: "Admin Logs",
+        path: "/admin/admin-logs",
+        icon: <LockIcon />,
         permission: "view_audit_log",
       },
       {
