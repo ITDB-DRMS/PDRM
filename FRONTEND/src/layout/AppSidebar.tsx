@@ -309,6 +309,15 @@ const AppSidebar: React.FC = () => {
         return item;
       }
 
+    const isSuperAdmin = user?.roles?.some(r => ['superadmin', 'super admin', 'super_admin', "admin", "Admin", "branch_admin", "Branch Admin", "manager", "Manager"].includes(r.name.toLowerCase()));
+
+    return items.map(item => {
+      // Check super admin restriction first
+      if (item.superAdminOnly && !isSuperAdmin) {
+        return null;
+      }
+
+      // If item has subItems, filter them
       if (item.subItems) {
         // If regular user (even branch admin) has access to some children, show the parent
         if (filteredSub.length > 0) {
