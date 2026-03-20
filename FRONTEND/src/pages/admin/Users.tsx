@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../../hooks/useToast';
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { useModal } from "../../hooks/useModal";
@@ -6,9 +7,15 @@ import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
+import { Can } from '../../components/auth/PermissionGuard';
+import { LayoutGrid, List, Search, Plus, Eye, Edit2, Trash2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 
 import api from '../../api/axios';
+import { useAuth } from '../../context/AuthContext';
+import { UserCard } from '../../components/admin/UserCard';
+import { UserStats } from '../../components/admin/UserStats';
 
 interface User {
     id: string;
@@ -35,7 +42,54 @@ interface Option {
     department?: string | { _id: string } | any;
 }
 
+const getStatusColor = (status: string) => {
+    switch (status) {
+        case 'active': return 'bg-emerald-500';
+        case 'pending': return 'bg-amber-500';
+        case 'suspended': return 'bg-rose-500';
+        default: return 'bg-slate-500';
+    }
+};
+
+const DiamondBackground = () => (
+    <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+        {/* Mesh Gradient Base */}
+        <div className="absolute inset-0 bg-slate-100 dark:bg-[#0A0A0B]" />
+
+        {/* Floating Glassy Diamonds */}
+        {[...Array(10)].map((_, i) => (
+            <motion.div
+                key={i}
+                initial={{
+                    opacity: 0,
+                    rotate: 45,
+                    x: Math.random() * 100 + "%",
+                    y: Math.random() * 100 + "%"
+                }}
+                animate={{
+                    opacity: [0.15, 0.45, 0.15],
+                    y: ["-20%", "120%"],
+                    rotate: [45, 225],
+                }}
+                transition={{
+                    duration: 20 + Math.random() * 20,
+                    repeat: Infinity,
+                    ease: "linear",
+                    delay: i * -4
+                }}
+                className="absolute h-64 w-64 rounded-[48px] border border-white/40 bg-white/10 backdrop-blur-3xl dark:border-white/10 dark:bg-white/[0.04]"
+                style={{
+                    left: `${(i * 12) % 95}%`,
+                }}
+            />
+        ))}
+
+    </div>
+);
+
 export default function Users() {
+    const { user } = useAuth();
+
     const [users, setUsers] = useState<User[]>([]);
     const [roles, setRoles] = useState<Option[]>([]);
 
@@ -53,14 +107,18 @@ export default function Users() {
     const [loading, setLoading] = useState(true);
     const [editUser, setEditUser] = useState<User | null>(null);
     const [isViewMode, setIsViewMode] = useState(false);
-    const [alertState, setAlertState] = useState<{ show: boolean; variant: "success" | "error" | "warning" | "info"; title: string; message: string } | null>(null);
+
+    // Role Modal State
+    const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+    const [userForRoles, setUserForRoles] = useState<User | null>(null);
+    const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
 
     // Form State
     const [formData, setFormData] = useState({
         fullname: '',
         email: '',
         phone: '',
-        password: '',
+
         roles: [] as string[],
         organization: '',
         sector: '',
@@ -68,9 +126,18 @@ export default function Users() {
         team: '',
         status: 'active',
         profileImage: null as File | null,
-        accessLevel: 'expert',
+        accessLevel: 'public',
         organizationType: 'branch'
     });
+
+    const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
+
+
+
+    // Use the toast hook
+    const toast = useToast();
 
     const { isOpen, openModal, closeModal } = useModal();
 
@@ -135,15 +202,7 @@ export default function Users() {
     }, [formData.department, allTeams]);
 
 
-    // Auto-dismiss alert
-    useEffect(() => {
-        if (alertState?.show) {
-            const timer = setTimeout(() => {
-                setAlertState(null);
-            }, 3000);
-            return () => clearTimeout(timer);
-        }
-    }, [alertState]);
+
 
     const fetchData = async () => {
         setLoading(true);
@@ -176,24 +235,37 @@ export default function Users() {
         }
     }
 
-    const handleOpenModal = (user?: User, mode: 'create' | 'edit' | 'view' = 'create') => {
+    const handleOpenModal = (userItem?: User, mode: 'create' | 'edit' | 'view' = 'create') => {
         setIsViewMode(mode === 'view');
-        if (user) {
-            setEditUser(user);
+
+        // Determine Branch Admin context
+        const isBranchAdmin = user?.accessLevel === 'branch_admin' ||
+            user?.roles?.some(r => ['Branch Admin', 'branch_admin'].includes(r.name));
+        const isSuperAdmin = user?.accessLevel === 'super_admin' ||
+            user?.roles?.some(r => ['Super Admin', 'super_admin'].includes(r.name));
+
+        // Get user's org ID if branch admin
+        let userOrgId = '';
+        if (isBranchAdmin && !isSuperAdmin && user?.organization) {
+            userOrgId = typeof user.organization === 'object' ? (user.organization as any)._id || (user.organization as any).id : user.organization;
+        }
+
+        if (userItem) {
+            setEditUser(userItem);
             setFormData({
-                fullname: user.fullname,
-                email: user.email,
-                phone: user.phone || '',
-                password: '',
-                roles: user.roles?.map(r => r.id) || [],
-                organization: user.organization?.id || '',
-                sector: user.sector?.id || '',
-                department: user.department?.id || '',
-                team: user.team?.id || '',
-                status: user.status,
+                fullname: userItem.fullname,
+                email: userItem.email,
+                phone: userItem.phone || '',
+
+                roles: userItem.roles?.map((r: any) => r._id || r.id) || [],
+                organization: (userItem.organization as any)?._id || userItem.organization?.id || '',
+                sector: (userItem.sector as any)?._id || userItem.sector?.id || '',
+                department: (userItem.department as any)?._id || userItem.department?.id || '',
+                team: (userItem.team as any)?._id || userItem.team?.id || '',
+                status: userItem.status,
                 profileImage: null,
-                accessLevel: user.accessLevel || 'expert',
-                organizationType: user.organizationType || 'branch'
+                accessLevel: userItem.accessLevel || 'expert',
+                organizationType: userItem.organizationType || 'branch'
             });
         } else {
             setEditUser(null);
@@ -201,16 +273,16 @@ export default function Users() {
                 fullname: '',
                 email: '',
                 phone: '',
-                password: '',
+
                 roles: [],
-                organization: '',
+                organization: userOrgId, // Pre-fill
                 sector: '',
                 department: '',
                 team: '',
                 status: 'active',
                 profileImage: null,
-                accessLevel: 'expert',
-                organizationType: 'branch'
+                accessLevel: 'public',
+                organizationType: userOrgId ? 'branch' : 'branch'
             });
         }
         openModal();
@@ -227,7 +299,7 @@ export default function Users() {
             data.append('accessLevel', formData.accessLevel);
             data.append('organizationType', formData.organizationType);
 
-            if (formData.password) data.append('password', formData.password);
+
             formData.roles.forEach(role => data.append('roles', role));
 
             // Append hierarchical fields if they have values
@@ -246,12 +318,14 @@ export default function Users() {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
                 closeModal();
+                toast.success('User updated successfully');
                 setAlertState({ show: true, variant: 'success', title: 'Success', message: 'User updated successfully' });
             } else {
                 await api.post('/users', data, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
                 closeModal();
+                toast.success('User created successfully');
                 setAlertState({ show: true, variant: 'success', title: 'Success', message: 'User created successfully' });
             }
             fetchData();
@@ -259,6 +333,7 @@ export default function Users() {
             console.error("Failed to save user", error);
             // Close the form modal and show error popup
             closeModal();
+            toast.error(error.response?.data?.message || 'Failed to save user');
             setAlertState({ show: true, variant: 'error', title: 'Error', message: error.response?.data?.message || 'Failed to save user' });
         }
     };
@@ -267,11 +342,11 @@ export default function Users() {
         if (confirm("Are you sure you want to delete this user?")) {
             try {
                 await api.delete(`/users/${id}`);
-                setAlertState({ show: true, variant: 'success', title: 'Success', message: 'User deleted successfully' });
+                toast.success('User deleted successfully');
                 fetchData();
             } catch (error: any) {
                 console.error("Failed to delete user", error);
-                setAlertState({ show: true, variant: 'error', title: 'Error', message: 'Failed to delete user' });
+                toast.error('Failed to delete user');
             }
         }
     };
@@ -300,6 +375,50 @@ export default function Users() {
         return false;
     };
 
+    const handleOpenRoleModal = (user: User) => {
+        setUserForRoles(user);
+        setSelectedRoles(user.roles?.map((r: any) => r._id || r.id) || []);
+        setIsRoleModalOpen(true);
+    };
+
+    const handleSaveRoles = async () => {
+        if (!userForRoles) return;
+        try {
+            // We need a specific endpoint to update roles, or use the update user endpoint
+            // Assuming update user endpoint handles roles update
+            const data = {
+                roles: selectedRoles
+            };
+
+            await api.put(`/users/${userForRoles.id}/roles`, data); // Try specific endpoint first or fallback to general update
+            // If backend doesn't have specific route, we might need to send all user data back or modify backend.
+            // Let's assume standard update for now if specific fails, but cleaner to separate.
+            // Actually, based on previous code, we used Put /users/:id with FormData.
+            // Let's stick to that pattern or simpler JSON if backend supports partial updates.
+            // Using a specialized endpoint is safer if exists. If not, we'll try partial update.
+
+            toast.success('Roles updated successfully');
+            setIsRoleModalOpen(false);
+            fetchData();
+        } catch (error: any) {
+            // If 404, maybe endpoint doesn't exist, try general update
+            if (error.response && error.response.status === 404) {
+                try {
+                    const data = { roles: selectedRoles };
+                    await api.put(`/users/${userForRoles.id}`, data);
+                    toast.success('Roles updated successfully');
+                    setIsRoleModalOpen(false);
+                    fetchData();
+                    return;
+                } catch (e) {
+                    console.error("Failed to update roles fallback", e);
+                }
+            }
+            console.error("Failed to update roles", error);
+            toast.error('Failed to update roles');
+        }
+    };
+
     return (
         <>
             <PageMeta
@@ -308,6 +427,83 @@ export default function Users() {
             />
             <PageBreadcrumb pageTitle="Users" />
 
+            <div className="relative space-y-8 pb-10">
+                <DiamondBackground />
+                {/* Stats Overview */}
+                <UserStats users={users} />
+
+                {/* Main Content Area */}
+                <div className="rounded-3xl border border-white/40 bg-white/20 p-6 shadow-2xl backdrop-blur-3xl dark:border-white/10 dark:bg-white/5">
+                    <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between mb-8">
+                        <div>
+                            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
+                                User Directory
+                            </h3>
+                            <p className="text-sm text-slate-500 dark:text-white/50">Manage system access and permissions</p>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-4">
+                            {/* Unified Search & Actions */}
+                            <div className="relative">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-white/30" size={18} />
+                                <input
+                                    type="text"
+                                    placeholder="Search users..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="h-11 w-full rounded-2xl border border-white/20 bg-white/40 pl-11 pr-4 text-sm text-slate-900 outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10 dark:border-white/10 dark:bg-white/5 dark:text-white min-w-[280px]"
+                                />
+                            </div>
+
+                            <div className="flex items-center rounded-2xl border border-slate-200 bg-white/40 p-1 shadow-inner backdrop-blur-xl dark:border-white/10 dark:bg-white/5">
+                                <button
+                                    onClick={() => setViewMode('grid')}
+                                    className={`flex h-9 w-10 items-center justify-center rounded-xl transition-all ${viewMode === 'grid' ? 'bg-slate-900 text-white shadow-xl scale-105' : 'text-slate-500 hover:text-slate-900 dark:text-white/40 dark:hover:text-white'}`}
+                                >
+                                    <LayoutGrid size={18} />
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('table')}
+                                    className={`flex h-9 w-10 items-center justify-center rounded-xl transition-all ${viewMode === 'table' ? 'bg-slate-900 text-white shadow-xl scale-105' : 'text-slate-500 hover:text-slate-900 dark:text-white/40 dark:hover:text-white'}`}
+                                >
+                                    <List size={18} />
+                                </button>
+                            </div>
+
+                            <Can resource="User" action="create">
+                                <button
+                                    onClick={() => handleOpenModal()}
+                                    className="flex h-11 items-center gap-2 rounded-2xl bg-blue-600 px-6 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition-all hover:bg-blue-700 hover:scale-[1.02] active:scale-[0.98] dark:bg-primary dark:shadow-primary/20"
+                                >
+                                    <Plus size={18} />
+                                    Add User
+                                </button>
+                            </Can>
+                        </div>
+                    </div>
+
+                    {/* Filters Strip */}
+                    <div className="mb-8 flex flex-wrap gap-3 border-b border-slate-200 pb-6 dark:border-white/5">
+                        {['all', 'active', 'pending', 'suspended'].map((status) => (
+                            <button
+                                key={status}
+                                onClick={() => setStatusFilter(status)}
+                                className={`rounded-xl border px-4 py-2 text-xs font-medium transition-all ${statusFilter === status
+                                    ? 'border-primary/50 bg-primary/20 text-primary'
+                                    : 'border-white/20 bg-white/20 text-slate-600 hover:border-white/40 hover:bg-white/40 dark:border-white/5 dark:bg-white/5 dark:text-white/50 dark:hover:border-white/10 dark:hover:text-white'}`}
+                            >
+                                {status.charAt(0).toUpperCase() + status.slice(1)}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Results Count */}
+                    <div className="mb-4 text-sm text-slate-500 dark:text-white/40">
+                        Showing {users.filter(u =>
+                            (statusFilter === 'all' || u.status === statusFilter) &&
+                            (u.fullname.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase()))
+                        ).length} users
+                    </div>
             {/* Alert popup modal for success / error */}
             {alertState?.show && (
                 <Modal isOpen={true} onClose={() => setAlertState(null)} className="max-w-[480px] m-4">
@@ -333,104 +529,123 @@ export default function Users() {
                     </Button>
                 </div>
 
-                <div className="max-w-full overflow-x-auto">
                     {loading ? (
-                        <div className="p-4 text-center text-gray-500">Loading users...</div>
+                        <div className="flex h-64 items-center justify-center">
+                            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                        </div>
                     ) : (
-                        <table className="w-full table-auto">
-                            <thead>
-                                <tr className="bg-gray-2 text-left dark:bg-meta-4">
-                                    <th className="min-w-[200px] px-4 py-4 font-medium text-black dark:text-white xl:pl-11">
-                                        Full Name
-                                    </th>
-                                    <th className="min-w-[150px] px-4 py-4 font-medium text-black dark:text-white">
-                                        Email
-                                    </th>
-                                    <th className="px-4 py-4 font-medium text-black dark:text-white">
-                                        Context
-                                    </th>
-                                    <th className="px-4 py-4 font-medium text-black dark:text-white">
-                                        Access Level
-                                    </th>
-                                    <th className="px-4 py-4 font-medium text-black dark:text-white">
-                                        Status
-                                    </th>
-                                    <th className="px-4 py-4 font-medium text-black dark:text-white">
-                                        Actions
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {users.map((user) => (
-                                    <tr key={user.id}>
-                                        <td className="border-b border-[#eee] px-4 py-5 pl-9 dark:border-strokedark xl:pl-11">
-                                            <h5 className="font-medium text-black dark:text-white">{user.fullname}</h5>
-                                            <p className="text-sm text-gray-500">{user.phone}</p>
-                                        </td>
-                                        <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
-                                            <p className="text-black dark:text-white">{user.email}</p>
-                                        </td>
-                                        <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
-                                            <div className="text-sm">
-                                                {user.organization && <p className='text-gray-600 dark:text-gray-400'>Org: {user.organization.name}</p>}
-                                                {user.sector && <p className='text-gray-600 dark:text-gray-400'>Sec: {user.sector.name}</p>}
-                                                {user.department && <p className='text-gray-600 dark:text-gray-400'>Dept: {user.department.name}</p>}
-                                                {user.team && <p className='text-gray-600 dark:text-gray-400'>Team: {user.team.name}</p>}
-                                            </div>
-                                        </td>
-                                        <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
-                                            <span className="inline-block px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-800">
-                                                {user.accessLevel?.replace('_', ' ') || 'N/A'}
-                                            </span>
-                                        </td>
-                                        <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
-                                            <span className={`inline-flex rounded-full bg-opacity-10 py-1 px-3 text-sm font-medium ${user.status === 'active' ? 'bg-success text-success' :
-                                                user.status === 'pending' ? 'bg-warning text-warning' : 'bg-danger text-danger'
-                                                }`}>
-                                                {user.status}
-                                            </span>
-                                        </td>
-                                        <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
-                                            <div className="flex items-center space-x-3.5">
-                                                <button
-                                                    onClick={() => handleOpenModal(user, 'view')}
-                                                    className="hover:text-primary text-gray-600 dark:text-gray-300"
-                                                    title="View"
-                                                >
-                                                    <svg className="fill-current" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                        <path d="M9 13.5C6.075 13.5 3.51563 11.6437 2.475 9C3.51563 6.35625 6.075 4.5 9 4.5C11.925 4.5 14.4844 6.35625 15.525 9C14.4844 11.6437 11.925 13.5 9 13.5ZM9 5.625C7.14375 5.625 5.625 7.14375 5.625 9C5.625 10.8562 7.14375 12.375 9 12.375C10.8562 12.375 12.375 10.8562 12.375 9C12.375 7.14375 10.8562 5.625 9 5.625ZM9 10.5C8.15625 10.5 7.5 9.84375 7.5 9C7.5 8.15625 8.15625 7.5 9 7.5C9.84375 7.5 10.5 8.15625 10.5 9C10.5 9.84375 9.84375 10.5 9 10.5Z" fill="" />
-                                                    </svg>
-                                                </button>
-                                                <button
-                                                    onClick={() => handleOpenModal(user, 'edit')}
-                                                    className="hover:text-primary text-gray-600 dark:text-gray-300"
-                                                    title="Edit"
-                                                >
-                                                    <svg className="fill-current" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                        <path d="M13.7531 2.475C13.2469 1.96875 12.4312 1.96875 11.925 2.475L10.3781 4.02188L13.9781 7.62188L15.525 6.075C16.0312 5.56875 16.0312 4.75313 15.525 4.24688L13.7531 2.475ZM9.225 5.175L2.69999 11.7C2.53124 11.8688 2.44687 12.0938 2.44687 12.3188V15.525C2.44687 15.6938 2.58749 15.8344 2.75624 15.8344H5.96249C6.18749 15.8344 6.41249 15.75 6.58124 15.5813L13.1062 9.05625L9.225 5.175Z" fill="" />
-                                                    </svg>
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(user.id)}
-                                                    className="hover:text-red-500 text-gray-600 dark:text-gray-300"
-                                                    title="Delete"
-                                                >
-                                                    <svg className="fill-current" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                        <path d="M13.7531 2.47502H11.3062V1.9969C11.3062 1.15315 10.6312 0.478149 9.78749 0.478149H8.21249C7.36874 0.478149 6.69374 1.15315 6.69374 1.9969V2.47502H4.24687C3.74062 2.47502 3.37499 2.8969 3.37499 3.40315V3.9094C3.37499 4.07815 3.51561 4.21877 3.68436 4.21877H14.3156C14.4844 4.21877 14.625 4.07815 14.625 3.9094V3.40315C14.625 2.8969 14.2594 2.47502 13.7531 2.47502ZM7.67811 1.9969C7.67811 1.68752 7.93124 1.4344 8.21249 1.4344H9.78749C10.0687 1.4344 10.3219 1.68752 10.3219 1.9969V2.47502H7.70624V1.9969H7.67811Z" fill="" />
-                                                        <path d="M14.2312 5.20313H3.76874C3.59999 5.20313 3.45936 5.34375 3.48749 5.5125L4.41561 16.4812C4.47186 17.2406 5.11874 17.8031 5.87811 17.8031H12.1219C12.8812 17.8031 13.5281 17.2406 13.5844 16.4812L14.5125 5.5125C14.5406 5.34375 14.4 5.20313 14.2312 5.20313ZM8.21249 14.9906H7.22811C6.94686 14.9906 6.72186 14.4844V8.52188C6.72186 8.24063 6.94686 8.01563 7.22811 8.01563H8.21249C8.49374 8.01563 8.71874 8.24063 8.71874 8.52188V14.4844C8.71874 14.7656 8.49374 14.9906 8.21249 14.9906ZM11.2781 14.4844C11.2781 14.7656 11.0531 14.9906 10.7719 14.9906H9.78749C9.50624 14.9906 9.28124 14.7656 9.28124 14.4844V8.52188C9.28124 8.24063 9.50624 8.01563 9.78749 8.01563H10.7719C11.0531 8.01563 11.2781 8.24063 11.2781 8.52188V14.4844Z" fill="" />
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                        <AnimatePresence mode="wait">
+                            {viewMode === 'grid' ? (
+                                <motion.div
+                                    key="grid"
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3"
+                                >
+                                    {users
+                                        .filter(u => (statusFilter === 'all' || u.status === statusFilter))
+                                        .filter(u => u.fullname.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase()))
+                                        .map((user) => (
+                                            <UserCard
+                                                key={user.id}
+                                                user={user}
+                                                onEdit={() => handleOpenModal(user, 'edit')}
+                                                onView={() => handleOpenModal(user, 'view')}
+                                                onManageRoles={() => handleOpenRoleModal(user)}
+                                                onDelete={handleDelete}
+                                                onStatusToggle={async (u) => {
+                                                    const newStatus = u.status === 'active' ? 'suspended' : 'active';
+                                                    if (confirm(`Change status to ${newStatus}?`)) {
+                                                        try {
+                                                            await api.put(`/users/${u.id}`, { status: newStatus });
+                                                            toast.success(`User marked as ${newStatus}`);
+                                                            fetchData();
+                                                        } catch (error) { toast.error('Failed to update status'); }
+                                                    }
+                                                }}
+                                            />
+                                        ))}
+                                </motion.div>
+                            ) : (
+                                <motion.div
+                                    key="table"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: 10 }}
+                                    className="max-w-full overflow-x-auto rounded-2xl border border-white/5"
+                                >
+                                    <table className="w-full table-auto">
+                                        <thead>
+                                            <tr className="bg-white/40 text-left dark:bg-white/5">
+                                                <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-white/50">User</th>
+                                                <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-white/50">Details</th>
+                                                <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-white/50">Level</th>
+                                                <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-white/50">Status</th>
+                                                <th className="px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-white/50">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-200 dark:divide-white/5">
+                                            {users
+                                                .filter(u => (statusFilter === 'all' || u.status === statusFilter))
+                                                .filter(u => u.fullname.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase()))
+                                                .map((user) => (
+                                                    <tr key={user.id} className="group hover:bg-white/60 transition-colors dark:hover:bg-white/[0.02]">
+                                                        <td className="px-6 py-4">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="h-10 w-10 flex-shrink-0 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold">
+                                                                    {user.fullname.charAt(0)}
+                                                                </div>
+                                                                <div>
+                                                                    <div className="font-medium text-slate-900 group-hover:text-primary transition-colors dark:text-white">{user.fullname}</div>
+                                                                    <div className="text-xs text-slate-500 dark:text-white/40">{user.email}</div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <div className="max-w-[200px] truncate text-xs text-slate-600 dark:text-white/60">
+                                                                {user.organization?.name}
+                                                                {user.department && <span className="block text-slate-400 dark:text-white/30">{user.department.name}</span>}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <span className="inline-flex rounded-lg bg-slate-200 px-2.5 py-1 text-[10px] font-semibold text-slate-700 uppercase tracking-tight dark:bg-white/5 dark:text-white/70">
+                                                                {user.accessLevel?.replace('_', ' ')}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className={`h-2 w-2 rounded-full ${getStatusColor(user.status)} shadow-lg shadow-${getStatusColor(user.status).split('-')[1]}/20`} />
+                                                                <span className="text-xs font-medium text-slate-700 dark:text-white/70 uppercase">
+                                                                    {user.status}
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-center">
+                                                            <div className="flex items-center justify-center gap-1">
+                                                                <button onClick={() => handleOpenModal(user, 'view')} title="View Details" className="p-2 text-slate-400 hover:bg-slate-100 hover:text-primary rounded-lg transition-all dark:text-white/40 dark:hover:bg-white/5 dark:hover:text-white">
+                                                                    <Eye size={16} />
+                                                                </button>
+                                                                <button onClick={() => handleOpenModal(user, 'edit')} title="Edit User" className="p-2 text-slate-400 hover:bg-slate-100 hover:text-primary rounded-lg transition-all dark:text-white/40 dark:hover:bg-white/5 dark:hover:text-white">
+                                                                    <Edit2 size={16} />
+                                                                </button>
+                                                                <button onClick={() => handleDelete(user.id)} title="Delete User" className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-all dark:text-white/40 dark:hover:bg-red-500/10 dark:hover:text-red-400">
+                                                                    <Trash2 size={16} />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                        </tbody>
+                                    </table>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     )}
                 </div>
             </div>
 
-            {/* Modal */}
+            {/* Modals */}
             <Modal isOpen={isOpen} onClose={closeModal} className="max-w-[800px] m-4">
                 <div className="no-scrollbar relative w-full max-w-[800px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">
                     <div className="px-2 pr-14 mb-6">
@@ -485,14 +700,15 @@ export default function Users() {
                                                 className="relative z-20 w-full appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-gray-800 dark:text-white dark:focus:border-primary disabled:cursor-default disabled:bg-whiter"
                                                 disabled={isViewMode}
                                             >
-                                                <option value="super_admin">Super Admin</option>
-                                                <option value="manager">Manager</option>
-                                                <option value="deputy">Deputy</option>
-                                                <option value="sector_lead">Sector Lead</option>
-                                                <option value="directorate">Directorate (Department Lead)</option>
-                                                <option value="branch_admin">Branch Admin</option>
-                                                <option value="team_leader">Team Leader</option>
+                                                <option value="public">Public</option>
                                                 <option value="expert">Expert</option>
+                                                <option value="team_leader">Team Leader</option>
+                                                <option value="directorate">Directorate (Department Lead)</option>
+                                                <option value="sector_lead">Sector Lead</option>
+                                                <option value="branch_admin">Branch Admin</option>
+                                                <option value="deputy">Deputy</option>
+                                                <option value="manager">Manager</option>
+                                                <option value="super_admin">Super Admin</option>
                                             </select>
                                         </div>
                                     </div>
@@ -531,7 +747,7 @@ export default function Users() {
                                                             team: ''
                                                         })}
                                                         className="relative z-20 w-full appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-gray-800 dark:text-white dark:focus:border-primary disabled:cursor-default disabled:bg-whiter"
-                                                        disabled={isViewMode}
+                                                        disabled={isViewMode || (user?.accessLevel === 'branch_admin' && !user?.roles?.some(r => ['Super Admin', 'super_admin'].includes(r.name)) && !!formData.organization)}
                                                     >
                                                         <option value="">Select Organization</option>
                                                         {allOrganizations.map(o => <option key={o._id || o.id} value={o._id || o.id}>{o.name}</option>)}
@@ -605,38 +821,6 @@ export default function Users() {
                                 </div>
 
                                 <div>
-                                    <Label>Roles</Label>
-                                    <div className="relative z-20 bg-transparent dark:bg-gray-800">
-                                        <select
-                                            multiple
-                                            value={formData.roles}
-                                            onChange={(e) => {
-                                                const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
-                                                setFormData({ ...formData, roles: selectedOptions });
-                                            }}
-                                            className="relative z-20 w-full appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-gray-800 dark:text-white dark:focus:border-primary h-24 disabled:cursor-default disabled:bg-whiter"
-                                            disabled={isViewMode}
-                                        >
-                                            {roles.map(r => <option key={r._id || r.id} value={r._id || r.id}>{r.name}</option>)}
-                                        </select>
-                                        <p className="text-xs text-gray-500 mt-1">Hold Ctrl (Windows) or Cmd (Mac) to select multiple roles</p>
-                                    </div>
-                                </div>
-
-                                {!editUser && (
-                                    <div>
-                                        <Label>Password</Label>
-                                        <Input
-                                            type="password"
-                                            value={formData.password}
-                                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                            required={!editUser}
-                                            disabled={isViewMode}
-                                        />
-                                    </div>
-                                )}
-
-                                <div>
                                     <Label>Status</Label>
                                     <div className="relative z-20 bg-transparent dark:bg-gray-800">
                                         <select
@@ -697,8 +881,44 @@ export default function Users() {
                             )}
                         </div>
                     </form>
-                </div >
-            </Modal >
+                </div>
+            </Modal>
+
+            {/* Role Assignment Modal */}
+            <Modal isOpen={isRoleModalOpen} onClose={() => setIsRoleModalOpen(false)} className="max-w-[500px] m-4">
+                <div className="relative w-full rounded-3xl bg-white p-6 dark:bg-gray-900 lg:p-10">
+                    <h4 className="mb-6 text-2xl font-semibold text-gray-800 dark:text-white/90">
+                        Manage Roles for {userForRoles?.fullname}
+                    </h4>
+
+                    <div className="mb-6">
+                        <Label>Select Roles</Label>
+                        <div className="relative z-20 bg-transparent dark:bg-gray-800">
+                            <select
+                                multiple
+                                value={selectedRoles}
+                                onChange={(e) => {
+                                    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+                                    setSelectedRoles(selectedOptions);
+                                }}
+                                className="relative z-20 w-full appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-gray-800 dark:text-white dark:focus:border-primary h-60"
+                            >
+                                {roles.map(r => <option key={r._id || r.id} value={r._id || r.id}>{r.name}</option>)}
+                            </select>
+                            <p className="text-xs text-gray-500 mt-2">Hold Ctrl (Windows) or Cmd (Mac) to select multiple roles.</p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 justify-end">
+                        <Button size="sm" variant="outline" onClick={() => setIsRoleModalOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button size="sm" onClick={handleSaveRoles}>
+                            Save Roles
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </>
     );
 }

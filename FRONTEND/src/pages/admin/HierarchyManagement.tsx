@@ -18,7 +18,6 @@ export default function HierarchyManagement() {
     const {
         accessLevel,
         organizationType,
-        subordinates: contextSubordinates,
         reportsTo,
         delegatedBy,
         delegatedAuthority,

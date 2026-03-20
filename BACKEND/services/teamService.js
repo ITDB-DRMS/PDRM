@@ -24,6 +24,20 @@ export const createTeam = async (teamData, creatorId) => {
         throw new Error('Department not found');
     }
 
+    // Access Control: Branch Admin restriction
+    const isBranchAdmin = creator.accessLevel === 'branch_admin' ||
+        (creator.roles && creator.roles.some(r => ['Branch Admin', 'branch_admin'].includes(r.name)));
+
+    const isSuperAdmin = creator.accessLevel === 'super_admin' ||
+        (creator.roles && creator.roles.some(r => ['Super Admin', 'super_admin', 'superadmin'].includes(r.name)));
+
+    if (isBranchAdmin && !isSuperAdmin) {
+        const creatorOrgId = creator.organization?._id || creator.organization;
+        if (department.organizationId.toString() !== String(creatorOrgId)) {
+            throw new Error('Branch Admins can only create teams for departments in their own branch');
+        }
+    }
+
     const team = new Team({
         ...teamData,
         organization: department.organizationId

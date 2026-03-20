@@ -5,6 +5,44 @@ import { getOrganizations } from '../../api/organizationService';
 import { getDepartments, Department } from '../../api/departmentService';
 import { getTeams, Team } from '../../api/teamService';
 import api from '../../api/axios';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronRight, Building2, Layers, Briefcase, Users, Info, X } from 'lucide-react';
+
+const DiamondBackground = () => (
+    <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+        {/* Mesh Gradient Base */}
+        <div className="absolute inset-0 bg-slate-100 dark:bg-[#0A0A0B]" />
+
+        {/* Floating Glassy Diamonds */}
+        {[...Array(10)].map((_, i) => (
+            <motion.div
+                key={i}
+                initial={{
+                    opacity: 0,
+                    rotate: 45,
+                    x: Math.random() * 100 + "%",
+                    y: Math.random() * 100 + "%"
+                }}
+                animate={{
+                    opacity: [0.15, 0.45, 0.15],
+                    y: ["-20%", "120%"],
+                    rotate: [45, 225],
+                }}
+                transition={{
+                    duration: 20 + Math.random() * 20,
+                    repeat: Infinity,
+                    ease: "linear",
+                    delay: i * -4
+                }}
+                className="absolute h-64 w-64 rounded-[48px] border border-white/40 bg-white/10 backdrop-blur-3xl dark:border-white/10 dark:bg-white/[0.04]"
+                style={{
+                    left: `${(i * 12) % 95}%`,
+                }}
+            />
+        ))}
+
+    </div>
+);
 
 // Interfaces
 interface Organization {
@@ -50,17 +88,25 @@ type TreeNodeType = OrgNode | SectorNode | DeptNode | TeamNode;
 const TreeNode = ({ node, level = 0, onTeamClick }: { node: TreeNodeType; level?: number; onTeamClick: (team: Team) => void }) => {
     const [isOpen, setIsOpen] = useState(true);
 
-    // Helper to safely check children existence
     const hasChildren = 'children' in node && Array.isArray(node.children) && node.children.length > 0;
 
-    // Color coding based on type
-    const getColor = (type: string) => {
+    const getIcon = (type: string) => {
         switch (type) {
-            case 'organization': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200 border-blue-200 dark:border-blue-700';
-            case 'sector': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200 border-purple-200 dark:border-purple-700';
-            case 'department': return 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200 border-green-200 dark:border-green-700';
-            case 'team': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200 border-orange-200 dark:border-orange-700 hover:bg-orange-200 dark:hover:bg-orange-900/60';
-            default: return 'bg-gray-100 text-gray-800';
+            case 'organization': return <Building2 size={18} />;
+            case 'sector': return <Layers size={18} />;
+            case 'department': return <Briefcase size={18} />;
+            case 'team': return <Users size={18} />;
+            default: return null;
+        }
+    };
+
+    const getTheme = (type: string) => {
+        switch (type) {
+            case 'organization': return 'border-blue-200 bg-blue-50/50 text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300';
+            case 'sector': return 'border-purple-200 bg-purple-50/50 text-purple-700 dark:border-purple-500/20 dark:bg-purple-500/10 dark:text-purple-300';
+            case 'department': return 'border-emerald-200 bg-emerald-50/50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300';
+            case 'team': return 'border-amber-200 bg-amber-50/50 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300 hover:scale-[1.01]';
+            default: return 'border-slate-200 bg-slate-50 text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-white';
         }
     };
 
@@ -74,171 +120,188 @@ const TreeNode = ({ node, level = 0, onTeamClick }: { node: TreeNodeType; level?
         }
     };
 
-    const handleClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (node.type === 'team') {
-            onTeamClick(node.data);
-        } else {
-            setIsOpen(!isOpen);
-        }
-    };
-
     return (
-        <div className="flex flex-col select-none">
-            <div
-                className={`flex items-center p-3 mb-2 rounded-lg border cursor-pointer transition-all duration-200 hover:shadow-sm ${getColor(node.type)}`}
-                style={{ marginLeft: `${level * 24}px` }}
-                onClick={handleClick}
+        <div className="flex flex-col">
+            <motion.div
+                layout
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className={`group relative flex items-center p-3 mb-3 rounded-2xl border backdrop-blur-xl transition-all duration-300 ${getTheme(node.type)}`}
+                style={{ marginLeft: `${level * 32}px` }}
+                onClick={() => node.type === 'team' ? onTeamClick(node.data) : setIsOpen(!isOpen)}
             >
-                <div className="flex items-center gap-2 flex-1">
+                {/* Connection Line */}
+                {level > 0 && (
+                    <div className="absolute -left-[16px] top-1/2 h-[2px] w-[16px] bg-slate-300/50 dark:bg-white/10" />
+                )}
+
+                <div className="flex items-center gap-4 w-full">
                     {hasChildren ? (
-                        <div
-                            className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setIsOpen(!isOpen);
-                            }}
-                        >
-                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.67" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
+                        <div className={`transition-transform duration-300 ${isOpen ? 'rotate-90' : ''}`}>
+                            <ChevronRight size={18} className="opacity-50" />
                         </div>
                     ) : (
-                        <div className="w-5" /> // Spacer
+                        <div className="w-[18px]" />
                     )}
-                    <span className="text-xs font-semibold uppercase tracking-wider opacity-70 w-20 text-right mr-2">
-                        {getLabel(node.type)}
-                    </span>
-                    <span className="font-medium text-base truncate">
-                        {node.data.name}
-                    </span>
-                    {node.type === 'organization' && (
-                        <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded border border-current opacity-60">
-                            {node.data.type.replace('_', ' ')}
-                        </span>
-                    )}
-                    {node.type === 'team' && (
-                        <span className="ml-auto flex items-center gap-2">
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-white/50 dark:bg-black/30">
-                                Click for details
-                            </span>
-                        </span>
-                    )}
-                </div>
-            </div>
 
-            {hasChildren && isOpen && (
-                <div className="relative">
-                    {/* Connecting line */}
-                    <div
-                        className="absolute left-0 bottom-4 w-px bg-gray-300 dark:bg-gray-700"
-                        style={{ left: `${(level * 24) + 10}px`, top: '-8px' }}
-                    />
-
-                    <div>
-                        {(node as any).children.map((child: TreeNodeType, idx: number) => (
-                            <TreeNode
-                                key={((child.data as any).id || (child.data as any)._id || idx) + child.type}
-                                node={child}
-                                level={level + 1}
-                                onTeamClick={onTeamClick}
-                            />
-                        ))}
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/50 shadow-sm backdrop-blur-md dark:bg-white/5`}>
+                        {getIcon(node.type)}
                     </div>
+
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-bold uppercase tracking-widest opacity-50">
+                            {getLabel(node.type)}
+                        </span>
+                        <span className="font-bold text-slate-900 truncate dark:text-white">
+                            {node.data.name}
+                        </span>
+                    </div>
+
+                    {node.type === 'team' && (
+                        <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span className="flex items-center gap-1.5 rounded-full bg-white/40 px-3 py-1 text-xs font-semibold backdrop-blur-md dark:bg-white/10">
+                                <Info size={12} /> View Details
+                            </span>
+                        </div>
+                    )}
+
+                    {node.type === 'organization' && (
+                        <span className="ml-auto rounded-lg bg-blue-600/10 px-2 py-0.5 text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                            {node.data.type?.replace('_', ' ') || 'Sub'}
+                        </span>
+                    )}
                 </div>
-            )}
+            </motion.div>
+
+            <AnimatePresence>
+                {hasChildren && isOpen && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="relative overflow-hidden"
+                    >
+                        {/* Vertical connection line */}
+                        <div
+                            className="absolute bottom-6 top-0 w-[2px] bg-slate-300/50 dark:bg-white/10"
+                            style={{ left: `${(level * 32) + 20}px` }}
+                        />
+
+                        <div>
+                            {(node as any).children.map((child: TreeNodeType, idx: number) => (
+                                <TreeNode
+                                    key={((child.data as any).id || (child.data as any)._id || idx) + child.type}
+                                    node={child}
+                                    level={level + 1}
+                                    onTeamClick={onTeamClick}
+                                />
+                            ))}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };
 
 // Simple Modal Component
 const TeamDetailsModal = ({ team, onClose }: { team: Team | null; onClose: () => void }) => {
-    if (!team) return null;
-
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
-                <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-gray-700">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                        {team.name} <span className="text-sm font-normal text-gray-500 ml-2">(Team Details)</span>
-                    </h3>
-                    <button
+        <AnimatePresence>
+            {team && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 transition-colors"
+                        className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+                    />
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                        className="relative w-full max-w-xl overflow-hidden rounded-[32px] border border-white/40 bg-white/80 p-8 shadow-2xl backdrop-blur-3xl dark:border-white/10 dark:bg-[#1C1C1E]/80"
                     >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-
-                <div className="p-6 max-h-[70vh] overflow-y-auto">
-                    {team.description && (
-                        <div className="mb-6">
-                            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Description</h4>
-                            <p className="text-gray-700 dark:text-gray-300 text-sm bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg">
-                                {team.description}
-                            </p>
-                        </div>
-                    )}
-
-                    <div className="mb-6">
-                        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Team Leader</h4>
-                        {team.teamLeader ? (
-                            <div className="flex items-center p-3 rounded-lg border border-purple-100 bg-purple-50 dark:bg-purple-900/20 dark:border-purple-800">
-                                <div className="h-10 w-10 rounded-full bg-purple-200 text-purple-700 flex items-center justify-center font-bold mr-3">
-                                    {team.teamLeader.fullname?.charAt(0) || 'L'}
+                        <div className="mb-8 flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                                    <Users size={24} />
                                 </div>
                                 <div>
-                                    <p className="font-medium text-gray-900 dark:text-white">{team.teamLeader.fullname}</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">{team.teamLeader.email}</p>
+                                    <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{team.name}</h3>
+                                    <p className="text-sm text-slate-500 dark:text-white/40">Team Structural Details</p>
                                 </div>
-                                <span className="ml-auto text-xs bg-purple-200 text-purple-800 px-2 py-1 rounded-full font-medium">
-                                    Leader
-                                </span>
                             </div>
-                        ) : (
-                            <p className="text-sm text-gray-500 italic">No team leader assigned.</p>
-                        )}
-                    </div>
+                            <button
+                                onClick={onClose}
+                                className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition-all hover:bg-slate-200 dark:bg-white/5 dark:text-white/40"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
 
-                    <div>
-                        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                            Team Members <span className="ml-1 text-gray-400">({team.members?.length || 0})</span>
-                        </h4>
+                        <div className="space-y-8">
+                            {team.description && (
+                                <div className="rounded-2xl bg-white/40 p-4 dark:bg-white/5">
+                                    <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-slate-400">Description</h4>
+                                    <p className="text-slate-600 dark:text-white/70">{team.description}</p>
+                                </div>
+                            )}
 
-                        {!team.members || team.members.length === 0 ? (
-                            <p className="text-sm text-gray-500 italic text-center py-4 bg-gray-50 dark:bg-gray-900/30 rounded-lg">
-                                No members added yet.
-                            </p>
-                        ) : (
-                            <div className="space-y-2">
-                                {team.members.map((member: any) => (
-                                    <div key={member._id || member.id} className="flex items-center p-3 rounded-lg border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                        <div className="h-8 w-8 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-200 flex items-center justify-center font-bold text-xs mr-3">
-                                            {member.fullname?.charAt(0) || 'M'}
+                            <div>
+                                <h4 className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-400">Team Leadership</h4>
+                                {team.teamLeader ? (
+                                    <div className="flex items-center gap-4 rounded-2xl border border-blue-100 bg-blue-50/50 p-4 dark:border-blue-500/20 dark:bg-blue-500/10">
+                                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-white font-bold">
+                                            {team.teamLeader.fullname?.charAt(0)}
                                         </div>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-medium text-gray-900 dark:text-white">{member.fullname}</p>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400">{member.email}</p>
+                                        <div>
+                                            <p className="font-bold text-slate-900 dark:text-white">{team.teamLeader.fullname}</p>
+                                            <p className="text-sm text-slate-500 dark:text-white/40">{team.teamLeader.email}</p>
+                                        </div>
+                                        <div className="ml-auto rounded-lg bg-blue-600 px-3 py-1 text-[10px] font-bold text-white uppercase tracking-wider">
+                                            Leader
                                         </div>
                                     </div>
-                                ))}
+                                ) : (
+                                    <p className="text-center text-sm italic text-slate-400 py-4 border-2 border-dashed border-slate-100 rounded-2xl">No leader assigned</p>
+                                )}
                             </div>
-                        )}
-                    </div>
-                </div>
 
-                <div className="p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-700 text-right">
-                    <button
-                        onClick={onClose}
-                        className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-600 transition-colors"
-                    >
-                        Close
-                    </button>
+                            <div>
+                                <h4 className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-400">Active Members ({team.members?.length || 0})</h4>
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                    {team.members?.map((member: any) => (
+                                        <div key={member.id || member._id} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white/40 p-3 dark:border-white/5 dark:bg-white/5">
+                                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold dark:bg-white/10 dark:text-white/60">
+                                                {member.fullname?.charAt(0)}
+                                            </div>
+                                            <div className="overflow-hidden">
+                                                <p className="truncate text-xs font-bold text-slate-900 dark:text-white">{member.fullname}</p>
+                                                <p className="truncate text-[10px] text-slate-400">{member.email}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {(!team.members || team.members.length === 0) && (
+                                        <div className="col-span-full py-8 text-center text-sm italic text-slate-400">No members found</div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-8 flex justify-end">
+                            <button
+                                onClick={onClose}
+                                className="rounded-2xl bg-slate-900 px-8 py-3 text-sm font-bold text-white shadow-xl transition-all hover:bg-slate-800 active:scale-95 dark:bg-white dark:text-slate-900"
+                            >
+                                Done
+                            </button>
+                        </div>
+                    </motion.div>
                 </div>
-            </div>
-        </div>
+            )}
+        </AnimatePresence>
     );
 };
 
@@ -383,44 +446,77 @@ export default function StructureGraph() {
             />
             <PageBreadcrumb pageTitle="Structure Graph" />
 
-            <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] lg:p-6">
-                <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-                        Organization Hierarchy
-                    </h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Visual representation of the entire organization structure. Click on a Team to view its members.
-                    </p>
-                </div>
+            <div className="relative space-y-8 pb-10">
+                <DiamondBackground />
 
-                {loading ? (
-                    <div className="flex h-40 items-center justify-center">
-                        <div className="h-10 w-10 animate-spin rounded-full border-4 border-solid border-primary border-t-transparent"></div>
-                    </div>
-                ) : error ? (
-                    <div className="p-4 rounded-lg bg-red-50 text-red-500 text-center">
-                        {error}
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto pb-4">
-                        <div className="min-w-[800px]">
-                            {treeData.length === 0 ? (
-                                <p className="text-center text-gray-500">No root organizations found.</p>
-                            ) : (
-                                treeData.map(node => (
-                                    <TreeNode
-                                        key={node.data.id}
-                                        node={node}
-                                        onTeamClick={setSelectedTeam}
-                                    />
-                                ))
-                            )}
+                {/* Main Content Area */}
+                <div className="rounded-[40px] border border-white/40 bg-white/20 p-8 shadow-2xl backdrop-blur-3xl dark:border-white/10 dark:bg-white/5 lg:p-12">
+                    <div className="mb-12 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <h3 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+                                Structural Overview
+                            </h3>
+                            <p className="mt-2 text-slate-500 dark:text-white/40 max-w-lg">
+                                Interactive visual map of the entire organizational hierarchy, departments, and tactical teams.
+                            </p>
+                        </div>
+                        <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-blue-600/10 text-blue-600 dark:bg-primary/10 dark:text-primary">
+                            <Layers size={28} />
                         </div>
                     </div>
-                )}
+
+                    {loading ? (
+                        <div className="flex h-80 items-center justify-center">
+                            <div className="relative">
+                                <div className="h-20 w-20 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600 dark:border-white/10 dark:border-t-primary" />
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="h-10 w-10 animate-pulse rounded-full bg-blue-600/20 dark:bg-primary/20" />
+                                </div>
+                            </div>
+                        </div>
+                    ) : error ? (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="rounded-3xl border border-red-200 bg-red-50 p-12 text-center dark:border-red-500/20 dark:bg-red-500/10"
+                        >
+                            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-100 text-red-600 dark:bg-red-500/20">
+                                <X size={32} />
+                            </div>
+                            <h4 className="text-xl font-bold text-red-900 dark:text-red-400">Connection Error</h4>
+                            <p className="mt-2 text-red-600 dark:text-red-300/70">{error}</p>
+                            <button
+                                onClick={buildTree}
+                                className="mt-6 rounded-2xl bg-red-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg transition-all hover:bg-red-700 active:scale-95"
+                            >
+                                Retry Connection
+                            </button>
+                        </motion.div>
+                    ) : (
+                        <div className="rounded-3xl border border-white/20 bg-white/30 p-4 dark:border-white/5 dark:bg-black/20">
+                            <div className="max-h-[70vh] overflow-y-auto px-4 py-8 custom-scrollbar">
+                                {treeData.length === 0 ? (
+                                    <div className="flex h-60 flex-col items-center justify-center text-slate-400">
+                                        <Building2 size={48} className="mb-4 opacity-20" />
+                                        <p className="font-medium">No organizational data mapped</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {treeData.map(node => (
+                                            <TreeNode
+                                                key={node.data.id}
+                                                node={node}
+                                                onTeamClick={setSelectedTeam}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* Team Details Modal */}
             <TeamDetailsModal
                 team={selectedTeam}
                 onClose={() => setSelectedTeam(null)}

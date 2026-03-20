@@ -22,6 +22,7 @@ import {
   TaskIcon,
   UserCircleIcon,
   UserIcon,
+  PencilIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
@@ -49,9 +50,14 @@ const navItems: NavItem[] = [
   {
     icon: <GridIcon />,
     name: "Dashboard",
-    path: "/",
+    path: "/dashboard",
   },
   {
+    icon: <BoxCubeIcon />,
+    name: "Woreda Profile",
+    path: "/woreda-profile",
+  },
+  /* {
     icon: <DocsIcon />,
     name: "Disaster Risk Assessment",
     path: "/disaster-risk-assessment",
@@ -90,10 +96,36 @@ const navItems: NavItem[] = [
     icon: <PieChartIcon />,
     name: "Analytics",
     path: "/analytics",
-  },
+  }, */
 ];
 
 const adminItems: NavItem[] = [
+  {
+    icon: <FolderIcon />,
+    name: "Site Management",
+    superAdminOnly: true,
+    subItems: [
+      {
+        name: "Site Settings",
+        path: "/admin/site-settings",
+        icon: <DocsIcon />,
+        permission: "view_template",
+      },
+    ],
+  },
+  {
+    icon: <ListIcon />,
+    name: "Menu",
+    superAdminOnly: true,
+    subItems: [
+      {
+        name: "Alert Subscriptions",
+        path: "/admin/alert-subscriptions",
+        icon: <MailIcon />,
+        permission: "view_template",
+      },
+    ],
+  },
   {
     icon: <BoxCubeIcon />,
     name: "Structure",
@@ -155,12 +187,12 @@ const adminItems: NavItem[] = [
         icon: <UserIcon />,
         permission: "view_user",
       },
-      {
+      /* {
         name: "Hierarchy",
         path: "/admin/hierarchy",
         icon: <BoxIconLine />,
         permission: "view_user",
-      },
+      }, */
     ],
   },
   {
@@ -175,10 +207,41 @@ const adminItems: NavItem[] = [
         permission: "view_audit_log",
       },
       {
+        name: "Admin Logs",
+        path: "/admin/admin-logs",
+        icon: <LockIcon />,
+        permission: "view_audit_log",
+      },
+      {
         name: "Email Logs",
         path: "/admin/email-logs",
         icon: <MailIcon />,
         permission: "view_audit_log",
+      },
+    ],
+  },
+  {
+    icon: <DocsIcon />,
+    name: "Template Engine",
+    superAdminOnly: true,
+    subItems: [
+      {
+        name: "Template Library",
+        path: "/admin/template-library",
+        icon: <ListIcon />,
+        permission: "view_template",
+      },
+      {
+        name: "Form Builder",
+        path: "/admin/form-builder",
+        icon: <PencilIcon />,
+        permission: "create_template",
+      },
+      {
+        name: "Profile Mapping",
+        path: "/admin/profile-mapping",
+        icon: <GroupIcon />,
+        permission: "view_template",
       },
     ],
   },
@@ -209,7 +272,7 @@ const AppSidebar: React.FC = () => {
   // Helper to check permissions
   const checkPermission = (permission?: string) => {
     // Super Admin has full access
-    if (user?.roles?.some(r => ['superadmin', 'super admin'].includes(r.name.toLowerCase()))) {
+    if (user?.roles?.some(r => ['superadmin', 'super admin', 'super_admin'].includes(r.name.toLowerCase()))) {
       return true;
     }
     // If no permission requirement, it's public (to auth users)
@@ -220,6 +283,32 @@ const AppSidebar: React.FC = () => {
 
   // Filter items based on permissions
   const filterItems = (items: NavItem[]) => {
+    const isSuperAdmin = user?.roles?.some(r => ['superadmin', 'super admin', 'super_admin'].includes(r.name.toLowerCase()));
+
+    return items.map(item => {
+      // If superAdminOnly, ONLY Super Admin sees it unless we want to open it for permitted subitems
+      // BUT user request says "branch admin... only the part given by role".
+      // This means we should IGNORE superAdminOnly flag if the user has permissions for subItems? 
+      // OR we should remove superAdminOnly from the parent and rely on subItems?
+      // Let's interpret: "superAdminOnly" really means "Hidden from general public, but visible if you have permission".
+      // Actually, standard practice: If I have permission for a child, I should see the parent.
+
+      // Calculate valid subItems first
+      let filteredSub: SubItem[] = [];
+      if (item.subItems) {
+        filteredSub = item.subItems.filter(sub => checkPermission(sub.permission));
+      }
+
+      // Logic:
+      // 1. If Super Admin -> Show everything.
+      // 2. If NOT Super Admin:
+      //    a. If item has subItems: Show item ONLY if there are valid subItems (permissions match).
+      //    b. If item has NO subItems: Show item ONLY if checkPermission returns true.
+
+      if (isSuperAdmin) {
+        return item;
+      }
+
     const isSuperAdmin = user?.roles?.some(r => ['superadmin', 'super admin', 'super_admin', "admin", "Admin", "branch_admin", "Branch Admin", "manager", "Manager"].includes(r.name.toLowerCase()));
 
     return items.map(item => {
@@ -230,16 +319,19 @@ const AppSidebar: React.FC = () => {
 
       // If item has subItems, filter them
       if (item.subItems) {
-        const filteredSub = item.subItems.filter(sub => checkPermission(sub.permission));
-        // If subItems exist after filter, keep the item with filtered subItems
+        // If regular user (even branch admin) has access to some children, show the parent
         if (filteredSub.length > 0) {
           return { ...item, subItems: filteredSub };
         }
-        // If no subItems match, don't show the parent
-        return null;
+        return null; // No access to any children
       }
-      // If no subItems, just check permission on the item itself
+
+      // No subItems, check direct permission
+      // Also respect superAdminOnly check for leaf nodes if any (though usually for parents)
+      if (item.superAdminOnly) return null; // Hard block for leaf nodes marked superAdminOnly if not super admin
+
       return checkPermission(item.permission) ? item : null;
+
     }).filter(Boolean) as NavItem[];
   };
 
@@ -433,7 +525,7 @@ const AppSidebar: React.FC = () => {
         className={`py-8 flex items-center gap-3 ${!isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
           }`}
       >
-        <Link to="/" className="flex items-center gap-3">
+        <Link to="/dashboard" className="flex items-center gap-3">
           {isExpanded || isHovered || isMobileOpen ? (
             <>
               <img
@@ -442,7 +534,7 @@ const AppSidebar: React.FC = () => {
                 className="h-12 w-12 object-contain"
               />
               <h3 className="text-xl font-bold text-gray-800 dark:text-white">
-                IDRMIS
+                PDRM
               </h3>
             </>
           ) : (

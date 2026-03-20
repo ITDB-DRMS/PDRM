@@ -16,7 +16,8 @@ const router = express.Router();
 
 router.post('/',
     protect,
-    checkHierarchyLevel('branch_admin'),
+    checkHierarchyLevel('branch_admin'), 
+    // checkHierarchyLevel('expert'),
     upload.single('profileImage'),
     createUser
 );
@@ -42,7 +43,8 @@ router.put('/:id',
 
 router.delete('/:id',
     protect,
-    checkHierarchyLevel('branch_admin'),
+    // checkHierarchyLevel('branch_admin'), // Relaxed to allow delegated users
+    checkHierarchyLevel('expert'),
     canAccessUser,
     deleteUser
 );

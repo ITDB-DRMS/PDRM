@@ -25,9 +25,10 @@ const userSchema = new mongoose.Schema({
       'directorate',      // Head Office/Branch - Directorate
       'team_leader',      // Head Office/Branch - Team Leader
       'expert',           // Head Office/Branch - Expert
-      'branch_admin'      // Branch - Branch Admin
+      'branch_admin',      // Branch - Branch Admin
+      'public',           // Public - Public User
     ],
-    default: 'expert'
+    default: 'public'
   },
 
   organizationType: {

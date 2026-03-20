@@ -13,11 +13,12 @@ export const createOrganization = async (req, res) => {
         const organization = await organizationService.createOrganization(transformedData);
 
         await auditService.logAction({
-            userId: req.user.id,
+            userId: req.user._id || req.user.id,
             action: 'ORGANIZATION_CREATE',
             resource: 'Organization',
+            resourceId: organization._id,
             after: organization,
-            ip: req.ip
+            ip: req.ip || '127.0.0.1'
         });
 
         res.status(201).json(formatOrganizationResponse(organization));

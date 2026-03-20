@@ -14,6 +14,21 @@ export const createTeam = async (req, res) => {
             });
         }
 
+        // Access Control: Branch Admin restriction
+        const isBranchAdmin = req.user.accessLevel === 'branch_admin' ||
+            (req.user.roles && req.user.roles.some(r => ['Branch Admin', 'branch_admin'].includes(r.name)));
+
+        const isSuperAdmin = req.user.accessLevel === 'super_admin' ||
+            (req.user.roles && req.user.roles.some(r => ['Super Admin', 'super_admin', 'superadmin'].includes(r.name)));
+
+        if (isBranchAdmin && !isSuperAdmin) {
+            const userOrgId = req.user.organization?._id || req.user.organization;
+            if (teamData.organization && String(teamData.organization) !== String(userOrgId)) {
+                return res.status(403).json({ message: "Branch Admins can only create teams for their own branch." });
+            }
+            teamData.organization = userOrgId;
+        }
+
         const team = await teamService.createTeam(teamData, req.user.id);
 
         await auditService.logAction({
