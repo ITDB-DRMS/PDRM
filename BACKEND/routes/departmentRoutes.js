@@ -8,23 +8,23 @@ import {
     getDepartmentsByOrg,
     getDepartmentsBySector
 } from '../controllers/departmentController.js';
-import { protect, admin } from '../middleware/authMiddleware.js';
+import { protect } from '../middleware/authMiddleware.js';
+import { checkPermission } from '../middleware/permissionMiddleware.js';
 
 const router = express.Router();
 
 router.route('/')
-    .post(protect, admin, createDepartment)
-    .get(protect, admin, getDepartments);
+    .post(protect, checkPermission('department', 'create'), createDepartment)
+    .get(protect, checkPermission('department', 'view'), getDepartments);
 
 router.route('/:id')
-    .get(protect, admin, getDepartmentById)
-    .put(protect, admin, updateDepartment)
-    .delete(protect, admin, deleteDepartment);
+    .get(protect, checkPermission('department', 'view'), getDepartmentById)
+    .put(protect, checkPermission('department', 'update'), updateDepartment)
+    .delete(protect, checkPermission('department', 'delete'), deleteDepartment);
 
 // Get departments of an organization
-router.get('/organization/:orgId', protect, admin, getDepartmentsByOrg);
+router.get('/organization/:orgId', protect, checkPermission('department', 'view'), getDepartmentsByOrg);
 
 // Get departments of a sector
-router.get('/sector/:sectorId', protect, admin, getDepartmentsBySector);
 
 export default router;

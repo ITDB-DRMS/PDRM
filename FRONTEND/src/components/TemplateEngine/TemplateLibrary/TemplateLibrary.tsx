@@ -10,6 +10,7 @@ import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router';
 import WordImportModal from './WordImportModal';
+import { Can } from '@/components/auth/PermissionGuard';
 
 const PreviewModal: React.FC<{ template: any; onClose: () => void }> = ({ template, onClose }) => {
     return (
@@ -114,6 +115,7 @@ const statusConfig: Record<string, { bg: string; text: string; dot: string }> = 
 
 const TemplateCard: React.FC<{
     template: any;
+    isSurveyMode?: boolean;
     onEdit: (id: string) => void;
     onDelete: (t: any) => void;
     onExport: (id: string, name: string) => void;
@@ -122,7 +124,7 @@ const TemplateCard: React.FC<{
     onRestore: (id: string) => void;
     onRevertToDraft: (id: string) => void;
     onPermanentDelete: (id: string) => void;
-}> = ({ template, onEdit, onDelete, onExport, onPreview, onPublish, onRestore, onRevertToDraft, onPermanentDelete }) => {
+}> = ({ template, isSurveyMode = false, onEdit, onDelete, onExport, onPreview, onPublish, onRestore, onRevertToDraft, onPermanentDelete }) => {
     const navigate = useNavigate();
     const sc = statusConfig[template.status] || statusConfig.Draft;
     const fields = template.modules?.reduce((acc: number, m: any) =>
@@ -147,23 +149,27 @@ const TemplateCard: React.FC<{
                             {template.status}
                         </div>
                         {template.status === 'Published' && (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); window.open(`/responses/${template._id}`, '_blank'); }}
-                                className="flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 group/btn"
-                                title="Start Data Entry"
-                            >
-                                <LayoutDashboard size={14} className="group-hover/btn:scale-110 transition-transform" />
-                            </button>
+                            <Can resource="FormResponse" action="create">
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); window.open(`/responses/${template._id}`, '_blank'); }}
+                                    className="flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 group/btn"
+                                    title="Start Data Entry"
+                                >
+                                    <LayoutDashboard size={14} className="group-hover/btn:scale-110 transition-transform" />
+                                </button>
+                            </Can>
                         )}
                     </div>
-                    {template.status !== 'Published' && (
-                        <button
-                            onClick={() => onEdit(template._id)}
-                            className="p-1.5 rounded-lg text-gray-300 hover:text-blue-600 hover:bg-blue-50 transition-all opacity-0 group-hover:opacity-100"
-                            title="Edit template"
-                        >
-                            <MoreVertical size={18} />
-                        </button>
+                    {!isSurveyMode && template.status !== 'Published' && (
+                        <Can resource="Template" action="update">
+                            <button
+                                onClick={() => onEdit(template._id)}
+                                className="p-1.5 rounded-lg text-gray-300 hover:text-blue-600 hover:bg-blue-50 transition-all opacity-0 group-hover:opacity-100"
+                                title="Edit template"
+                            >
+                                <MoreVertical size={18} />
+                            </button>
+                        </Can>
                     )}
                 </div>
 
@@ -205,74 +211,92 @@ const TemplateCard: React.FC<{
                         >
                             <Eye size={16} />
                         </button>
-                        <button
-                            onClick={() => navigate(`/admin/responses/${template._id}`)}
-                            className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-cyan-600 transition-all border border-transparent hover:border-cyan-100"
-                            title="View Responses Database"
-                        >
-                            <Database size={16} />
-                        </button>
+                        <Can resource="FormResponse" action="view">
+                            <button
+                                onClick={() => navigate(`/admin/responses/${template._id}`)}
+                                className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-cyan-600 transition-all border border-transparent hover:border-cyan-100"
+                                title="View Responses Database"
+                            >
+                                <Database size={16} />
+                            </button>
+                        </Can>
 
-                        {template.isDeleted || template.status === 'Archived' ? (
+                        {!isSurveyMode && (template.isDeleted || template.status === 'Archived') && (
                             <>
-                                <button
-                                    onClick={() => onRestore(template._id)}
-                                    className="p-2 hover:bg-white rounded-lg text-green-400 hover:text-green-600 transition-all border border-transparent hover:border-green-100"
-                                    title="Restore to Draft"
-                                >
-                                    <RotateCcw size={16} />
-                                </button>
-                                <button
-                                    onClick={() => onPermanentDelete(template._id)}
-                                    className="p-2 hover:bg-white rounded-lg text-red-400 hover:text-red-600 transition-all border border-transparent hover:border-red-100"
-                                    title="Delete Permanently"
-                                >
-                                    <Trash size={16} />
-                                </button>
-                            </>
-                        ) : (
-                            <>
-                                <button
-                                    onClick={() => onExport(template._id, template.name)}
-                                    className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-emerald-600 transition-all border border-transparent hover:border-emerald-100"
-                                    title="Export Template"
-                                >
-                                    <Download size={16} />
-                                </button>
-                                {template.status === 'Draft' && (
+                                <Can resource="Template" action="update">
                                     <button
-                                        onClick={() => onPublish(template._id)}
-                                        className="p-2 hover:bg-white rounded-lg text-amber-400 hover:text-amber-600 transition-all border border-transparent hover:border-amber-100"
-                                        title="Publish Now"
-                                    >
-                                        <Send size={16} />
-                                    </button>
-                                )}
-                                {template.status === 'Published' && (
-                                    <button
-                                        onClick={() => onRevertToDraft(template._id)}
-                                        className="p-2 hover:bg-white rounded-lg text-amber-400 hover:text-amber-600 transition-all border border-transparent hover:border-amber-100"
-                                        title="Unpublish (Restore to Draft)"
+                                        onClick={() => onRestore(template._id)}
+                                        className="p-2 hover:bg-white rounded-lg text-green-400 hover:text-green-600 transition-all border border-transparent hover:border-green-100"
+                                        title="Restore to Draft"
                                     >
                                         <RotateCcw size={16} />
                                     </button>
+                                </Can>
+                                <Can resource="Template" action="delete">
+                                    <button
+                                        onClick={() => onPermanentDelete(template._id)}
+                                        className="p-2 hover:bg-white rounded-lg text-red-400 hover:text-red-600 transition-all border border-transparent hover:border-red-100"
+                                        title="Delete Permanently"
+                                    >
+                                        <Trash size={16} />
+                                    </button>
+                                </Can>
+                            </>
+                        )}
+
+                        {!isSurveyMode && !template.isDeleted && template.status !== 'Archived' && (
+                            <>
+                                <Can resource="Template" action="update">
+                                    <button
+                                        onClick={() => onExport(template._id, template.name)}
+                                        className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-emerald-600 transition-all border border-transparent hover:border-emerald-100"
+                                        title="Export Template"
+                                    >
+                                        <Download size={16} />
+                                    </button>
+                                </Can>
+                                {template.status === 'Draft' && (
+                                    <Can resource="Template" action="update">
+                                        <button
+                                            onClick={() => onPublish(template._id)}
+                                            className="p-2 hover:bg-white rounded-lg text-amber-400 hover:text-amber-600 transition-all border border-transparent hover:border-amber-100"
+                                            title="Publish Now"
+                                        >
+                                            <Send size={16} />
+                                        </button>
+                                    </Can>
+                                )}
+                                {template.status === 'Published' && (
+                                    <Can resource="Template" action="update">
+                                        <button
+                                            onClick={() => onRevertToDraft(template._id)}
+                                            className="p-2 hover:bg-white rounded-lg text-amber-400 hover:text-amber-600 transition-all border border-transparent hover:border-amber-100"
+                                            title="Unpublish (Restore to Draft)"
+                                        >
+                                            <RotateCcw size={16} />
+                                        </button>
+                                    </Can>
                                 )}
                                 {template.status !== 'Published' && (
-                                    <button
-                                        onClick={() => onEdit(template._id)}
-                                        className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-indigo-600 transition-all border border-transparent hover:border-indigo-100"
-                                        title="Edit / Update"
-                                    >
-                                        <Edit3 size={16} />
-                                    </button>
+                                    <Can resource="Template" action="update">
+                                        <button
+                                            onClick={() => onEdit(template._id)}
+                                            className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-indigo-600 transition-all border border-transparent hover:border-indigo-100"
+                                            title="Edit / Update"
+                                        >
+                                            <Edit3 size={16} />
+                                        </button>
+                                    </Can>
                                 )}
-                                <button
-                                    onClick={() => onDelete(template)}
-                                    className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-red-600 transition-all border border-transparent hover:border-red-100"
-                                    title="Archive"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
+                                <Can resource="Template" action="delete">
+                                    <button
+                                        onClick={() => onDelete(template)}
+                                        className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-red-600 transition-all border border-transparent hover:border-red-100"
+                                        title="Archive"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </Can>
                             </>
                         )}
                     </div>
@@ -283,11 +307,16 @@ const TemplateCard: React.FC<{
 };
 
 // ─── Main Template Library ────────────────────────────────────────────────────
-const TemplateLibrary: React.FC = () => {
+interface TemplateLibraryProps {
+    mode?: 'admin' | 'published_only';
+}
+
+const TemplateLibrary: React.FC<TemplateLibraryProps> = ({ mode = 'admin' }) => {
+    const isSurveyMode = mode === 'published_only';
     const navigate = useNavigate();
     const [templates, setTemplates] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filterStatus, setFilterStatus] = useState('All');
+    const [filterStatus, setFilterStatus] = useState(isSurveyMode ? 'Published' : 'All');
     const [searchQuery, setSearchQuery] = useState('');
     const [showImportModal, setShowImportModal] = useState(false);
     const [previewTarget, setPreviewTarget] = useState<any | null>(null);
@@ -401,46 +430,52 @@ const TemplateLibrary: React.FC = () => {
         return matchesSearch && matchesStatus;
     });
 
-    const stats = {
-        total: templates.length,
-        published: templates.filter(t => t.status === 'Published').length,
-        draft: templates.filter(t => t.status === 'Draft').length,
-    };
+
 
     return (
         <div className="p-8 bg-gray-50 min-h-screen">
             {/* ── Page Header ── */}
             <header className="flex flex-wrap justify-between items-start gap-4 mb-8">
                 <div>
-                    <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Template Library</h1>
-                    <p className="text-gray-500 mt-1">Manage and version your national survey instruments</p>
+                    <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
+                        {isSurveyMode ? 'Survey Library' : 'Template Library'}
+                    </h1>
+                    <p className="text-gray-500 mt-1">
+                        {isSurveyMode ? 'Browse and participate in active surveys' : 'Manage and version your national survey instruments'}
+                    </p>
                 </div>
-                <div className="flex items-center gap-3">
-                    {/* Import from Word */}
-                    <button
-                        onClick={() => setShowImportModal(true)}
-                        className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-300 shadow-sm transition-all"
-                    >
-                        <Upload size={18} />
-                        Import from Word
-                    </button>
-                    {/* Create New */}
-                    <button
-                        onClick={() => navigate('/admin/form-builder')}
-                        className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-6 py-3 rounded-xl font-bold hover:from-blue-700 hover:to-indigo-800 shadow-xl shadow-blue-200 transition-all"
-                    >
-                        <Plus size={20} />
-                        Create New
-                    </button>
-                </div>
+                {!isSurveyMode && (
+                    <div className="flex items-center gap-3">
+                        {/* Import from Word */}
+                        <Can resource="Template" action="create">
+                            <button
+                                onClick={() => setShowImportModal(true)}
+                                className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-300 shadow-sm transition-all"
+                            >
+                                <Upload size={18} />
+                                Import from Word
+                            </button>
+                        </Can>
+                        {/* Create New */}
+                        <Can resource="Template" action="create">
+                            <button
+                                onClick={() => navigate('/admin/form-builder')}
+                                className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-6 py-3 rounded-xl font-bold hover:from-blue-700 hover:to-indigo-800 shadow-xl shadow-blue-200 transition-all"
+                            >
+                                <Plus size={20} />
+                                Create New
+                            </button>
+                        </Can>
+                    </div>
+                )}
             </header>
 
             {/* ── Stats Bar ── */}
             <div className="grid grid-cols-3 gap-4 mb-8">
                 {[
-                    { label: 'Total Templates', value: stats.total, color: 'bg-white border-gray-100', textColor: 'text-gray-900' },
-                    { label: 'Published', value: stats.published, color: 'bg-green-50 border-green-100', textColor: 'text-green-700' },
-                    { label: 'Drafts', value: stats.draft, color: 'bg-amber-50 border-amber-100', textColor: 'text-amber-700' },
+                    { label: 'Total Templates', value: templates.length, color: 'bg-white border-gray-100', textColor: 'text-gray-900' },
+                    { label: 'Published', value: templates.filter(t => t.status === 'Published').length, color: 'bg-green-50 border-green-100', textColor: 'text-green-700' },
+                    { label: 'Drafts', value: templates.filter(t => t.status === 'Draft').length, color: 'bg-amber-50 border-amber-100', textColor: 'text-amber-700' },
                 ].map(stat => (
                     <div key={stat.label} className={`${stat.color} border rounded-2xl p-5 flex items-center gap-4`}>
                         <p className={`text-3xl font-black ${stat.textColor}`}>{stat.value}</p>
@@ -451,20 +486,27 @@ const TemplateLibrary: React.FC = () => {
 
             {/* ── Filters Bar ── */}
             <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-                <div className="flex bg-white p-1 rounded-xl shadow-sm border overflow-hidden">
-                    {['All', 'Draft', 'Published', 'Archived'].map((status) => (
-                        <button
-                            key={status}
-                            onClick={() => setFilterStatus(status)}
-                            className={`px-5 py-2 text-sm font-semibold rounded-lg transition-all ${filterStatus === status
-                                ? 'bg-blue-600 text-white shadow-md'
-                                : 'text-gray-500 hover:bg-gray-50'
-                                }`}
-                        >
-                            {status}
-                        </button>
-                    ))}
-                </div>
+                {!isSurveyMode ? (
+                    <div className="flex bg-white p-1 rounded-xl shadow-sm border overflow-hidden">
+                        {['All', 'Draft', 'Published', 'Archived'].map((status) => (
+                            <button
+                                key={status}
+                                onClick={() => setFilterStatus(status)}
+                                className={`px-5 py-2 text-sm font-semibold rounded-lg transition-all ${filterStatus === status
+                                    ? 'bg-blue-600 text-white shadow-md'
+                                    : 'text-gray-500 hover:bg-gray-50'
+                                    }`}
+                            >
+                                {status}
+                            </button>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-100 rounded-xl">
+                        <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                        <span className="text-xs font-bold text-blue-700 uppercase tracking-widest">Active Survey Instruments</span>
+                    </div>
+                )}
 
                 <div className="flex items-center gap-3">
                     <div className="relative">
@@ -504,20 +546,22 @@ const TemplateLibrary: React.FC = () => {
                     <FileText size={64} className="mx-auto text-gray-200 mb-4" />
                     <h3 className="text-xl font-bold text-gray-400">No templates found</h3>
                     <p className="text-gray-400 mt-1 mb-6">Try changing your filters or create a new one</p>
-                    <div className="flex items-center justify-center gap-3">
-                        <button
-                            onClick={() => setShowImportModal(true)}
-                            className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-all"
-                        >
-                            <Upload size={16} /> Import from Word
-                        </button>
-                        <button
-                            onClick={() => navigate('/admin/form-builder')}
-                            className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all"
-                        >
-                            <Plus size={16} /> Create New
-                        </button>
-                    </div>
+                    {!isSurveyMode && (
+                        <div className="flex items-center justify-center gap-3">
+                            <button
+                                onClick={() => setShowImportModal(true)}
+                                className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-all"
+                            >
+                                <Upload size={16} /> Import from Word
+                            </button>
+                            <button
+                                onClick={() => navigate('/admin/form-builder')}
+                                className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all"
+                            >
+                                <Plus size={16} /> Create New
+                            </button>
+                        </div>
+                    )}
                 </motion.div>
             ) : (
                 <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -526,6 +570,7 @@ const TemplateLibrary: React.FC = () => {
                             <TemplateCard
                                 key={template._id}
                                 template={template}
+                                isSurveyMode={isSurveyMode}
                                 onEdit={(id) => navigate(`/admin/form-builder/${id}`)}
                                 onDelete={(t) => setDeleteTarget(t)}
                                 onExport={handleExport}

@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const userSchema = new mongoose.Schema({
   fullname: String,
   email: { type: String, unique: true },
-  phone: { type: String, unique: true },
+  phone: { type: String, unique: true, sparse: true },
   passwordHash: String,
   profileImage: String, // Path to profile image
   status: { type: String, default: 'pending' }, // pending | active | suspended

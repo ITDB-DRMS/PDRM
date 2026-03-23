@@ -232,3 +232,30 @@ export const exportToCSV = async (req, res) => {
         res.status(500).json({ message: 'Error generating export' });
     }
 };
+
+// @desc    Delete a response
+// @route   DELETE /api/responses/:id
+export const deleteResponse = async (req, res) => {
+    try {
+        const response = await FormResponse.findById(req.params.id);
+        if (!response) {
+            return res.status(404).json({ message: 'Response not found' });
+        }
+
+        const before = response.toObject();
+        await FormResponse.findByIdAndDelete(req.params.id);
+
+        await auditService.logAction({
+            userId: req.user?._id,
+            action: 'RESPONSE_DELETE',
+            resource: 'FormResponse',
+            resourceId: req.params.id,
+            before,
+            ip: req.ip
+        });
+
+        res.json({ message: 'Response deleted successfully from tracking' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};

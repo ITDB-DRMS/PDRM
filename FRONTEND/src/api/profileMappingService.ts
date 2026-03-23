@@ -5,8 +5,9 @@ export interface ProfileMappingItem {
     sourceKey: string;
     transformation: 'direct' | 'cast_number' | 'boolean_map' | 'lookup' | 'calculation';
     sourceKeys?: string[]; // Used for calculations
-    operation?: 'sum' | 'average' | 'min' | 'max' | 'formula';
+    operation?: 'sum' | 'average' | 'min' | 'max' | 'formula' | 'concat' | 'and' | 'or' | 'count';
     formula?: string;
+    separator?: string; // For concat operation
     lookupOptions?: { sourceValue: any; targetValue: any }[];
     validation?: {
         required: boolean;

@@ -25,9 +25,10 @@ const profileMappingSchema = new mongoose.Schema({
         sourceKeys: [String], // Used for calculations (multi-field)
         operation: { 
             type: String, 
-            enum: ['sum', 'average', 'min', 'max', 'formula'] 
+            enum: ['sum', 'average', 'min', 'max', 'formula', 'concat', 'and', 'or', 'count'] 
         },
         formula: String, // e.g. "source1 + source2"
+        separator: { type: String, default: ' ' }, // For concat operation
         lookupOptions: [{ 
             sourceValue: mongoose.Schema.Types.Mixed, 
             targetValue: mongoose.Schema.Types.Mixed 

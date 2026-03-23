@@ -1,10 +1,10 @@
 import mongoose from 'mongoose';
 
 const adminLocationSchema = new mongoose.Schema({
-    subcity: { type: String },
-    woreda: { type: String, required: true },
-    block: { type: String },
-    house_no: { type: String }
+    subcity: { type: String, trim: true },
+    woreda: { type: String, required: true, trim: true },
+    block: { type: String, trim: true },
+    house_no: { type: String, trim: true }
 });
 
 const demographicsSchema = new mongoose.Schema({
@@ -189,6 +189,9 @@ const woredaProfileSchema = new mongoose.Schema({
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
-woredaProfileSchema.index({ 'location.woreda': 1, 'location.subcity': 1 });
+woredaProfileSchema.index(
+    { 'location.subcity': 1, 'location.woreda': 1, 'location.block': 1, 'location.house_no': 1 },
+    { unique: true, name: 'unique_location_index' }
+);
 
 export default mongoose.model('WoredaProfile', woredaProfileSchema);

@@ -103,20 +103,59 @@ export const transformData = (sourceData, mappingConfig) => {
                 break;
             case 'calculation':
                 const keys = mapping.sourceKeys && mapping.sourceKeys.length > 0 ? mapping.sourceKeys : [mapping.sourceKey];
-                const vals = keys.map(k => {
-                    const v = getRawValue(sourceData[k]);
-                    if (Array.isArray(v)) return v.length; // If checkbox, use count
-                    return (v === undefined || v === null || v === '') ? 0 : Number(v);
-                });
                 
-                if (mapping.operation === 'sum') {
-                    value = vals.reduce((a, b) => a + b, 0);
-                } else if (mapping.operation === 'average') {
-                    value = vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
-                } else if (mapping.operation === 'min') {
-                    value = Math.min(...vals);
-                } else if (mapping.operation === 'max') {
-                    value = Math.max(...vals);
+                if (mapping.operation === 'formula' && mapping.formula) {
+                    let formulaResult = mapping.formula;
+                    keys.forEach(k => {
+                        const v = getRawValue(sourceData[k]) || '';
+                        formulaResult = formulaResult.replace(new RegExp(`{{${k}}}`, 'g'), v);
+                    });
+                    // Try to evaluate if it looks like a numeric formula, otherwise return as string
+                    try {
+                        // Simple numeric evaluation for safety, or keep as string
+                        if (/^[0-9+\-*/().\s]+$/.test(formulaResult)) {
+                            value = eval(formulaResult);
+                        } else {
+                            value = formulaResult;
+                        }
+                    } catch (e) {
+                        value = formulaResult;
+                    }
+                } else if (mapping.operation === 'concat') {
+                    const sep = mapping.separator || ' ';
+                    value = keys.map(k => getRawValue(sourceData[k])).filter(v => v !== undefined && v !== null && v !== '').join(sep);
+                } else if (mapping.operation === 'and') {
+                    value = keys.every(k => {
+                        const v = getRawValue(sourceData[k]);
+                        return !!v && (v === 'Yes' || v === 'true' || v === true || v === 1 || v === '1');
+                    });
+                } else if (mapping.operation === 'or') {
+                    value = keys.some(k => {
+                        const v = getRawValue(sourceData[k]);
+                        return !!v && (v === 'Yes' || v === 'true' || v === true || v === 1 || v === '1');
+                    });
+                } else if (mapping.operation === 'count') {
+                    value = keys.filter(k => {
+                        const v = getRawValue(sourceData[k]);
+                        return v !== undefined && v !== null && v !== '';
+                    }).length;
+                } else {
+                    // Numeric Aggregations
+                    const vals = keys.map(k => {
+                        const v = getRawValue(sourceData[k]);
+                        if (Array.isArray(v)) return v.length; // If checkbox, use count
+                        return (v === undefined || v === null || v === '') ? 0 : Number(v);
+                    });
+                    
+                    if (mapping.operation === 'sum') {
+                        value = vals.reduce((a, b) => a + b, 0);
+                    } else if (mapping.operation === 'average') {
+                        value = vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+                    } else if (mapping.operation === 'min') {
+                        value = Math.min(...vals);
+                    } else if (mapping.operation === 'max') {
+                        value = Math.max(...vals);
+                    }
                 }
                 break;
             // 'direct' case does nothing

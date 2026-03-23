@@ -49,15 +49,15 @@ const Pagination = ({ total, current, perPage, onPageChange }: { total: number, 
     if (totalPages <= 1) return null;
 
     return (
-        <div className="flex items-center justify-between px-10 py-6 border-t border-slate-100 dark:border-white/5 bg-slate-50/30 dark:bg-white/[0.01]">
-            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 sm:px-10 py-6 border-t border-slate-100 dark:border-white/5 bg-slate-50/30 dark:bg-white/[0.01]">
+            <span className="text-[9px] sm:text-[10px] font-black uppercase text-slate-400 tracking-widest text-center sm:text-left">
                 Showing <span className="text-slate-900 dark:text-white">{(current - 1) * perPage + 1} - {Math.min(current * perPage, total)}</span> of {total} events
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
                 <button 
                     disabled={current === 1}
                     onClick={() => onPageChange(current - 1)}
-                    className="h-8 px-4 rounded-lg border border-slate-200 dark:border-white/10 text-[10px] font-black uppercase tracking-widest disabled:opacity-30 hover:bg-white dark:hover:bg-white/5 transition-colors"
+                    className="h-8 px-3 sm:px-4 rounded-lg border border-slate-200 dark:border-white/10 text-[9px] sm:text-[10px] font-black uppercase tracking-widest disabled:opacity-30 hover:bg-white dark:hover:bg-white/5 transition-colors"
                 >
                     Prev
                 </button>
@@ -68,7 +68,7 @@ const Pagination = ({ total, current, perPage, onPageChange }: { total: number, 
                             <button
                                 key={pageNum}
                                 onClick={() => onPageChange(pageNum)}
-                                className={`h-8 w-8 rounded-lg text-[10px] font-black transition-all ${current === pageNum ? 'bg-slate-900 text-white shadow-lg' : 'hover:bg-white dark:hover:bg-white/5 text-slate-400'}`}
+                                className={`h-8 w-8 rounded-lg text-[9px] sm:text-[10px] font-black transition-all ${current === pageNum ? 'bg-slate-900 text-white shadow-lg' : 'hover:bg-white dark:hover:bg-white/5 text-slate-400'}`}
                             >
                                 {pageNum}
                             </button>
@@ -78,7 +78,7 @@ const Pagination = ({ total, current, perPage, onPageChange }: { total: number, 
                 <button 
                     disabled={current === totalPages}
                     onClick={() => onPageChange(current + 1)}
-                    className="h-8 px-4 rounded-lg border border-slate-200 dark:border-white/10 text-[10px] font-black uppercase tracking-widest disabled:opacity-30 hover:bg-white dark:hover:bg-white/5 transition-colors"
+                    className="h-8 px-3 sm:px-4 rounded-lg border border-slate-200 dark:border-white/10 text-[9px] sm:text-[10px] font-black uppercase tracking-widest disabled:opacity-30 hover:bg-white dark:hover:bg-white/5 transition-colors"
                 >
                     Next
                 </button>
@@ -101,22 +101,22 @@ const AuditStats = ({ logs }: { logs: AuditLog[] }) => {
     ];
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {stats.map((s, i) => (
                 <motion.div 
                     key={i}
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.05 }}
-                    className="group relative overflow-hidden rounded-[2rem] border border-white/40 bg-white/40 p-0.5 shadow-lg backdrop-blur-xl dark:border-white/10 dark:bg-white/5"
+                    className="group relative overflow-hidden rounded-3xl border border-white/40 bg-white/40 p-0.5 shadow-lg backdrop-blur-xl dark:border-white/10 dark:bg-white/5"
                 >
-                    <div className="relative p-5 flex items-center gap-4">
-                        <div className={`h-12 w-12 rounded-2xl bg-${s.color}-50 dark:bg-${s.color}-500/10 flex items-center justify-center text-${s.color}-600 dark:text-${s.color}-400 shadow-inner group-hover:scale-105 transition-transform duration-500`}>
+                    <div className="relative p-4 md:p-5 flex items-center gap-4">
+                        <div className={`h-10 w-10 md:h-12 md:w-12 rounded-xl md:rounded-2xl bg-${s.color}-50 dark:bg-${s.color}-500/10 flex items-center justify-center text-${s.color}-600 dark:text-${s.color}-400 shadow-inner group-hover:scale-105 transition-transform duration-500 flex-shrink-0`}>
                             {s.icon}
                         </div>
-                        <div>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">{s.label}</p>
-                            <h4 className="text-xl font-black text-slate-900 dark:text-white tracking-tighter">{s.value}</h4>
+                        <div className="min-w-0">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5 truncate">{s.label}</p>
+                            <h4 className="text-lg md:text-xl font-black text-slate-900 dark:text-white tracking-tighter">{s.value}</h4>
                         </div>
                     </div>
                 </motion.div>
@@ -149,7 +149,11 @@ const AuditLogs: React.FC = () => {
     }, []);
 
     const filteredLogs = useMemo(() => {
-        return logs.filter(log => {
+        const sorted = [...logs].sort((a, b) => 
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+        
+        return sorted.filter(log => {
             const matchesSearch = 
                 (log.action || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (log.resource || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -260,7 +264,7 @@ const AuditLogs: React.FC = () => {
     };
 
     return (
-        <div className="relative min-h-screen pb-10 p-4 lg:p-10 overflow-hidden">
+        <div className="relative min-h-screen pb-20 p-4 sm:p-6 lg:p-10 overflow-hidden bg-slate-50 dark:bg-[#0A0A0B]">
             <PageMeta title="Audit Logs | IDRMIS" description="System audit and data history" />
             <PageBreadcrumb pageTitle="Audit Logs" />
             <DiamondBackground />
@@ -268,36 +272,36 @@ const AuditLogs: React.FC = () => {
             <div className="max-w-[1600px] mx-auto space-y-6 relative z-10">
                 
                 {/* Header Unit */}
-                <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6">
+                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
                     <div className="space-y-1">
                         <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
-                                <Shield size={18} />
+                            <div className="h-10 w-10 md:h-12 md:w-12 bg-blue-600 rounded-xl md:rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+                                <Shield size={20} />
                             </div>
-                            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter uppercase">Audit Logs</h2>
+                            <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tighter uppercase">Audit Logs</h2>
                         </div>
-                        <p className="text-[10px] font-bold text-slate-500 dark:text-white/50 tracking-wider">
+                        <p className="text-[9px] md:text-[10px] font-bold text-slate-500 dark:text-white/50 tracking-wider">
                             REAL-TIME SYSTEM INTEGRITY AUDIT TRAIL. MONITORING IDENTITY AND DATA LINEAGE.
                         </p>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto">
-                        <div className="relative w-full sm:w-64 group">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
+                        <div className="relative flex-1 sm:w-64 group">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={14} />
                             <input
                                 type="text"
                                 placeholder="Search action..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="h-10 w-full rounded-xl bg-white/60 dark:bg-white/5 border border-white/50 dark:border-white/10 pl-10 pr-4 text-[11px] font-bold shadow-sm focus:outline-none focus:border-blue-500 transition-all backdrop-blur-xl"
+                                className="h-11 w-full rounded-xl bg-white/60 dark:bg-white/5 border border-white/50 dark:border-white/10 pl-10 pr-4 text-[11px] font-bold shadow-sm focus:outline-none focus:border-blue-500 transition-all backdrop-blur-xl"
                             />
                         </div>
-                        <div className="flex bg-white/60 dark:bg-white/5 p-0.5 rounded-xl border border-white/50 dark:border-white/10 backdrop-blur-xl shadow-sm">
+                        <div className="flex bg-white/60 dark:bg-white/5 p-1 rounded-xl border border-white/50 dark:border-white/10 backdrop-blur-xl shadow-sm overflow-x-auto">
                             {['all', 'success', 'failure'].map(s => (
                                 <button 
                                     key={s}
                                     onClick={() => setStatusFilter(s)}
-                                    className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${statusFilter === s ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                                    className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${statusFilter === s ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
                                 >
                                     {s}
                                 </button>
@@ -312,7 +316,7 @@ const AuditLogs: React.FC = () => {
                 <motion.div 
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="group relative overflow-hidden rounded-[2.5rem] border border-white/60 bg-white/40 shadow-xl backdrop-blur-3xl dark:border-white/10 dark:bg-white/5"
+                    className="group relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/20 shadow-2xl backdrop-blur-3xl dark:border-white/10 dark:bg-white/5"
                 >
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse min-w-[1100px]">
@@ -419,9 +423,9 @@ const AuditLogs: React.FC = () => {
                                                                     exit={{ opacity: 0, scale: 0.98 }}
                                                                     className="space-y-6"
                                                                 >
-                                                                    <div className="flex flex-col lg:flex-row gap-6">
+                                                                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                                                                         {renderDataNode('Prior State', log.before, changedKeys, false)}
-                                                                        <div className="hidden lg:flex items-center justify-center text-slate-200 dark:text-white/5">
+                                                                        <div className="hidden xl:flex items-center justify-center text-slate-200 dark:text-white/5">
                                                                             <ChevronRight size={32} />
                                                                         </div>
                                                                         {renderDataNode('Final State', log.after, changedKeys, true)}

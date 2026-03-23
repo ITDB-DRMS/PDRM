@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
 import {
     MapPin, Users, Home, Zap, ShieldCheck, Heart, Plus, X,
-    Search, RefreshCw, ChevronRight, Loader2, BarChart3,
+    Search, RefreshCw, ChevronRight, ChevronLeft, Loader2, BarChart3,
     FileText, CheckCircle, Clock, Edit3, Trash2, Eye,
     Building2, Wheat, AlertTriangle, ArrowLeft,
     Upload, FileSpreadsheet, ArrowRightLeft, AlertCircle
@@ -19,6 +19,7 @@ import {
     type WoredaProfileStats
 } from '../../api/woredaProfileService';
 import { getProfileMappings, type ProfileMapping } from '../../api/profileMappingService';
+import { Can } from '../../components/auth/PermissionGuard';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 const TABS = [
@@ -72,7 +73,7 @@ const emptyProfile = (): WoredaProfileInput => ({
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ElementType; color: string }> = ({ label, value, icon: Icon, color }) => (
     <div className={`relative bg-white rounded-3xl p-6 border border-slate-100 shadow-sm overflow-hidden group hover:shadow-md transition-all`}>
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-        <p className={`text-3xl font-black ${color}`}>{value}</p>
+        <p className={`text-2xl sm:text-3xl font-black ${color} truncate`}>{value}</p>
         <Icon size={64} className="absolute -right-4 -bottom-4 text-slate-50 group-hover:scale-110 transition-transform" />
     </div>
 );
@@ -86,7 +87,8 @@ const ProfileCard: React.FC<{
     onDelete?: () => void;
     drillDownLabel?: string;
 }> = ({ profile, onView, onDrillDown, onEdit, onDelete, drillDownLabel }) => {
-    const sc = STATUS_CONFIG[profile.status] || STATUS_CONFIG.Draft;
+    const statusKey = profile.status || 'Draft';
+    const sc = STATUS_CONFIG[statusKey] || STATUS_CONFIG.Draft;
     
     return (
         <motion.div layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
@@ -126,7 +128,7 @@ const ProfileCard: React.FC<{
                     </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-2 mb-6">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
                     <div className="bg-slate-50/50 rounded-2xl p-3 text-center border border-transparent hover:border-slate-100 transition-all">
                         <p className="text-lg font-black text-slate-900">{(profile.demographics?.total_population || 0).toLocaleString()}</p>
                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Pop.</p>
@@ -159,14 +161,18 @@ const ProfileCard: React.FC<{
                         )}
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
                             {onEdit && (
-                                <button onClick={onEdit} title="Edit Profile" className="w-9 h-9 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-white border border-transparent hover:border-indigo-100 flex items-center justify-center transition-all">
-                                    <Edit3 size={16} />
-                                </button>
+                                <Can resource="WoredaProfile" action="update">
+                                    <button onClick={onEdit} title="Edit Profile" className="w-9 h-9 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-white border border-transparent hover:border-indigo-100 flex items-center justify-center transition-all">
+                                        <Edit3 size={16} />
+                                    </button>
+                                </Can>
                             )}
                             {onDelete && (
-                                <button onClick={onDelete} title="Delete Profile" className="w-9 h-9 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-white border border-transparent hover:border-rose-100 flex items-center justify-center transition-all">
-                                    <Trash2 size={16} />
-                                </button>
+                                <Can resource="WoredaProfile" action="delete">
+                                    <button onClick={onDelete} title="Delete Profile" className="w-9 h-9 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-white border border-transparent hover:border-rose-100 flex items-center justify-center transition-all">
+                                        <Trash2 size={16} />
+                                    </button>
+                                </Can>
                             )}
                             <button onClick={onView} title="View Details" className="w-9 h-9 rounded-xl bg-slate-900 hover:bg-indigo-600 text-white flex items-center justify-center transition-all shadow-lg hover:shadow-indigo-200">
                                 <Eye size={16} />
@@ -230,7 +236,7 @@ const FormWizard: React.FC<{ initial?: WProfile | null; onSave: (d: WoredaProfil
                 {/* Body */}
                 <div className="flex-1 overflow-y-auto p-8">
                     {step === 0 && (
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {[['subcity','Subcity'],['woreda','Woreda'],['block','Block'],['house_no','House No']].map(([k,l]) => (
                                 <div key={k} className={k === 'block' || k === 'house_no' ? 'col-span-1' : ''}>
                                     <label className={labelCls}>{l}</label>
@@ -238,13 +244,13 @@ const FormWizard: React.FC<{ initial?: WProfile | null; onSave: (d: WoredaProfil
                                 </div>
                             ))}
                             <div><label className={labelCls}>Assessment Date</label><input type="date" className={inputCls} value={form.assessment_date} onChange={e => setForm(f => ({ ...f, assessment_date: e.target.value }))} /></div>
-                            <div className="col-span-2"><label className={labelCls}>Remarks</label><textarea className={inputCls} rows={2} value={form.remarks || ''} onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))} /></div>
+                            <div className="col-span-1 md:col-span-2"><label className={labelCls}>Remarks</label><textarea className={inputCls} rows={2} value={form.remarks || ''} onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))} /></div>
                         </div>
                     )}
 
                     {step === 1 && (
                         <div className="space-y-6">
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                 {[['total_population','Total Population'],['male_population','Male'],['female_population','Female'],['children_0_17','Children (0–17)'],['youth_18_29','Youth (18–29)'],['adults_30_59','Adults (30–59)'],['elderly_60_plus','Elderly (60+)'],['total_households','Total Households'],['female_headed_households','Female-headed HH'],['informal_settlement_population','Informal Settlement Pop.'],['low_income_households','Low-income HH'],['unemployment_rate','Unemployment Rate (%)'],['internally_displaced_population','IDPs']].map(([k,l]) => (
                                     <div key={k}>
                                         <label className={labelCls}>{l}</label>
@@ -288,8 +294,8 @@ const FormWizard: React.FC<{ initial?: WProfile | null; onSave: (d: WoredaProfil
                     )}
 
                     {step === 3 && (
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="col-span-2"><label className={labelCls}>Water Source</label><input className={inputCls} value={form.basic_services?.water_source || ''} onChange={e => setSvc('water_source', e.target.value)} placeholder="e.g. Piped Water, Borehole" /></div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="col-span-1 md:col-span-2"><label className={labelCls}>Water Source</label><input className={inputCls} value={form.basic_services?.water_source || ''} onChange={e => setSvc('water_source', e.target.value)} placeholder="e.g. Piped Water, Borehole" /></div>
                             <div><label className={labelCls}>Road Access</label>
                                 <select className={inputCls} value={form.basic_services?.road_access || ''} onChange={e => setSvc('road_access', e.target.value)}>
                                     <option value="">Select</option>
@@ -314,7 +320,7 @@ const FormWizard: React.FC<{ initial?: WProfile | null; onSave: (d: WoredaProfil
                             {(form.critical_facilities || []).map((f, i) => (
                                 <div key={i} className="bg-slate-50 rounded-2xl p-5">
                                     <p className="text-sm font-bold text-slate-800 mb-3">{f.facility_type}</p>
-                                    <div className="grid grid-cols-3 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                         <div><label className={labelCls}>Distance (km)</label>
                                             <input type="number" min={0} className={inputCls} value={f.distance_to_nearest_emergency_service || 0}
                                                 onChange={e => setForm(fr => ({ ...fr, critical_facilities: fr.critical_facilities?.map((cf, idx) => idx === i ? { ...cf, distance_to_nearest_emergency_service: Number(e.target.value) } : cf) }))} />
@@ -443,9 +449,13 @@ const DetailView: React.FC<{ profile: WProfile; onBack: () => void; onEdit?: () 
                 </div>
                 <div className="flex items-center gap-3">
                     <span className={`text-xs font-bold px-4 py-2 rounded-full border ${statusColor(profile.status)}`}>{profile.status}</span>
-                    {onEdit && <button onClick={onEdit} className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
-                        <Edit3 size={14} /> Edit
-                    </button>}
+                    {onEdit && (
+                        <Can resource="WoredaProfile" action="update">
+                            <button onClick={onEdit} className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
+                                <Edit3 size={14} /> Edit
+                            </button>
+                        </Can>
+                    )}
                 </div>
             </div>
 
@@ -469,20 +479,27 @@ const DetailView: React.FC<{ profile: WProfile; onBack: () => void; onEdit?: () 
                             <StatCard label="Vulnerable People" value={totalVulnerable.toLocaleString()} icon={Heart} color="text-rose-600" />
                             <StatCard label="Unemployment" value={`${d?.unemployment_rate || 0}%`} icon={AlertTriangle} color="text-amber-600" />
                         </div>
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Assessment Info</p>
-                                <InfoRow label="Date" value={new Date(profile.assessment_date).toLocaleDateString('en-GB')} />
-                                <InfoRow label="Assessed By" value={(profile.assessed_by as any)?.fullname || 'Woreda DRM Office'} />
-                                <InfoRow label="Remarks" value={profile.remarks} />
+                                <div className="bg-slate-50 rounded-2xl p-4">
+                                    <InfoRow label="Date" value={new Date(profile.assessment_date).toLocaleDateString('en-GB')} />
+                                    <InfoRow label="Assessed By" value={(profile.assessed_by as any)?.fullname || 'Woreda DRM Office'} />
+                                    <div className="mt-3">
+                                        <span className="text-xs font-semibold text-slate-400 block mb-1">Remarks</span>
+                                        <p className="text-sm font-medium text-slate-600 italic">"{profile.remarks || 'No remarks provided.'}"</p>
+                                    </div>
+                                </div>
                             </div>
                             <div>
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Population Breakdown</p>
-                                <InfoRow label="Male" value={`${d?.male_population?.toLocaleString() || 0}`} />
-                                <InfoRow label="Female" value={`${d?.female_population?.toLocaleString() || 0}`} />
-                                <InfoRow label="Children (0–17)" value={`${d?.children_0_17?.toLocaleString() || 0}`} />
-                                <InfoRow label="Youth (18–29)" value={`${d?.youth_18_29?.toLocaleString() || 0}`} />
-                                <InfoRow label="Elderly (60+)" value={`${d?.elderly_60_plus?.toLocaleString() || 0}`} />
+                                <div className="bg-slate-50 rounded-2xl p-4">
+                                    <InfoRow label="Male" value={`${d?.male_population?.toLocaleString() || 0}`} />
+                                    <InfoRow label="Female" value={`${d?.female_population?.toLocaleString() || 0}`} />
+                                    <InfoRow label="Children (0–17)" value={`${d?.children_0_17?.toLocaleString() || 0}`} />
+                                    <InfoRow label="Youth (18–29)" value={`${d?.youth_18_29?.toLocaleString() || 0}`} />
+                                    <InfoRow label="Elderly (60+)" value={`${d?.elderly_60_plus?.toLocaleString() || 0}`} />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1164,14 +1181,16 @@ const SyncPreviewModal: React.FC<{
                     <button onClick={onClose} className="px-6 py-4 rounded-2xl text-sm font-bold text-slate-500 hover:bg-slate-50 transition-all flex-1">
                         Cancel
                     </button>
-                    <button 
-                        disabled={syncing} 
-                        onClick={onConfirm} 
-                        className="px-10 py-4 bg-emerald-600 text-white rounded-2xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-lg flex items-center justify-center gap-2 flex-[2]"
-                    >
-                        {syncing ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
-                        {syncing ? 'Applying Changes...' : 'Confirm & Save Profile'}
-                    </button>
+                    <Can resource="WoredaProfile" action="sync">
+                        <button 
+                            disabled={syncing} 
+                            onClick={onConfirm} 
+                            className="px-10 py-4 bg-emerald-600 text-white rounded-2xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-lg flex items-center justify-center gap-2 flex-[2]"
+                        >
+                            {syncing ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
+                            {syncing ? 'Applying Changes...' : 'Confirm & Save Profile'}
+                        </button>
+                    </Can>
                 </div>
             </motion.div>
         </div>
@@ -1191,6 +1210,10 @@ const WoredaProfile: React.FC = () => {
     const [showForm, setShowForm] = useState(false);
     const [showImport, setShowImport] = useState(false);
     const [showSync, setShowSync] = useState(false);
+    const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+    const [statusFilter, setStatusFilter] = useState<'ALL' | 'Draft' | 'Submitted' | 'Reviewed'>('ALL');
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
     
     // Auto-open sync modal if navigated here from Response Explorer
     const searchParams = new URLSearchParams(location.search);
@@ -1235,6 +1258,22 @@ const WoredaProfile: React.FC = () => {
 
     const handleSave = async (data: WoredaProfileInput) => {
         try {
+            // Uniqueness check for household level
+            if (level === 'household' && data.location.house_no && data.location.house_no !== 'Aggregated Data') {
+                const isDuplicate = profiles.some(p => 
+                    p._id !== editProfile?._id && 
+                    p.location.house_no === data.location.house_no &&
+                    p.location.block === data.location.block &&
+                    p.location.woreda === data.location.woreda &&
+                    p.location.subcity === data.location.subcity
+                );
+                
+                if (isDuplicate) {
+                    toast.error(`Household No. ${data.location.house_no} already exists in this block.`);
+                    return;
+                }
+            }
+
             setSaving(true);
             if (editProfile) {
                 await updateWoredaProfile(editProfile._id, data);
@@ -1246,8 +1285,9 @@ const WoredaProfile: React.FC = () => {
             setShowForm(false);
             setEditProfile(null);
             fetchData();
-        } catch {
-            toast.error('Failed to save profile');
+        } catch (err: any) {
+            const msg = err.response?.data?.message || 'Failed to save profile';
+            toast.error(msg);
         } finally {
             setSaving(false);
         }
@@ -1307,11 +1347,21 @@ const WoredaProfile: React.FC = () => {
         }
     };
 
-    const filtered = profiles.filter(p =>
-        [p.location.woreda, p.location.subcity].some(v =>
-            v?.toLowerCase().includes(search.toLowerCase())
-        )
-    );
+    const filtered = profiles.filter(p => {
+        const searchText = search.toLowerCase();
+        const matchesSearch = [p.location.woreda, p.location.subcity, p.location.block, p.location.house_no].some(v =>
+            (v || '').toLowerCase().includes(searchText)
+        );
+        const matchesStatus = statusFilter === 'ALL' || p.status === statusFilter;
+        return matchesSearch && matchesStatus;
+    });
+
+    const totalPages = Math.ceil(filtered.length / itemsPerPage);
+    const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [search, statusFilter, level, path]);
 
     if (viewProfile) {
         return (
@@ -1328,35 +1378,41 @@ const WoredaProfile: React.FC = () => {
 
             {/* Page Header */}
             <div className="px-6 pt-2 pb-8">
-                <div className="flex items-center justify-between mb-8">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-200">
                             <MapPin size={22} className="text-white" />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-black text-slate-900">Woreda Profile</h1>
-                            <p className="text-xs text-slate-400 mt-0.5">Community DRM profiles & vulnerability assessments</p>
+                            <h1 className="text-xl md:text-2xl font-black text-slate-900">Woreda Profile</h1>
+                            <p className="text-[10px] md:text-xs text-slate-400 mt-0.5">Community DRM profiles & vulnerability assessments</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full md:w-auto">
                         <button onClick={fetchData} className="w-10 h-10 rounded-2xl bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 flex items-center justify-center shadow-sm transition-all"><RefreshCw size={16} /></button>
-                        <button 
-                            onClick={() => {
-                                if (mappings.length === 0) {
-                                    toast.warn('No profile mappings configured. Please create one first.');
-                                }
-                                setShowSync(true);
-                            }} 
-                            className="flex items-center gap-2 px-5 py-3 bg-white border border-slate-100 text-slate-700 rounded-2xl text-sm font-bold hover:bg-slate-50 transition-all shadow-sm"
-                        >
-                            <ArrowRightLeft size={16} className="text-indigo-600" /> Sync Interview
-                        </button>
-                        <button onClick={() => setShowImport(true)} className="flex items-center gap-2 px-5 py-3 bg-white border border-slate-100 text-slate-700 rounded-2xl text-sm font-bold hover:bg-slate-50 transition-all shadow-sm">
-                            <Upload size={16} className="text-indigo-600" /> Import Excel
-                        </button>
-                        <button onClick={() => { setEditProfile(null); setShowForm(true); }} className="flex items-center gap-2 px-5 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
-                            <Plus size={16} /> New Profile
-                        </button>
+                        <Can resource="WoredaProfile" action="sync">
+                            <button 
+                                onClick={() => {
+                                    if (mappings.length === 0) {
+                                        toast.warn('No profile mappings configured. Please create one first.');
+                                    }
+                                    setShowSync(true);
+                                }} 
+                                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 md:px-5 py-3 bg-white border border-slate-100 text-slate-700 rounded-2xl text-[11px] md:text-sm font-bold hover:bg-slate-50 transition-all shadow-sm"
+                            >
+                                <ArrowRightLeft size={16} className="text-indigo-600" /> Sync
+                            </button>
+                        </Can>
+                        <Can resource="WoredaProfile" action="import">
+                            <button onClick={() => setShowImport(true)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 md:px-5 py-3 bg-white border border-slate-100 text-slate-700 rounded-2xl text-[11px] md:text-sm font-bold hover:bg-slate-50 transition-all shadow-sm">
+                                <Upload size={16} className="text-indigo-600" /> Import
+                            </button>
+                        </Can>
+                        <Can resource="WoredaProfile" action="create">
+                            <button onClick={() => { setEditProfile(null); setShowForm(true); }} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 md:px-5 py-3 bg-indigo-600 text-white rounded-2xl text-[11px] md:text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
+                                <Plus size={16} /> Profile
+                            </button>
+                        </Can>
                     </div>
                 </div>
 
@@ -1393,9 +1449,45 @@ const WoredaProfile: React.FC = () => {
                         <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Search in ${level}...`}
                             className="w-full pl-12 pr-5 py-3 bg-white rounded-2xl border border-slate-100 text-sm font-medium text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 shadow-sm" />
                     </div>
-                    {path.subcity && <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-3 py-1.5 rounded-full uppercase">{path.subcity} Subcity</span>}
-                    {path.woreda && <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-3 py-1.5 rounded-full uppercase">Woreda {path.woreda}</span>}
-                    {path.block && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full uppercase">Block-{path.block}</span>}
+                    
+                    {/* View Mode Toggle */}
+                    <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 shadow-inner">
+                        <button 
+                            onClick={() => setViewMode('grid')} 
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'grid' ? 'bg-white text-indigo-700 shadow-sm border border-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            Grid
+                        </button>
+                        <button 
+                            onClick={() => setViewMode('table')} 
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'table' ? 'bg-white text-indigo-700 shadow-sm border border-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            Table
+                        </button>
+                    </div>
+
+                    {/* Status Tabs (The Filter Engine) */}
+                    <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 shadow-inner overflow-x-auto no-scrollbar">
+                        {[
+                            { label: 'All Profiles', value: 'ALL', color: 'bg-white text-slate-900 border-slate-100' },
+                            { label: 'Drafts', value: 'Draft', color: 'bg-amber-50 text-amber-700 border-amber-100' },
+                            { label: 'Submitted', value: 'Submitted', color: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
+                            { label: 'Reviewed', value: 'Reviewed', color: 'bg-blue-50 text-blue-700 border-blue-100' },
+                        ].map((tab) => (
+                            <button
+                                key={tab.value}
+                                onClick={() => setStatusFilter(tab.value as any)}
+                                className={`px-4 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap ${
+                                    statusFilter === tab.value 
+                                    ? `${tab.color} shadow-sm border ring-1 ring-slate-100` 
+                                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/50'
+                                }`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+
                     <span className="text-xs font-bold text-slate-400 px-2 whitespace-nowrap md:ml-auto">{filtered.length} profiles</span>
                 </div>
 
@@ -1412,11 +1504,13 @@ const WoredaProfile: React.FC = () => {
                         </div>
                         <p className="text-slate-500 font-bold">No profiles found</p>
                         <p className="text-slate-400 text-sm">Create your first Woreda Profile to get started</p>
-                        <button onClick={() => { setEditProfile(null); setShowForm(true); }} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold mt-2">
-                            <Plus size={16} /> Create Profile
-                        </button>
+                        <Can resource="WoredaProfile" action="create">
+                            <button onClick={() => { setEditProfile(null); setShowForm(true); }} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold mt-2">
+                                <Plus size={16} /> Create Profile
+                            </button>
+                        </Can>
                     </div>
-                ) : (
+                ) : viewMode === 'grid' ? (
                     <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                         <AnimatePresence>
                             {filtered.map(p => (
@@ -1432,6 +1526,195 @@ const WoredaProfile: React.FC = () => {
                                     onDelete={level === 'household' ? () => handleDelete(p._id) : undefined} />
                             ))}
                         </AnimatePresence>
+                    </motion.div>
+                ) : (
+                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left">
+                                <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-200">
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Location Identity</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Demographics</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Risk Index</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Protocol Status</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Time Buffer</th>
+                                        <th className="px-8 py-5 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Operation</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 relative">
+                                    {paginated.map((p) => {
+                                        const statusKey = p.status || 'Draft';
+                                        const sc = STATUS_CONFIG[statusKey] || STATUS_CONFIG.Draft;
+                                        return (
+                                            <tr key={p._id} className={`group transition-all border-l-4 ${
+                                                p.status === 'Submitted' ? 'bg-emerald-50/20 hover:bg-emerald-50/40 border-emerald-500' :
+                                                p.status === 'Reviewed' ? 'bg-blue-50/20 hover:bg-blue-50/40 border-blue-500' :
+                                                'bg-amber-50/20 hover:bg-amber-50/40 border-amber-500'
+                                            }`}>
+                                                <td className="px-8 py-6">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-mono text-[10px] font-bold group-hover:scale-110 transition-all ${
+                                                            p.status === 'Submitted' ? 'bg-emerald-100/50 text-emerald-700' :
+                                                            p.status === 'Reviewed' ? 'bg-blue-100/50 text-blue-700' :
+                                                            'bg-amber-100/50 text-amber-700'
+                                                        }`}>
+                                                            #{p._id.slice(-4).toUpperCase()}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-black text-slate-900 leading-tight">
+                                                                {p.location.house_no && p.location.house_no !== 'Aggregated Data' 
+                                                                    ? `House ${p.location.house_no}` 
+                                                                    : p.location.block && p.location.block !== 'All Blocks'
+                                                                    ? `Block-${p.location.block}`
+                                                                    : p.location.woreda === 'All Woredas' 
+                                                                    ? (p.location.subcity === 'All Subcities' ? 'All Addis' : p.location.subcity)
+                                                                    : `Woreda ${p.location.woreda}`}
+                                                            </p>
+                                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mt-0.5">
+                                                                {p.location.subcity} {p.location.woreda !== 'All Woredas' ? `• Zone W${p.location.woreda}` : ''}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-6">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-black text-slate-800">{(p.demographics?.total_population || 0).toLocaleString()}</span>
+                                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Total Residents</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-6">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                                                            p.status === 'Submitted' ? 'bg-emerald-100 text-emerald-600' :
+                                                            p.status === 'Reviewed' ? 'bg-blue-100 text-blue-600' :
+                                                            'bg-amber-100 text-amber-600'
+                                                        }`}>
+                                                            <BarChart3 size={16} />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-black text-slate-900 leading-tight">{p.risk_index?.overall_woreda_risk_score || '0.0'}</p>
+                                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Composite Score</p>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-6 text-center">
+                                                    <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border ${sc.bg} ${sc.text}`}>
+                                                        <div className={`w-1.5 h-1.5 rounded-full ${sc.dot} ${p.status === 'Submitted' ? 'animate-pulse' : ''}`} />
+                                                        {p.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-8 py-6">
+                                                    <div className="flex flex-col gap-1">
+                                                        <div className="flex items-center gap-2 text-slate-700 text-sm font-semibold">
+                                                            {new Date(p.assessment_date).toLocaleDateString()}
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-bold uppercase">
+                                                            <Clock size={12} />
+                                                            Assessment date
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-6 text-right relative z-10">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        {level !== 'household' && (
+                                                            <button 
+                                                                onClick={() => {
+                                                                    if (level === 'all') { setPath({ subcity: null, woreda: null, block: null }); setLevel('subcity'); }
+                                                                    else if (level === 'subcity') { setPath({ subcity: p.location.subcity || null, woreda: null, block: null }); setLevel('woreda'); }
+                                                                    else if (level === 'woreda') { setPath({ subcity: p.location.subcity || null, woreda: p.location.woreda || null, block: null }); setLevel('block'); }
+                                                                    else if (level === 'block') { setPath({ subcity: p.location.subcity || null, woreda: p.location.woreda || null, block: p.location.block && p.location.block !== 'All Blocks' ? p.location.block : 'Unknown' }); setLevel('household'); }
+                                                                }}
+                                                                className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                                                                title="Explore Logic Layer"
+                                                            >
+                                                                <ChevronRight size={18} />
+                                                            </button>
+                                                        )}
+                                                        <button 
+                                                            onClick={() => setViewProfile(p)}
+                                                            className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center hover:bg-indigo-600 transition-all shadow-lg"
+                                                            title="Inspect Payload"
+                                                        >
+                                                            <Eye size={18} />
+                                                        </button>
+                                                        {level === 'household' && (
+                                                            <Can resource="WoredaProfile" action="update">
+                                                                <button 
+                                                                    onClick={() => { setEditProfile(p); setShowForm(true); }}
+                                                                    className="w-10 h-10 rounded-2xl border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-100 hover:bg-white flex items-center justify-center transition-all shadow-sm"
+                                                                    title="Modify Protocol"
+                                                                >
+                                                                    <Edit3 size={18} />
+                                                                </button>
+                                                            </Can>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Pagination Footer (The Sync Engine Style) */}
+                        {totalPages > 1 && (
+                            <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Buffer Page</span>
+                                    <div className="flex items-center gap-1">
+                                        <span className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-xs font-black text-slate-900 shadow-sm">{currentPage}</span>
+                                        <span className="text-[10px] font-bold text-slate-300">/</span>
+                                        <span className="text-[10px] font-bold text-slate-500">{totalPages}</span>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1}
+                                        className={`p-2 rounded-xl border transition-all ${
+                                            currentPage === 1 
+                                            ? 'bg-slate-50 text-slate-300 border-slate-100' 
+                                            : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600 shadow-sm'
+                                        }`}
+                                    >
+                                        <ChevronLeft size={18} />
+                                    </button>
+                                    <div className="hidden sm:flex items-center gap-1 mx-2">
+                                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                            let pageNum = currentPage <= 3 ? i + 1 : currentPage + i - 2;
+                                            if (pageNum > totalPages) pageNum = totalPages - (Math.min(5, totalPages) - i - 1);
+                                            if (pageNum < 1) pageNum = i + 1;
+                                            return (
+                                                <button
+                                                    key={pageNum}
+                                                    onClick={() => setCurrentPage(pageNum)}
+                                                    className={`w-8 h-8 rounded-lg text-xs font-black transition-all ${
+                                                        currentPage === pageNum 
+                                                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
+                                                        : 'text-slate-400 hover:text-slate-600 hover:bg-white'
+                                                    }`}
+                                                >
+                                                    {pageNum}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className={`p-2 rounded-xl border transition-all ${
+                                            currentPage === totalPages 
+                                            ? 'bg-slate-50 text-slate-300 border-slate-100' 
+                                            : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600 shadow-sm'
+                                        }`}
+                                    >
+                                        <ChevronRight size={18} />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </motion.div>
                 )}
             </div>

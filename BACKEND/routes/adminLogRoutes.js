@@ -1,12 +1,11 @@
 import express from 'express';
 import { getAdminLogs, clearOldAdminLogs } from '../controllers/adminLogController.js';
-import { protect, admin } from '../middleware/authMiddleware.js';
+import { protect } from '../middleware/authMiddleware.js';
+import { checkPermission } from '../middleware/permissionMiddleware.js';
 
 const router = express.Router();
 
-router.use(protect, admin); // All admin log routes require admin status
-
-router.get('/', getAdminLogs);
-router.delete('/purge', clearOldAdminLogs);
+router.get('/', protect, checkPermission('adminlog', 'view'), getAdminLogs);
+router.delete('/purge', protect, checkPermission('adminlog', 'delete'), clearOldAdminLogs);
 
 export default router;

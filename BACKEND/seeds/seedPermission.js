@@ -59,18 +59,18 @@ const runMigration = async () => {
         // Step 1: Auto-generate permissions from models
         console.log('📝 Step 1: Auto-generating permissions from models...');
         const models = getAllModels();
-        console.log(`📦 Found ${models.length} models: ${models.join(', ')}\n`);
+        // resources to seed
+        const customResources = ['dashboard', 'report', 'analytics', 'audit_log'];
+        const allResources = [...new Set([...models.map(m => m.toLowerCase()), ...customResources])];
 
-        const actions = ['create', 'view', 'update', 'delete'];
+        const actions = ['create', 'view', 'update', 'delete', 'import', 'sync'];
         let permissionsCreated = 0;
         let permissionsSkipped = 0;
 
-        // Auto-generate permissions from models
-        for (const modelName of models) {
-            const resource = modelName.toLowerCase();
-
+        // Auto-generate permissions
+        for (const resource of allResources) {
             for (const action of actions) {
-                const permissionName = `${action}_${resource}`;
+                const permissionName = `${resource}_${action}`;
 
                 // Check if permission already exists
                 const existingPermission = await Permission.findOne({
@@ -86,6 +86,11 @@ const runMigration = async () => {
                     });
                     permissionsCreated++;
                     console.log(`   ✅ Created: ${permissionName}`);
+                } else if (existingPermission.name !== permissionName) {
+                    existingPermission.name = permissionName;
+                    await existingPermission.save();
+                    console.log(`   🔄 Updated name: ${permissionName}`);
+                    permissionsCreated++; // Count as modification
                 } else {
                     permissionsSkipped++;
                 }

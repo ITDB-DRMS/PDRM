@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../api/axios';
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
-import { Search, Shield, Key, User, Activity, Clock, Server, AlertTriangle, Info, Database, Eye, Trash2, Edit2, Plus } from 'lucide-react';
+import { Search, Shield, User, Activity, Clock, Server, AlertTriangle, Info, Database, Trash2, Edit2, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface AdminLog {
@@ -85,41 +85,41 @@ const AdminLogs: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen pb-20">
+        <div className="min-h-screen pb-20 px-4 sm:px-6 lg:px-10">
             <PageMeta title="Admin Logs | IDRMIS" description="System administrative activity history" />
             <PageBreadcrumb pageTitle="Admin Logs" />
 
             <div className="max-w-[1600px] mx-auto space-y-8">
                 {/* Dashboard Stats Header */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 p-8 rounded-[2rem] shadow-2xl border border-white/10 relative overflow-hidden group">
-                        <Shield className="absolute right-[-10%] bottom-[-10%] text-white/10 w-40 h-40 group-hover:scale-110 transition-transform duration-500" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 p-6 sm:p-8 rounded-[2rem] shadow-2xl border border-white/10 relative overflow-hidden group">
+                        <Shield className="absolute right-[-10%] bottom-[-10%] text-white/10 w-24 h-24 sm:w-40 sm:h-40 group-hover:scale-110 transition-transform duration-500" />
                         <div className="relative">
-                            <h3 className="text-white/70 text-sm font-bold uppercase tracking-widest mb-1">Total Admin Actions</h3>
-                            <div className="text-5xl font-black text-white">{stats.total}</div>
-                            <div className="mt-4 flex items-center gap-2 text-indigo-200 text-xs font-semibold">
+                            <h3 className="text-white/70 text-[10px] sm:text-sm font-bold uppercase tracking-widest mb-1">Total Admin Actions</h3>
+                            <div className="text-2xl sm:text-5xl font-black text-white leading-tight">{stats.total}</div>
+                            <div className="mt-4 flex items-center gap-2 text-indigo-200 text-[9px] sm:text-xs font-semibold">
                                 <Clock size={14} /> Last 90 days activity
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-white dark:bg-slate-900/80 p-8 rounded-[2rem] shadow-xl border border-slate-100 dark:border-white/5 relative overflow-hidden group backdrop-blur-xl">
-                        <AlertTriangle className="absolute right-[-10%] bottom-[-10%] text-amber-500/10 w-40 h-40 group-hover:rotate-12 transition-transform duration-500" />
+                    <div className="bg-white dark:bg-slate-900/80 p-6 sm:p-8 rounded-[2rem] shadow-xl border border-slate-100 dark:border-white/5 relative overflow-hidden group backdrop-blur-xl">
+                        <AlertTriangle className="absolute right-[-10%] bottom-[-10%] text-amber-500/10 w-24 h-24 sm:w-40 sm:h-40 group-hover:rotate-12 transition-transform duration-500" />
                         <div className="relative">
-                            <h3 className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-1">Critical Warnings</h3>
-                            <div className="text-5xl font-black text-amber-500">{stats.critical}</div>
-                            <div className="mt-4 flex items-center gap-2 text-slate-500 text-xs font-semibold">
+                            <h3 className="text-slate-400 text-[10px] sm:text-sm font-bold uppercase tracking-widest mb-1">Critical Warnings</h3>
+                            <div className="text-2xl sm:text-5xl font-black text-amber-500 leading-tight">{stats.critical}</div>
+                            <div className="mt-4 flex items-center gap-2 text-slate-500 text-[9px] sm:text-xs font-semibold">
                                 <Info size={14} /> Review recommended
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-slate-900 p-8 rounded-[2rem] shadow-xl border border-white/5 relative overflow-hidden group">
+                    <div className="bg-slate-900 p-6 sm:p-8 rounded-[2rem] shadow-xl border border-white/5 relative overflow-hidden group sm:col-span-2 lg:col-span-1">
                         <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent" />
                         <div className="relative">
-                            <h3 className="text-white/40 text-sm font-bold uppercase tracking-widest mb-1">Active Administrators</h3>
-                            <div className="text-5xl font-black text-white">{stats.admins}</div>
-                            <div className="mt-4 flex items-center gap-2 text-white/20 text-xs font-semibold">
+                            <h3 className="text-white/40 text-[10px] sm:text-sm font-bold uppercase tracking-widest mb-1">Active Administrators</h3>
+                            <div className="text-2xl sm:text-5xl font-black text-white leading-tight">{stats.admins}</div>
+                            <div className="mt-4 flex items-center gap-2 text-white/20 text-[9px] sm:text-xs font-semibold">
                                 <User size={14} /> Total unique sessions
                             </div>
                         </div>
@@ -127,23 +127,23 @@ const AdminLogs: React.FC = () => {
                 </div>
 
                 {/* Search & Global Controls */}
-                <div className="flex flex-col md:flex-row md:items-center gap-4 justify-between bg-white/50 dark:bg-slate-900/50 backdrop-blur-3xl p-6 rounded-[2rem] border border-white/20 dark:border-white/10 shadow-2xl">
-                    <div className="relative flex-1 max-w-lg">
+                <div className="flex flex-col lg:flex-row lg:items-center gap-4 justify-between bg-white/50 dark:bg-slate-900/50 backdrop-blur-3xl p-4 sm:p-6 rounded-[2rem] border border-white/20 dark:border-white/10 shadow-2xl">
+                    <div className="relative flex-1 max-w-lg w-full">
                         <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={20} />
                         <input
                             type="text"
                             placeholder="Lookup actions, users, resources..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="h-14 w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-white/80 dark:bg-slate-900/80 pl-14 pr-4 font-medium text-slate-800 dark:text-white focus:ring-4 focus:ring-primary/10 focus:border-primary/50 outline-none transition-all shadow-sm"
+                            className="h-12 sm:h-14 w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-white/80 dark:bg-slate-900/80 pl-14 pr-4 font-medium text-slate-800 dark:text-white focus:ring-4 focus:ring-primary/10 focus:border-primary/50 outline-none transition-all shadow-sm text-sm"
                         />
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 w-full lg:w-auto">
                         <select
                             value={severityFilter}
                             onChange={(e) => setSeverityFilter(e.target.value)}
-                            className="h-14 px-6 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 font-bold text-xs uppercase tracking-widest text-slate-600 dark:text-white/60 outline-none focus:ring-4 focus:ring-primary/10 transition-all cursor-pointer shadow-sm"
+                            className="h-12 sm:h-14 flex-1 lg:flex-none px-6 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 font-bold text-xs uppercase tracking-widest text-slate-600 dark:text-white/60 outline-none focus:ring-4 focus:ring-primary/10 transition-all cursor-pointer shadow-sm"
                         >
                             <option value="all">Priority: All</option>
                             <option value="info">Priority: Low</option>

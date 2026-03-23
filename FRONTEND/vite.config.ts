@@ -25,4 +25,8 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    host: true, // Allows external access
+    port: 5173, // Or your desired port
+  },
 });

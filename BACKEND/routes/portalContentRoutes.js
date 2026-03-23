@@ -8,7 +8,8 @@ const router = express.Router();
 router.get('/', getPortalContent);
 
 // Admin: manage portal website content.
-router.put('/', protect, admin, upsertPortalContent);
+import { checkPermission } from '../middleware/permissionMiddleware.js';
+router.put('/', protect, checkPermission('portalcontent', 'update'), upsertPortalContent);
 
 export default router;
 

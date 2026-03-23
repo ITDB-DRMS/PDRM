@@ -1,153 +1,108 @@
-export const VERIFICATION_EMAIL_TEMPLATE = `
+/**
+ * Premium HTML Email Templates for IDRMIS
+ * Features: Responsive design, modern typography, card-based layout, and professional branding.
+ */
+
+const BASE_TEMPLATE = (title, content, footer) => `
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verify Your Email</title>
+  <style>
+    body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1a1a1a; margin: 0; padding: 0; background-color: #f4f7f9; }
+    .container { max-width: 600px; margin: 40px auto; padding: 0; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.05); }
+    .header { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); padding: 60px 40px; text-align: center; color: #ffffff; }
+    .header h1 { margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
+    .content { padding: 50px 40px; background-color: #ffffff; }
+    .content p { margin-bottom: 24px; font-size: 16px; color: #4b5563; }
+    .cta-container { text-align: center; margin: 40px 0; }
+    .btn { background-color: #4f46e5; color: #ffffff !important; padding: 16px 32px; text-decoration: none; border-radius: 16px; font-weight: 700; font-size: 16px; display: inline-block; transition: all 0.3s ease; box-shadow: 0 10px 20px rgba(79, 70, 229, 0.2); }
+    .code-box { background-color: #f9fafb; border: 2px dashed #e5e7eb; padding: 30px; border-radius: 20px; text-align: center; margin: 30px 0; }
+    .code { font-size: 42px; font-weight: 900; letter-spacing: 12px; color: #4f46e5; font-family: 'Courier New', monospace; }
+    .footer { padding: 40px; text-align: center; background-color: #f9fafb; border-top: 1px solid #f3f4f6; }
+    .footer p { margin: 0; font-size: 13px; color: #9ca3af; font-weight: 500; }
+    .logo-text { font-size: 12px; font-weight: 900; letter-spacing: 2px; color: rgba(255,255,255,0.4); text-transform: uppercase; margin-bottom: 20px; display: block; }
+  </style>
 </head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(to right, #4CAF50, #45a049); padding: 20px; text-align: center;">
-    <h1 style="color: white; margin: 0;">Verify Your Email</h1>
-  </div>
-  <div style="background-color: #f9f9f9; padding: 20px; border-radius: 0 0 5px 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-    <p>Hello,</p>
-    <p>Thank you for signing up! Your verification code is:</p>
-    <div style="text-align: center; margin: 30px 0;">
-      <span style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #4CAF50;">{verificationCode}</span>
+<body>
+  <div class="container">
+    <div class="header">
+      <span class="logo-text">IDRMIS System Protocol</span>
+      <h1>${title}</h1>
     </div>
-    <p>Enter this code on the verification page to complete your registration.</p>
-    <p>This code will expire in 15 minutes for security reasons.</p>
-    <p>If you didn't create an account with us, please ignore this email.</p>
-    <p>Best regards,<br>Your App Team</p>
-  </div>
-  <div style="text-align: center; margin-top: 20px; color: #888; font-size: 0.8em;">
-    <p>This is an automated message, please do not reply to this email.</p>
+    <div class="content">
+      ${content}
+    </div>
+    <div class="footer">
+      <p>${footer || 'This is an automated system transmission. Please do not reply.'}</p>
+      <p style="margin-top: 10px;">&copy; 2026 Integrated Disaster Risk Management System</p>
+    </div>
   </div>
 </body>
 </html>
 `;
 
-export const PASSWORD_RESET_SUCCESS_TEMPLATE = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Password Reset Successful</title>
-</head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(to right, #4CAF50, #45a049); padding: 20px; text-align: center;">
-    <h1 style="color: white; margin: 0;">Password Reset Successful</h1>
-  </div>
-  <div style="background-color: #f9f9f9; padding: 20px; border-radius: 0 0 5px 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-    <p>Hello,</p>
-    <p>We're writing to confirm that your password has been successfully reset.</p>
-    <div style="text-align: center; margin: 30px 0;">
-      <div style="background-color: #4CAF50; color: white; width: 50px; height: 50px; line-height: 50px; border-radius: 50%; display: inline-block; font-size: 30px;">
-        ✓
+export const VERIFICATION_EMAIL_TEMPLATE = BASE_TEMPLATE(
+    'Verify Identity',
+    `
+    <p>Welcome to the IDRMIS portal. To finalize your security clearance and activate your account, please enter the following administrative code:</p>
+    <div class="code-box">
+      <div class="code">{verificationCode}</div>
+    </div>
+    <p>This code is short-lived and will expire in <strong>15 minutes</strong>. If you did not initiate this request, please disregard this signal immediately.</p>
+    `,
+    'Secure Verification Protocol'
+);
+
+export const PASSWORD_RESET_REQUEST_TEMPLATE = BASE_TEMPLATE(
+    'Reset Credentials',
+    `
+    <p>A request to reset your access credentials has been detected. To proceed with security re-validation, click the restricted link below:</p>
+    <div class="cta-container">
+      <a href="{resetURL}" class="btn">Re-validate Credentials</a>
+    </div>
+    <p>This secure link will remain active for <strong>60 minutes</strong>. If you did not request this, your account remains secure; no further action is required.</p>
+    `,
+    'Credential Reset Protocol'
+);
+
+export const PASSWORD_RESET_SUCCESS_TEMPLATE = BASE_TEMPLATE(
+    'Update Successful',
+    `
+    <p>Your security credentials have been successfully updated. Your account is now fully re-secured and ready for operations.</p>
+    <div style="text-align: center; margin: 40px 0;">
+      <div style="background-color: #10b981; color: white; width: 64px; height: 64px; line-height: 64px; border-radius: 50%; display: inline-block; font-size: 32px; box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2);">
+        &check;
       </div>
     </div>
-    <p>If you did not initiate this password reset, please contact our support team immediately.</p>
-    <p>For security reasons, we recommend that you:</p>
-    <ul>
-      <li>Use a strong, unique password</li>
-      <li>Enable two-factor authentication if available</li>
-      <li>Avoid using the same password across multiple sites</li>
-    </ul>
-    <p>Thank you for helping us keep your account secure.</p>
-    <p>Best regards,<br>Your App Team</p>
-  </div>
-  <div style="text-align: center; margin-top: 20px; color: #888; font-size: 0.8em;">
-    <p>This is an automated message, please do not reply to this email.</p>
-  </div>
-</body>
-</html>
-`;
+    <p>If you did not authorize this change, please contact the system administrator immediately to lock your terminal.</p>
+    `,
+    'Security Integrity Verified'
+);
 
-
-export const PASSWORD_RESET_REQUEST_TEMPLATE = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reset Your Password</title>
-</head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(to right, #4CAF50, #45a049); padding: 20px; text-align: center;">
-    <h1 style="color: white; margin: 0;">Password Reset</h1>
-  </div>
-  <div style="background-color: #f9f9f9; padding: 20px; border-radius: 0 0 5px 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-    <p>Hello,</p>
-    <p>We received a request to reset your password. If you didn't make this request, please ignore this email.</p>
-    <p>To reset your password, click the button below:</p>
-    <div style="text-align: center; margin: 30px 0;">
-      <a href="{resetURL}" style="background-color: #4CAF50; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset Password</a>
-    </div>
-    <p>This link will expire in 1 hour for security reasons.</p>
-    <p>Best regards,<br>Your App Team</p>
-  </div>
-  <div style="text-align: center; margin-top: 20px; color: #888; font-size: 0.8em;">
-    <p>This is an automated message, please do not reply to this email.</p>
-  </div>
-</body>
-</html>
-`;
-
-
-export const WELCOME_EMAIL_TEMPLATE = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Welcome to IDRMIS</title>
-</head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(to right, #4CAF50, #45a049); padding: 20px; text-align: center;">
-    <h1 style="color: white; margin: 0;">Welcome to IDRMIS!</h1>
-  </div>
-  <div style="background-color: #f9f9f9; padding: 20px; border-radius: 0 0 5px 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+export const WELCOME_EMAIL_TEMPLATE = BASE_TEMPLATE(
+    'Welcome Onboard',
+    `
     <p>Hello {name},</p>
-    <p>Welcome to IDRMIS! We're excited to have you on board.</p>
-    <p>Your account is now active and ready to use.</p>
-    <p>If you have any questions or need assistance, feel free to reach out to our support team.</p>
-    <p>Best regards,<br>The IDRMIS Team</p>
-  </div>
-  <div style="text-align: center; margin-top: 20px; color: #888; font-size: 0.8em;">
-    <p>This is an automated message, please do not reply to this email.</p>
-  </div>
-</body>
-</html>
-`;
-
-export const ACCOUNT_SETUP_TEMPLATE = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Set Up Your Account</title>
-</head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(to right, #4CAF50, #45a049); padding: 20px; text-align: center;">
-    <h1 style="color: white; margin: 0;">Account Setup</h1>
-  </div>
-  <div style="background-color: #f9f9f9; padding: 20px; border-radius: 0 0 5px 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-    <p>Hello,</p>
-    <p>Welcome to IDRMIS! An admin has created an account for you.</p>
-    <p>Please click the button below to set up your password and finish activating your account:</p>
-    <div style="text-align: center; margin: 30px 0;">
-      <a href="{setupURL}" style="background-color: #4CAF50; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Set Up Account</a>
+    <p>Welcome to <strong>IDRMIS</strong>. Your account has been provisioned and is now active within the disaster management network.</p>
+    <p>We are excited to have you as part of our mission-critical operations team.</p>
+    <div class="cta-container">
+      <a href="https://idrmis.gov.et/login" class="btn">Enter Command Center</a>
     </div>
-    <p>This link will expire in 24 hours.</p>
-    <p>If you have questions, please contact your administrator.</p>
-    <p>Best regards,<br>The IDRMIS Team</p>
-  </div>
-  <div style="text-align: center; margin-top: 20px; color: #888; font-size: 0.8em;">
-    <p>This is an automated message, please do not reply to this email.</p>
-  </div>
-</body>
-</html>
-`;
+    `,
+    'Account Activation Protocol'
+);
+
+export const ACCOUNT_SETUP_TEMPLATE = BASE_TEMPLATE(
+    'Terminal Provisioning',
+    `
+    <p>Your IDRMIS administrative account has been prepared by an authorizing officer.</p>
+    <p>To initialize your access and set your permanent credentials, please engage the setup protocol below:</p>
+    <div class="cta-container">
+      <a href="{setupURL}" class="btn">Initialize Terminal</a>
+    </div>
+    <p>This provisioning link will remain active for <strong>24 hours</strong>. Please complete the setup at your earliest convenience.</p>
+    `,
+    'System Access Provisioning'
+);

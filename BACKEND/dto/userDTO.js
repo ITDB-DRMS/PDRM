@@ -34,8 +34,10 @@ export const transformUserInput = (data) => {
         ...data,
         fullname: data.fullname?.trim(),
         email: data.email?.trim().toLowerCase(),
-        phone: data.phone?.trim()
+        phone: data.phone?.trim() || undefined
     };
+    if (transformed.email === "") delete transformed.email;
+    if (transformed.phone === "") delete transformed.phone;
 
     // Handle role/roles mismatch
     if (data.role && !data.roles) {
@@ -47,8 +49,11 @@ export const transformUserInput = (data) => {
     }
 
     // Sanitize ObjectId fields to prevent CastErrors
-    if (transformed.department === '') delete transformed.department;
-    if (transformed.organization === '') delete transformed.organization;
+    ['organization', 'sector', 'department', 'team'].forEach(field => {
+        if (transformed[field] === '' || transformed[field] === 'null' || transformed[field] === 'undefined') {
+            delete transformed[field];
+        }
+    });
 
     return transformed;
 };

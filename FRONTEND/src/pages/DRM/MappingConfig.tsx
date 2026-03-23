@@ -160,46 +160,84 @@ const MappingRow: React.FC<{
                         <div className="p-2 bg-indigo-600 rounded-xl text-white shadow-lg"><Calculator size={18} /></div>
                         <div>
                             <h5 className="text-sm font-black text-slate-900">Aggregation Logic</h5>
-                            <p className="text-[10px] font-bold text-indigo-400 uppercase">Sum or Average Multiple Inputs</p>
+                            <p className="text-[10px] font-bold text-indigo-400 uppercase">Sum, Average, Concat or Logic Across Multiple Inputs</p>
                         </div>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-8 mb-6">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Aggregate Mode</label>
-                            <div className="grid grid-cols-2 gap-2 p-1.5 bg-white border border-slate-100 rounded-2xl">
-                                {['sum', 'average'].map(op => (
-                                    <button 
-                                        key={op}
-                                        onClick={() => updateRow({ operation: op as any })}
-                                        className={`py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${item.operation === op ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-50'}`}
-                                    >
-                                        {op === 'sum' ? 'Σ Sum' : 'Ø Average'}
-                                    </button>
-                                ))}
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-4">
+                            <div className="space-y-4">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Aggregate Mode</label>
+                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 p-1.5 bg-white border border-slate-100 rounded-2xl">
+                                    {[
+                                        { id: 'sum', label: 'Σ Sum' },
+                                        { id: 'average', label: 'Ø Avg' },
+                                        { id: 'concat', label: '& Concat' },
+                                        { id: 'formula', label: 'ƒ Formula' },
+                                        { id: 'and', label: 'AND' },
+                                        { id: 'or', label: 'OR' },
+                                        { id: 'count', label: '# Count' }
+                                    ].map(op => (
+                                        <button 
+                                            key={op.id}
+                                            onClick={() => updateRow({ operation: op.id as any })}
+                                            className={`py-2 px-1 rounded-xl text-[9px] font-black uppercase transition-all ${item.operation === op.id ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100' : 'text-slate-400 hover:bg-slate-50'}`}
+                                        >
+                                            {op.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Source Factors</label>
+                                <select 
+                                    className="w-full px-6 py-3 rounded-2xl bg-white border border-slate-100 text-[11px] font-bold text-slate-700 shadow-sm transition-all focus:border-indigo-200 outline-none"
+                                    onChange={e => {
+                                        if (!e.target.value) return;
+                                        const keys = [...(item.sourceKeys || [])];
+                                        if (!keys.includes(e.target.value)) keys.push(e.target.value);
+                                        updateRow({ sourceKeys: keys, sourceKey: keys[0] || '' });
+                                        e.target.value = '';
+                                    }}
+                                >
+                                    <option value="">+ Add Variable...</option>
+                                    {templateFields.map((f: any) => (
+                                        <option key={f.code} value={f.code}>{f.code} — {f.label}</option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Factors</label>
-                            <select 
-                                className="w-full px-6 py-4 rounded-3xl bg-white border border-slate-100 text-[11px] font-bold text-slate-700 shadow-sm"
-                                onChange={e => {
-                                    if (!e.target.value) return;
-                                    const keys = [...(item.sourceKeys || [])];
-                                    if (!keys.includes(e.target.value)) keys.push(e.target.value);
-                                    updateRow({ sourceKeys: keys, sourceKey: keys[0] || '' });
-                                    e.target.value = '';
-                                }}
-                            >
-                                <option value="">+ Add Variable...</option>
-                                {templateFields.map((f: any) => (
-                                    <option key={f.code} value={f.code}>{f.code} — {f.label}</option>
-                                ))}
-                            </select>
-                        </div>
+
+                        {item.operation === 'formula' ? (
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Formula (Use {"{{Q_CODE}}"})</label>
+                                <input 
+                                    className="w-full px-6 py-3 rounded-2xl bg-white border border-slate-200 text-[11px] font-bold text-slate-700 shadow-sm focus:border-indigo-400 outline-none transition-all"
+                                    placeholder="e.g. {{Q1}} + {{Q2}}"
+                                    value={item.formula || ''}
+                                    onChange={e => updateRow({ formula: e.target.value })}
+                                />
+                            </div>
+                        ) : item.operation === 'concat' ? (
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Separator</label>
+                                <input 
+                                    className="w-full px-6 py-3 rounded-2xl bg-white border border-slate-200 text-[11px] font-bold text-slate-700 shadow-sm focus:border-indigo-400 outline-none transition-all"
+                                    placeholder="Fixed string separator (e.g. , or /)"
+                                    value={item.separator || ' '}
+                                    onChange={e => updateRow({ separator: e.target.value })}
+                                />
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-3 bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50">
+                                <Info size={14} className="text-indigo-600" />
+                                <p className="text-[10px] font-medium text-slate-500 italic">This will combine all listed source variables using the selected operator.</p>
+                            </div>
+                        )}
                     </div>
 
-                    <div className="flex flex-wrap gap-2.5 p-4 bg-white/50 rounded-2xl border border-dashed border-indigo-100 min-h-[60px]">
+                    <div className="flex flex-wrap gap-2.5 p-4 mt-6 bg-white/50 rounded-2xl border border-dashed border-indigo-100 min-h-[60px]">
                         {(item.sourceKeys || []).map((key, kIdx) => (
                             <div key={kIdx} className="flex items-center gap-2.5 px-3 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black group">
                                 <Hash size={12} className="text-indigo-400" /> {key}

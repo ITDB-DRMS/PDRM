@@ -279,6 +279,23 @@ export const getWoredaProfileById = async (req, res) => {
 // @route   POST /api/woreda-profiles
 export const createWoredaProfile = async (req, res) => {
     try {
+        const { location } = req.body;
+        
+        // Ensure no duplicate location (subcity + woreda + block + house_no)
+        const matchCriteria = {
+            'location.subcity': location.subcity,
+            'location.woreda': location.woreda,
+            'location.block': location.block || '',
+            'location.house_no': location.house_no || ''
+        };
+
+        const existing = await WoredaProfile.findOne(matchCriteria);
+        if (existing) {
+            return res.status(400).json({ 
+                message: `A profile already exists for ${location.subcity}, Woreda ${location.woreda}, Block ${location.block || 'N/A'}, House ${location.house_no || 'N/A'}.` 
+            });
+        }
+
         const profile = new WoredaProfile({
             ...req.body,
             createdBy: req.user?._id,
@@ -297,6 +314,9 @@ export const createWoredaProfile = async (req, res) => {
 
         res.status(201).json(saved);
     } catch (error) {
+        if (error.code === 11000) {
+            return res.status(400).json({ message: 'A profile for this location already exists. (Duplicate Index)' });
+        }
         res.status(400).json({ message: error.message });
     }
 };
@@ -305,8 +325,26 @@ export const createWoredaProfile = async (req, res) => {
 // @route   PUT /api/woreda-profiles/:id
 export const updateWoredaProfile = async (req, res) => {
     try {
+        const { location } = req.body;
         const profile = await WoredaProfile.findById(req.params.id);
         if (!profile) return res.status(404).json({ message: 'Woreda Profile not found' });
+
+        // If location is changing, check for duplicates elsewhere
+        if (location) {
+            const matchCriteria = {
+                _id: { $ne: req.params.id },
+                'location.subcity': location.subcity,
+                'location.woreda': location.woreda,
+                'location.block': location.block || '',
+                'location.house_no': location.house_no || ''
+            };
+            const duplicate = await WoredaProfile.findOne(matchCriteria);
+            if (duplicate) {
+                return res.status(400).json({ 
+                    message: `Cannot update location. Another profile already exists for this house/location.` 
+                });
+            }
+        }
 
         const before = profile.toObject();
         Object.assign(profile, req.body);
@@ -324,6 +362,9 @@ export const updateWoredaProfile = async (req, res) => {
 
         res.json(updated);
     } catch (error) {
+        if (error.code === 11000) {
+            return res.status(400).json({ message: 'Update failed: This location is already occupied by another profile.' });
+        }
         res.status(400).json({ message: error.message });
     }
 };
@@ -789,6 +830,16 @@ export const syncFromInterview = async (req, res) => {
             resourceId: saved._id,
             details: { responseId },
             after: saved,
+            ip: req.ip
+        });
+
+        await auditService.logAction({
+            userId: req.user?._id,
+            action: 'RESPONSE_SYNC',
+            resource: 'FormResponse',
+            resourceId: response._id,
+            details: { profileId: saved._id },
+            after: response,
             ip: req.ip
         });
 

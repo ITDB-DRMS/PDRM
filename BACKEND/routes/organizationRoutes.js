@@ -6,17 +6,18 @@ import {
     updateOrganization,
     deleteOrganization
 } from '../controllers/organizationController.js';
-import { protect, admin } from '../middleware/authMiddleware.js';
+import { protect } from '../middleware/authMiddleware.js';
+import { checkPermission } from '../middleware/permissionMiddleware.js';
 
 const router = express.Router();
 
 router.route('/')
-    .post(protect, admin, createOrganization)
-    .get(protect, admin, getOrganizations);
+    .post(protect, checkPermission('organization', 'create'), createOrganization)
+    .get(protect, checkPermission('organization', 'view'), getOrganizations);
 
 router.route('/:id')
-    .get(protect, admin, getOrganizationById)
-    .put(protect, admin, updateOrganization)
-    .delete(protect, admin, deleteOrganization);
+    .get(protect, checkPermission('organization', 'view'), getOrganizationById)
+    .put(protect, checkPermission('organization', 'update'), updateOrganization)
+    .delete(protect, checkPermission('organization', 'delete'), deleteOrganization);
 
 export default router;

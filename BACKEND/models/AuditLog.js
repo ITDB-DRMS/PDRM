@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const AuditLogSchema = new mongoose.Schema({
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     action: { type: String, required: true },
     resource: { type: String, required: true }, // Name of the entity being acted upon
     resourceId: { type: String }, // Primary key of the resource or entity

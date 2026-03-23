@@ -117,7 +117,8 @@ export default function App() {
                   <Route path="/admin/portal-content" element={<PortalContentPage />} />
 
                   {/* Template Engine Routes */}
-                  <Route path="/admin/template-library" element={<TemplateLibrary />} />
+                  <Route path="/survey-library" element={<TemplateLibrary mode="published_only" />} />
+                  <Route path="/admin/template-library" element={<TemplateLibrary mode="admin" />} />
                   <Route path="/admin/form-builder" element={<FormBuilder />} />
                   <Route path="/admin/form-builder/:id" element={<FormBuilder />} />
                   <Route path="/admin/profile-mapping" element={<MappingConfig />} />
