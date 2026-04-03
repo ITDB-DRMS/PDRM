@@ -11,6 +11,7 @@ import { Can } from '../../components/auth/PermissionGuard';
 import { LayoutGrid, List, Search, Plus, Eye, Edit2, Trash2, KeyRound } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
 import { UserCard } from '../../components/admin/UserCard';
@@ -343,12 +344,14 @@ export default function Users() {
                 });
                 closeModal();
                 toast.success('User updated successfully');
+                setAlertState({ show: true, variant: 'success', title: 'Success', message: 'User updated successfully' });
             } else {
                 await api.post('/users', data, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
                 closeModal();
                 toast.success('User created successfully');
+                setAlertState({ show: true, variant: 'success', title: 'Success', message: 'User created successfully' });
             }
             fetchData();
         } catch (error: any) {
@@ -488,6 +491,30 @@ export default function Users() {
                             (u.fullname.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase()))
                         ).length} users
                     </div>
+            {/* Alert popup modal for success / error */}
+            {alertState?.show && (
+                <Modal isOpen={true} onClose={() => setAlertState(null)} className="max-w-[480px] m-4">
+                    <div className="relative w-full overflow-y-auto rounded-3xl bg-white p-6 dark:bg-gray-900">
+                        <div className="mb-4">
+                            <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">{alertState.title}</h4>
+                            <p className={`mt-2 text-sm ${alertState.variant === 'success' ? 'text-green-600' : 'text-red-600'}`}>{alertState.message}</p>
+                        </div>
+                        <div className="flex justify-end">
+                            <Button size="sm" variant="outline" onClick={() => setAlertState(null)} type="button">Close</Button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] lg:p-6">
+                <div className="flex justify-between items-center mb-5">
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+                        All Users
+                    </h3>
+                    <Button size="sm" onClick={() => handleOpenModal()}>
+                        + Add User
+                    </Button>
+                </div>
 
                     {loading ? (
                         <div className="flex h-64 items-center justify-center">
