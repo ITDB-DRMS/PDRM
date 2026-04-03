@@ -37,16 +37,14 @@ const aggregateProfiles = (profiles, level) => {
         const woreda = normalize(p.location?.woreda, 'woreda');
         const block = level === 'block' ? normalize(p.location?.block, 'block') : 'Unknown';
         
-        // Determine group key
         let key = 'all';
         if (level === 'subcity') key = subcity;
         else if (level === 'woreda') key = `${subcity}-${woreda}`;
         else if (level === 'block') key = `${subcity}-${woreda}-${block}`;
         
         if (!grouped[key]) {
-            // Initialize a blank aggregated profile
             grouped[key] = {
-                _id: key, // Fake ID for frontend mapping
+                _id: key,
                 location: {
                     subcity: level === 'all' ? 'All Subcities' : subcity,
                     woreda: level === 'woreda' || level === 'block' ? woreda : 'All Woredas',
@@ -57,151 +55,147 @@ const aggregateProfiles = (profiles, level) => {
                 remarks: `Aggregated data at ${level} level.`,
                 status: 'Reviewed',
                 demographics: {
-                    total_population: 0,
-                    male_population: 0,
-                    female_population: 0,
-                    children_0_17: 0,
-                    youth_18_29: 0,
-                    adults_30_59: 0,
-                    elderly_60_plus: 0,
-                    total_households: 0,
-                    female_headed_households: 0,
-                    informal_settlement_population: 0,
-                    low_income_households: 0,
-                    unemployment_rate: 0, // we will average this
-                    internally_displaced_population: 0,
+                    total_population: 0, male_population: 0, female_population: 0,
+                    children_0_17: 0, youth_18_29: 0, adults_30_59: 0, elderly_60_plus: 0,
+                    total_households: 0, female_headed_households: 0, informal_settlement_population: 0,
+                    low_income_households: 0, unemployment_rate: 0, internally_displaced_population: 0,
                     education_levels: []
                 },
                 livelihoods: [],
-                basic_services: {
-                    water_source: p.basic_services?.water_source || 'Mixed',
-                    electricity: false,
-                    road_access: p.basic_services?.road_access || 'Mixed',
-                    drainage_system_coverage: false,
-                    solid_waste_management_coverage: false,
-                    telecommunications_access: false,
-                    critical_lifeline_redundancy: false
-                },
-                critical_facilities: p.critical_facilities || [],
+                basic_services: { water_source: 'Mixed', electricity_count: 0, road_access: 'Mixed', drainage_count: 0, waste_count: 0, telecom_count: 0, lifeline_count: 0 },
+                critical_facilities: [],
                 vulnerable_groups: [],
-                community_capacity: p.community_capacity || [],
-                hazards: p.hazards || [],
-                vulnerability_assessments: p.vulnerability_assessments || [],
-                housing_indicators: p.housing_indicators || {},
-                capacity_assessments: p.capacity_assessments || [],
-                economic_risk_indicators: p.economic_risk_indicators || {},
-                environmental_indicators: p.environmental_indicators || {},
-                preparedness_indicators: p.preparedness_indicators || {},
-                recovery_indicators: p.recovery_indicators || {},
-                risk_index: {
-                    hazard_index: 0,
-                    vulnerability_index: 0,
-                    exposure_index: 0,
-                    capacity_index: 0,
-                    overall_woreda_risk_score: 0
-                },
-                risk_assessments: p.risk_assessments || [],
-                _count: 0 // to help average later
+                community_capacity: [],
+                hazards: [],
+                vulnerability_assessments: [],
+                housing_indicators: { percent_non_durable_materials: 0, age_buildings_over_30_years: 0, compliance_with_building_codes: 0, housing_density_overcrowding: 0, informal_housing_coverage: 0, proximity_to_hazard_zones: 0, fire_resistant_materials_availability: 0 },
+                economic_risk_indicators: {}, environmental_indicators: {}, preparedness_indicators: {}, recovery_indicators: {},
+                risk_index: { hazard_index: 0, vulnerability_index: 0, exposure_index: 0, capacity_index: 0, overall_woreda_risk_score: 0 },
+                risk_assessments: [],
+                _count: 0
             };
         }
 
         const g = grouped[key];
         g._count += 1;
         
-        // Latest date
-        if (new Date(p.assessment_date) > new Date(g.assessment_date)) {
-            g.assessment_date = p.assessment_date;
-        }
+        if (new Date(p.assessment_date) > new Date(g.assessment_date)) g.assessment_date = p.assessment_date;
 
         // Demographics
         if (p.demographics) {
             const d = p.demographics;
-            g.demographics.total_population += (d.total_population || 0);
-            g.demographics.male_population += (d.male_population || 0);
-            g.demographics.female_population += (d.female_population || 0);
-            g.demographics.children_0_17 += (d.children_0_17 || 0);
-            g.demographics.youth_18_29 += (d.youth_18_29 || 0);
-            g.demographics.adults_30_59 += (d.adults_30_59 || 0);
-            g.demographics.elderly_60_plus += (d.elderly_60_plus || 0);
-            g.demographics.total_households += (d.total_households || 0);
-            g.demographics.female_headed_households += (d.female_headed_households || 0);
-            g.demographics.informal_settlement_population += (d.informal_settlement_population || 0);
-            g.demographics.low_income_households += (d.low_income_households || 0);
-            g.demographics.unemployment_rate += (d.unemployment_rate || 0);
-            g.demographics.internally_displaced_population += (d.internally_displaced_population || 0);
-
+            ['total_population', 'male_population', 'female_population', 'children_0_17', 'youth_18_29', 'adults_30_59', 'elderly_60_plus', 'total_households', 'female_headed_households', 'informal_settlement_population', 'low_income_households', 'unemployment_rate', 'internally_displaced_population'].forEach(k => {
+                g.demographics[k] += (d[k] || 0);
+            });
             if (d.education_levels) {
                 d.education_levels.forEach(ed => {
                     const existing = g.demographics.education_levels.find(e => e.category === ed.category);
-                    if (existing) {
-                        existing.count += (ed.count || 0);
-                    } else {
-                        g.demographics.education_levels.push({ category: ed.category, count: (ed.count || 0) });
-                    }
+                    if (existing) existing.count += (ed.count || 0);
+                    else g.demographics.education_levels.push({ category: ed.category, count: (ed.count || 0) });
                 });
             }
         }
 
-        // Livelihoods
+        // Livelihoods (Sum households)
         if (p.livelihoods) {
             p.livelihoods.forEach(l => {
                 const existing = g.livelihoods.find(el => el.livelihood_type === l.livelihood_type);
-                if (existing) {
-                    existing.households += (l.households || 0);
-                } else {
-                    g.livelihoods.push({ livelihood_type: l.livelihood_type, households: (l.households || 0), percentage: 0 });
-                }
+                if (existing) existing.households += (l.households || 0);
+                else g.livelihoods.push({ livelihood_type: l.livelihood_type, households: (l.households || 0), percentage: 0 });
             });
         }
 
-        // Basic Services (OR for boolean)
+        // Basic Services (Counts for majority rule)
         if (p.basic_services) {
-            g.basic_services.electricity = g.basic_services.electricity || p.basic_services.electricity;
-            g.basic_services.drainage_system_coverage = g.basic_services.drainage_system_coverage || p.basic_services.drainage_system_coverage;
-            g.basic_services.solid_waste_management_coverage = g.basic_services.solid_waste_management_coverage || p.basic_services.solid_waste_management_coverage;
-            g.basic_services.telecommunications_access = g.basic_services.telecommunications_access || p.basic_services.telecommunications_access;
-            g.basic_services.critical_lifeline_redundancy = g.basic_services.critical_lifeline_redundancy || p.basic_services.critical_lifeline_redundancy;
+            const s = p.basic_services;
+            if (s.electricity) g.basic_services.electricity_count++;
+            if (s.drainage_system_coverage) g.basic_services.drainage_count++;
+            if (s.solid_waste_management_coverage) g.basic_services.waste_count++;
+            if (s.telecommunications_access) g.basic_services.telecom_count++;
+            if (s.critical_lifeline_redundancy) g.basic_services.lifeline_count++;
         }
 
-        // Vulnerable Groups
+        // Vulnerable Groups (Sum)
         if (p.vulnerable_groups) {
             p.vulnerable_groups.forEach(vg => {
                 const existing = g.vulnerable_groups.find(evg => evg.group_type === vg.group_type);
-                if (existing) {
-                    existing.number += (vg.number || 0);
-                } else {
-                    g.vulnerable_groups.push({ group_type: vg.group_type, number: (vg.number || 0) });
-                }
+                if (existing) existing.number += (vg.number || 0);
+                else g.vulnerable_groups.push({ group_type: vg.group_type, number: (vg.number || 0) });
             });
         }
 
-        // Risk Index summation
+        // Risk Index (Sum for average)
         if (p.risk_index) {
-            g.risk_index.hazard_index += (p.risk_index.hazard_index || 0);
-            g.risk_index.vulnerability_index += (p.risk_index.vulnerability_index || 0);
-            g.risk_index.exposure_index += (p.risk_index.exposure_index || 0);
-            g.risk_index.capacity_index += (p.risk_index.capacity_index || 0);
-            g.risk_index.overall_woreda_risk_score += (p.risk_index.overall_woreda_risk_score || 0);
+            Object.keys(g.risk_index).forEach(k => g.risk_index[k] += (p.risk_index[k] || 0));
         }
+
+        // Housing Indicators (Sum for average)
+        if (p.housing_indicators) {
+            Object.keys(g.housing_indicators).forEach(k => g.housing_indicators[k] += (p.housing_indicators[k] || 0));
+        }
+
+        // Indicators (Collect for majority vote)
+        ['economic_risk_indicators', 'environmental_indicators', 'preparedness_indicators', 'recovery_indicators'].forEach(cat => {
+            if (p[cat]) {
+                Object.entries(p[cat]).forEach(([key, val]) => {
+                    if (val) {
+                        if (!g[cat][key]) g[cat][key] = {};
+                        g[cat][key][val] = (g[cat][key][val] || 0) + 1;
+                    }
+                });
+            }
+        });
+
+        // Unique lists for facilities, hazards, assessments
+        const collectUnique = (targetArr, sourceArr, keyField) => {
+            if (!sourceArr) return;
+            sourceArr.forEach(item => {
+                if (!targetArr.find(t => t[keyField] === item[keyField])) {
+                    targetArr.push(item);
+                }
+            });
+        };
+        collectUnique(g.critical_facilities, p.critical_facilities, 'facility_type');
+        collectUnique(g.hazards, p.hazards, 'hazard_name');
+        collectUnique(g.community_capacity, p.community_capacity, 'capacity_type');
+        collectUnique(g.vulnerability_assessments, p.vulnerability_assessments, 'hazard_name');
+        collectUnique(g.risk_assessments, p.risk_assessments, 'hazard_name');
     });
 
-    // Finalize averages and percentages
+    // Finalize averages, percentages, and votes
     return Object.values(grouped).map(g => {
         if (g._count > 0) {
             g.demographics.unemployment_rate = Math.round(g.demographics.unemployment_rate / g._count);
             
             const totalLivelihoodHH = g.livelihoods.reduce((acc, l) => acc + l.households, 0);
             if (totalLivelihoodHH > 0) {
-                g.livelihoods.forEach(l => {
-                    l.percentage = Math.round((l.households / totalLivelihoodHH) * 100);
-                });
+                g.livelihoods.forEach(l => l.percentage = Math.round((l.households / totalLivelihoodHH) * 100));
             }
 
-            g.risk_index.hazard_index = Math.round(g.risk_index.hazard_index / g._count);
-            g.risk_index.vulnerability_index = Math.round(g.risk_index.vulnerability_index / g._count);
-            g.risk_index.exposure_index = Math.round(g.risk_index.exposure_index / g._count);
-            g.risk_index.capacity_index = Math.round(g.risk_index.capacity_index / g._count);
-            g.risk_index.overall_woreda_risk_score = Math.round(g.risk_index.overall_woreda_risk_score / g._count);
+            // Majority rule for booleans
+            g.basic_services = {
+                water_source: g.basic_services.water_source,
+                road_access: g.basic_services.road_access,
+                electricity: g.basic_services.electricity_count > (g._count / 2),
+                drainage_system_coverage: g.basic_services.drainage_count > (g._count / 2),
+                solid_waste_management_coverage: g.basic_services.waste_count > (g._count / 2),
+                telecommunications_access: g.basic_services.telecom_count > (g._count / 2),
+                critical_lifeline_redundancy: g.basic_services.lifeline_count > (g._count / 2)
+            };
+
+            // Averages
+            Object.keys(g.risk_index).forEach(k => g.risk_index[k] = Math.round(g.risk_index[k] / g._count * 10) / 10);
+            Object.keys(g.housing_indicators).forEach(k => g.housing_indicators[k] = Math.round(g.housing_indicators[k] / g._count * 10) / 10);
+
+            // Votes for categorical indicators
+            ['economic_risk_indicators', 'environmental_indicators', 'preparedness_indicators', 'recovery_indicators'].forEach(cat => {
+                const finalCat = {};
+                Object.entries(g[cat]).forEach(([key, votes]) => {
+                    const sorted = Object.entries(votes).sort((a, b) => b[1] - a[1]);
+                    finalCat[key] = sorted[0][0]; // Take majority
+                });
+                g[cat] = finalCat;
+            });
         }
         delete g._count;
         return g;

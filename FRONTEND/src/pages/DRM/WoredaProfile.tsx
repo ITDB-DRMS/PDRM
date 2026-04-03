@@ -23,16 +23,16 @@ import { Can } from '../../components/auth/PermissionGuard';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 const TABS = [
-    { id: 'overview',    label: 'Overview',          icon: BarChart3 },
-    { id: 'demographics',label: 'Demographics',       icon: Users },
-    { id: 'livelihoods', label: 'Livelihoods',        icon: Wheat },
-    { id: 'services',    label: 'Basic Services',     icon: Zap },
-    { id: 'facilities',  label: 'Critical Facilities',icon: Building2 },
-    { id: 'vulnerable',  label: 'Vulnerable Groups',  icon: Heart },
-    { id: 'capacity',    label: 'Community Capacity', icon: ShieldCheck },
-    { id: 'hazards',     label: 'Hazards & Risks',    icon: AlertTriangle },
-    { id: 'risk',        label: 'Risk Assessment',    icon: BarChart3 },
-    { id: 'indicators',  label: 'Social & Env. Indicators', icon: ShieldCheck },
+    { id: 'overview', label: 'Overview', icon: BarChart3 },
+    { id: 'demographics', label: 'Demographics', icon: Users },
+    { id: 'livelihoods', label: 'Livelihoods', icon: Wheat },
+    { id: 'services', label: 'Basic Services', icon: Zap },
+    { id: 'facilities', label: 'Critical Facilities', icon: Building2 },
+    { id: 'vulnerable', label: 'Vulnerable Groups', icon: Heart },
+    { id: 'capacity', label: 'Community Capacity', icon: ShieldCheck },
+    { id: 'hazards', label: 'Hazards & Risks', icon: AlertTriangle },
+    { id: 'risk', label: 'Risk Assessment', icon: BarChart3 },
+    { id: 'indicators', label: 'Social & Env. Indicators', icon: ShieldCheck },
 ];
 
 const FACILITY_TYPES = ['Health Center', 'School', 'Police Station', 'Fire Station', 'Emergency Shelter'];
@@ -66,6 +66,40 @@ const emptyProfile = (): WoredaProfileInput => ({
     vulnerability_assessments: [],
     capacity_assessments: [],
     risk_assessments: [],
+    risk_index: { hazard_index: 0, vulnerability_index: 0, exposure_index: 0, capacity_index: 0, overall_woreda_risk_score: 0 },
+    economic_risk_indicators: {
+        concentration_small_informal_businesses: '',
+        market_exposure: '',
+        daily_labor_dependency: '',
+        business_interruption_risk: '',
+        industrial_hazard_exposure: '',
+        insurance_coverage_level: ''
+    },
+    environmental_indicators: {
+        green_space_per_capita: '',
+        wetland_encroachment: '',
+        soil_sealing_coverage: '',
+        waste_dumping_sites: '',
+        urban_drainage_blockage_frequency: '',
+        pollution_hotspots: ''
+    },
+    preparedness_indicators: {
+        emergency_shelters_availability: '',
+        evacuation_routes_mapped: '',
+        firefighting_equipment_availability: '',
+        ambulance_coverage: '',
+        emergency_drills_frequency: '',
+        community_awareness_level: '',
+        stockpiled_emergency_supplies: ''
+    },
+    recovery_indicators: {
+        post_disaster_recovery_plans: '',
+        livelihood_diversification: '',
+        access_to_credit_safety_nets: '',
+        community_self_help_groups: '',
+        urban_upgrading_programs: '',
+        climate_adaptation_initiatives: ''
+    },
     status: 'Draft',
 });
 
@@ -79,22 +113,23 @@ const StatCard: React.FC<{ label: string; value: string | number; icon: React.El
 );
 
 // ─── Profile Card ────────────────────────────────────────────────────────────
-const ProfileCard: React.FC<{ 
-    profile: WProfile; 
-    onView: () => void; 
+const ProfileCard: React.FC<{
+    profile: WProfile;
+    onView: () => void;
     onDrillDown?: () => void;
-    onEdit?: () => void; 
+    onEdit?: () => void;
     onDelete?: () => void;
+    onStatusChange?: (s: string) => void;
     drillDownLabel?: string;
-}> = ({ profile, onView, onDrillDown, onEdit, onDelete, drillDownLabel }) => {
+}> = ({ profile, onView, onDrillDown, onEdit, onDelete, onStatusChange, drillDownLabel }) => {
     const statusKey = profile.status || 'Draft';
     const sc = STATUS_CONFIG[statusKey] || STATUS_CONFIG.Draft;
-    
+
     return (
         <motion.div layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
             className="bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all group cursor-pointer flex flex-col overflow-hidden"
             onClick={onView}>
-            
+
             {/* Top Color Strip */}
             <div className={`h-1.5 w-full ${sc.strip}`} />
 
@@ -106,25 +141,35 @@ const ProfileCard: React.FC<{
                         </div>
                         <div>
                             <h3 className="font-black text-slate-900 leading-tight">
-                                {profile.location.house_no && profile.location.house_no !== 'Aggregated Data' 
-                                    ? `House ${profile.location.house_no}` 
+                                {profile.location.house_no && profile.location.house_no !== 'Aggregated Data'
+                                    ? `House ${profile.location.house_no}`
                                     : profile.location.block && profile.location.block !== 'All Blocks'
-                                    ? `Block-${profile.location.block}`
-                                    : profile.location.woreda === 'All Woredas' 
-                                    ? (profile.location.subcity === 'All Subcities' ? 'All Addis Ababa' : `${profile.location.subcity} Subcity`)
-                                    : `Woreda ${profile.location.woreda}`}
+                                        ? `Block-${profile.location.block}`
+                                        : profile.location.woreda === 'All Woredas'
+                                            ? (profile.location.subcity === 'All Subcities' ? 'All Addis Ababa' : `${profile.location.subcity} Subcity`)
+                                            : `Woreda ${profile.location.woreda}`}
                             </h3>
                             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tight mt-0.5">
                                 {profile.location.block && profile.location.block !== 'All Blocks' && (!profile.location.house_no || profile.location.house_no === 'Aggregated Data') ? `Woreda ${profile.location.woreda} • ` : ''}
-                                {profile.location.house_no && profile.location.house_no !== 'Aggregated Data' 
-                                    ? (profile.location.block !== 'Unknown' && profile.location.block !== 'All Blocks' ? `Block-${profile.location.block} • ` : '') + `Woreda ${profile.location.woreda}` 
+                                {profile.location.house_no && profile.location.house_no !== 'Aggregated Data'
+                                    ? (profile.location.block !== 'Unknown' && profile.location.block !== 'All Blocks' ? `Block-${profile.location.block} • ` : '') + `Woreda ${profile.location.woreda}`
                                     : (profile.location.subcity === 'All Subcities' ? 'City Level Summary' : `${profile.location.subcity} Subcity`)}
                             </p>
                         </div>
                     </div>
-                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${sc.bg} ${sc.text}`}>
+                    <div
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (onStatusChange) {
+                                const next: Record<string, string> = { 'Draft': 'Submitted', 'Submitted': 'Reviewed', 'Reviewed': 'Draft' };
+                                onStatusChange(next[profile.status || 'Draft'] || 'Draft');
+                            }
+                        }}
+                        className={`group/status flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all hover:scale-105 active:scale-95 ${sc.bg} ${sc.text} ${onStatusChange ? 'cursor-pointer' : ''}`}
+                    >
                         <div className={`w-1.5 h-1.5 rounded-full ${sc.dot} ${profile.status === 'Submitted' ? 'animate-pulse' : ''}`} />
                         {profile.status}
+                        {onStatusChange && <RefreshCw size={10} className="ml-1 opacity-0 group-hover/status:opacity-100 transition-opacity" />}
                     </div>
                 </div>
 
@@ -141,8 +186,8 @@ const ProfileCard: React.FC<{
                         <p className="text-lg font-black text-slate-900">{profile.risk_index?.overall_woreda_risk_score || '—'}</p>
                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Risk</p>
                     </div>
-                    <div className={`rounded-2xl p-3 text-center border border-transparent transition-all ${profile.status === 'Submitted' ? 'bg-emerald-50 text-emerald-700 hover:border-emerald-100' : 'bg-amber-50 text-amber-700 hover:border-amber-100'}`}>
-                        <p className="text-lg font-black">{(profile.risk_assessments?.length || 0)}</p>
+                    <div className={`rounded-2xl p-3 text-center border border-transparent transition-all ${(profile.hazards?.length || 0) > 0 ? 'bg-rose-50 text-rose-700 hover:border-rose-100' : 'bg-amber-50 text-amber-700 hover:border-amber-100'}`}>
+                        <p className="text-lg font-black">{(profile.hazards?.length || 0)}</p>
                         <p className="text-[9px] font-bold uppercase tracking-widest">Hazards</p>
                     </div>
                 </div>
@@ -152,7 +197,7 @@ const ProfileCard: React.FC<{
                         <Clock size={12} className="text-slate-300" />
                         {new Date(profile.assessment_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </div>
-                    
+
                     <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
                         {onDrillDown && (
                             <button onClick={onDrillDown} className="px-4 h-9 rounded-xl bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white text-[10px] font-black uppercase tracking-wider flex items-center justify-center transition-all opacity-0 group-hover:opacity-100">
@@ -186,7 +231,17 @@ const ProfileCard: React.FC<{
 };
 
 // ─── Form Wizard ─────────────────────────────────────────────────────────────
-const STEPS = ['Location', 'Demographics', 'Livelihoods', 'Basic Services', 'Critical Facilities', 'Vulnerable Groups', 'Capacity'];
+const STEPS = [
+    'Location',
+    'Demographics',
+    'Livelihoods',
+    'Basic Services',
+    'Critical Facilities',
+    'Vulnerability',
+    'Capacity',
+    'Hazards & Risk',
+    'Indicators'
+];
 
 const FormWizard: React.FC<{ initial?: WProfile | null; onSave: (d: WoredaProfileInput) => void; onClose: () => void; saving: boolean }> = ({ initial, onSave, onClose, saving }) => {
     const [step, setStep] = useState(0);
@@ -194,13 +249,28 @@ const FormWizard: React.FC<{ initial?: WProfile | null; onSave: (d: WoredaProfil
         location: initial.location,
         assessment_date: initial.assessment_date?.toString().split('T')[0] || '',
         remarks: initial.remarks,
-        demographics: initial.demographics,
+        demographics: {
+            ...emptyProfile().demographics,
+            ...initial.demographics,
+            education_levels: initial.demographics?.education_levels?.length
+                ? initial.demographics.education_levels
+                : (emptyProfile().demographics?.education_levels ?? EDUCATION_CATS.map(c => ({ category: c, count: 0 })))
+        },
         livelihoods: initial.livelihoods?.length ? initial.livelihoods : emptyProfile().livelihoods,
-        basic_services: initial.basic_services,
+        basic_services: { ...emptyProfile().basic_services, ...initial.basic_services },
         critical_facilities: initial.critical_facilities?.length ? initial.critical_facilities : emptyProfile().critical_facilities,
         vulnerable_groups: initial.vulnerable_groups?.length ? initial.vulnerable_groups : emptyProfile().vulnerable_groups,
         community_capacity: initial.community_capacity?.length ? initial.community_capacity : emptyProfile().community_capacity,
-        status: initial.status,
+        hazards: initial.hazards || [],
+        vulnerability_assessments: initial.vulnerability_assessments || [],
+        capacity_assessments: initial.capacity_assessments || [],
+        risk_assessments: initial.risk_assessments || [],
+        risk_index: { ...emptyProfile().risk_index, ...initial.risk_index },
+        economic_risk_indicators: { ...emptyProfile().economic_risk_indicators, ...initial.economic_risk_indicators },
+        environmental_indicators: { ...emptyProfile().environmental_indicators, ...initial.environmental_indicators },
+        preparedness_indicators: { ...emptyProfile().preparedness_indicators, ...initial.preparedness_indicators },
+        recovery_indicators: { ...emptyProfile().recovery_indicators, ...initial.recovery_indicators },
+        status: initial.status || 'Draft',
     } : emptyProfile());
 
     const setLoc = (k: string, v: string) => setForm(f => ({ ...f, location: { ...f.location, [k]: v } }));
@@ -217,12 +287,26 @@ const FormWizard: React.FC<{ initial?: WProfile | null; onSave: (d: WoredaProfil
                 className="relative bg-white rounded-[2.5rem] w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl border border-slate-100 overflow-hidden">
 
                 {/* Header */}
-                <div className="px-8 py-6 border-b border-slate-50 flex items-center justify-between">
-                    <div>
-                        <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest mb-1">{initial ? 'Edit' : 'New'} Woreda Profile</p>
-                        <h2 className="text-xl font-black text-slate-900">Step {step + 1}: {STEPS[step]}</h2>
+                <div className="px-8 py-6 border-b border-slate-50 flex items-center justify-between bg-white sticky top-0 z-10">
+                    <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${initial ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                            {initial ? <Edit3 size={24} /> : <Plus size={24} />}
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{initial ? 'Update Existing' : 'Register New'} Profile</p>
+                            <h2 className="text-xl font-black text-slate-900">{STEPS[step]}</h2>
+                        </div>
                     </div>
-                    <button onClick={onClose} className="w-10 h-10 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-400 flex items-center justify-center transition-all"><X size={18} /></button>
+
+                    <div className="flex items-center gap-3">
+                        <div className="hidden sm:flex bg-slate-100 p-1 rounded-xl">
+                            {['Draft', 'Submitted', 'Reviewed'].map(s => (
+                                <button key={s} type="button" onClick={() => setForm(f => ({ ...f, status: s as any }))}
+                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${form.status === s ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>{s}</button>
+                            ))}
+                        </div>
+                        <button onClick={onClose} className="w-10 h-10 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-400 flex items-center justify-center transition-all"><X size={18} /></button>
+                    </div>
                 </div>
 
                 {/* Step indicator */}
@@ -237,7 +321,7 @@ const FormWizard: React.FC<{ initial?: WProfile | null; onSave: (d: WoredaProfil
                 <div className="flex-1 overflow-y-auto p-8">
                     {step === 0 && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {[['subcity','Subcity'],['woreda','Woreda'],['block','Block'],['house_no','House No']].map(([k,l]) => (
+                            {[['subcity', 'Subcity'], ['woreda', 'Woreda'], ['block', 'Block'], ['house_no', 'House No']].map(([k, l]) => (
                                 <div key={k} className={k === 'block' || k === 'house_no' ? 'col-span-1' : ''}>
                                     <label className={labelCls}>{l}</label>
                                     <input className={inputCls} value={(form.location as any)[k] || ''} onChange={e => setLoc(k, e.target.value)} placeholder={`Enter ${l}`} />
@@ -251,7 +335,7 @@ const FormWizard: React.FC<{ initial?: WProfile | null; onSave: (d: WoredaProfil
                     {step === 1 && (
                         <div className="space-y-6">
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                {[['total_population','Total Population'],['male_population','Male'],['female_population','Female'],['children_0_17','Children (0–17)'],['youth_18_29','Youth (18–29)'],['adults_30_59','Adults (30–59)'],['elderly_60_plus','Elderly (60+)'],['total_households','Total Households'],['female_headed_households','Female-headed HH'],['informal_settlement_population','Informal Settlement Pop.'],['low_income_households','Low-income HH'],['unemployment_rate','Unemployment Rate (%)'],['internally_displaced_population','IDPs']].map(([k,l]) => (
+                                {[['total_population', 'Total Population'], ['male_population', 'Male'], ['female_population', 'Female'], ['children_0_17', 'Children (0–17)'], ['youth_18_29', 'Youth (18–29)'], ['adults_30_59', 'Adults (30–59)'], ['elderly_60_plus', 'Elderly (60+)'], ['total_households', 'Total Households'], ['female_headed_households', 'Female-headed HH'], ['informal_settlement_population', 'Informal Settlement Pop.'], ['low_income_households', 'Low-income HH'], ['unemployment_rate', 'Unemployment Rate (%)'], ['internally_displaced_population', 'IDPs']].map(([k, l]) => (
                                     <div key={k}>
                                         <label className={labelCls}>{l}</label>
                                         <input type="number" min={0} className={inputCls} value={(form.demographics as any)?.[k] || 0} onChange={e => setDemo(k, Number(e.target.value))} />
@@ -302,7 +386,7 @@ const FormWizard: React.FC<{ initial?: WProfile | null; onSave: (d: WoredaProfil
                                     {['All-weather', 'Seasonal', 'No road'].map(o => <option key={o}>{o}</option>)}
                                 </select>
                             </div>
-                            {[['electricity','Electricity Access'],['drainage_system_coverage','Drainage System'],['solid_waste_management_coverage','Solid Waste Mgmt'],['telecommunications_access','Telecommunications'],['critical_lifeline_redundancy','Lifeline Redundancy']].map(([k,l]) => (
+                            {[['electricity', 'Electricity Access'], ['drainage_system_coverage', 'Drainage System'], ['solid_waste_management_coverage', 'Solid Waste Mgmt'], ['telecommunications_access', 'Telecommunications'], ['critical_lifeline_redundancy', 'Lifeline Redundancy']].map(([k, l]) => (
                                 <div key={k} className="flex items-center justify-between bg-slate-50 rounded-2xl px-5 py-4">
                                     <span className="text-sm font-semibold text-slate-700">{l}</span>
                                     <button type="button"
@@ -346,40 +430,206 @@ const FormWizard: React.FC<{ initial?: WProfile | null; onSave: (d: WoredaProfil
                     )}
 
                     {step === 5 && (
-                        <div className="space-y-3">
-                            {(form.vulnerable_groups || []).map((g, i) => (
-                                <div key={i} className="flex items-center gap-4 bg-slate-50 rounded-2xl px-5 py-4">
-                                    <span className="flex-1 text-sm font-bold text-slate-700">{g.group_type}</span>
-                                    <input type="number" min={0} className="w-32 px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-bold text-center focus:outline-none focus:border-indigo-300" value={g.number || 0}
-                                        onChange={e => setForm(f => ({ ...f, vulnerable_groups: f.vulnerable_groups?.map((vg, idx) => idx === i ? { ...vg, number: Number(e.target.value) } : vg) }))} />
-                                    <span className="text-xs text-slate-400">people</span>
-                                </div>
-                            ))}
+                        <div className="space-y-6">
+                            <div className="space-y-3">
+                                <label className={labelCls}>Vulnerable Groups (Count)</label>
+                                {(form.vulnerable_groups || []).map((g, i) => (
+                                    <div key={i} className="flex items-center gap-4 bg-slate-50 rounded-2xl px-5 py-4 border border-transparent hover:border-slate-100 transition-all">
+                                        <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-rose-500 shadow-sm">
+                                            <Heart size={14} />
+                                        </div>
+                                        <span className="flex-1 text-sm font-bold text-slate-700">{g.group_type}</span>
+                                        <div className="flex items-center gap-2">
+                                            <input type="number" min={0} className="w-28 px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm font-bold text-center focus:outline-none focus:border-indigo-300" value={g.number || 0}
+                                                onChange={e => setForm(f => ({ ...f, vulnerable_groups: f.vulnerable_groups?.map((vg, idx) => idx === i ? { ...vg, number: Number(e.target.value) } : vg) }))} />
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase">Pax</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
 
                     {step === 6 && (
-                        <div className="space-y-3">
-                            {(form.community_capacity || []).map((c, i) => (
-                                <div key={i} className="bg-slate-50 rounded-2xl p-5">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <span className="text-sm font-bold text-slate-800">{c.capacity_type}</span>
-                                        <button type="button"
-                                            onClick={() => setForm(f => ({ ...f, community_capacity: f.community_capacity?.map((cc, idx) => idx === i ? { ...cc, available: !cc.available } : cc) }))}
-                                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${c.available ? 'bg-indigo-100 text-indigo-700' : 'bg-white border border-slate-200 text-slate-400'}`}>
-                                            <CheckCircle size={14} /> {c.available ? 'Available' : 'Not Available'}
-                                        </button>
+                        <div className="space-y-6">
+                            <div className="space-y-3">
+                                <label className={labelCls}>Community DRM Capacity</label>
+                                {(form.community_capacity || []).map((c, i) => (
+                                    <div key={i} className="bg-slate-50 rounded-2xl p-5 border border-transparent hover:border-slate-100 transition-all">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${c.available ? 'bg-emerald-100 text-emerald-600' : 'bg-white text-slate-300'} shadow-sm`}>
+                                                    <ShieldCheck size={16} />
+                                                </div>
+                                                <span className="text-sm font-bold text-slate-800">{c.capacity_type}</span>
+                                            </div>
+                                            <button type="button"
+                                                onClick={() => setForm(f => ({ ...f, community_capacity: f.community_capacity?.map((cc, idx) => idx === i ? { ...cc, available: !cc.available } : cc) }))}
+                                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${c.available ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white border border-slate-200 text-slate-400'}`}>
+                                                {c.available ? <CheckCircle size={14} /> : <Clock size={14} />} {c.available ? 'Active' : 'Inactive'}
+                                            </button>
+                                        </div>
+                                        <input className={`${inputCls} !py-2.5 !bg-white`} placeholder="Remarks on this capacity..." value={c.remarks || ''}
+                                            onChange={e => setForm(f => ({ ...f, community_capacity: f.community_capacity?.map((cc, idx) => idx === i ? { ...cc, remarks: e.target.value } : cc) }))} />
                                     </div>
-                                    <input className={`${inputCls} !py-2`} placeholder="Remarks (optional)" value={c.remarks || ''}
-                                        onChange={e => setForm(f => ({ ...f, community_capacity: f.community_capacity?.map((cc, idx) => idx === i ? { ...cc, remarks: e.target.value } : cc) }))} />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {step === 7 && (
+                        <div className="space-y-8">
+                            {/* Hazards Section */}
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <label className={labelCls}>Community Hazards</label>
+                                    <button type="button" onClick={() => setForm(f => ({ ...f, hazards: [...(f.hazards || []), { hazard_name: '', severity: 'Medium', frequency: 'Low' }] }))}
+                                        className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg flex items-center gap-1">
+                                        <Plus size={12} /> Add Hazard
+                                    </button>
                                 </div>
-                            ))}
-                            <div className="pt-2">
-                                <label className={labelCls}>Status</label>
-                                <div className="flex gap-3">
+                                <div className="grid grid-cols-1 gap-4">
+                                    {(form.hazards || []).map((h, i) => (
+                                        <div key={i} className="bg-slate-50 border border-slate-100 rounded-2xl p-4 relative group/h">
+                                            <button onClick={() => setForm(f => ({ ...f, hazards: f.hazards?.filter((_, idx) => idx !== i) }))} className="absolute -top-2 -right-2 w-6 h-6 bg-rose-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/h:opacity-100 transition-all"><X size={12} /></button>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                                <div className="md:col-span-2">
+                                                    <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">Hazard Name</label>
+                                                    <input className={`${inputCls} !py-2 !bg-white`} value={h.hazard_name || ''} onChange={e => setForm(f => ({ ...f, hazards: f.hazards?.map((item, idx) => idx === i ? { ...item, hazard_name: e.target.value } : item) }))} placeholder="e.g. Flash Flood" />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">Severity</label>
+                                                    <select className={`${inputCls} !py-2 !bg-white`} value={h.severity || ''} onChange={e => setForm(f => ({ ...f, hazards: f.hazards?.map((item, idx) => idx === i ? { ...item, severity: e.target.value } : item) }))}>
+                                                        {['Low', 'Medium', 'High', 'Critical'].map(v => <option key={v}>{v}</option>)}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Risk Index Section */}
+                            <div className="bg-indigo-50/50 rounded-3xl p-6 border border-indigo-100">
+                                <label className={`${labelCls} text-indigo-900`}>Risk Index Scorecard</label>
+                                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-3">
+                                    {[
+                                        ['hazard_index', 'Hazard'],
+                                        ['vulnerability_index', 'Vuln.'],
+                                        ['exposure_index', 'Exposure'],
+                                        ['capacity_index', 'Capacity'],
+                                        ['overall_woreda_risk_score', 'Score']
+                                    ].map(([k, l]) => (
+                                        <div key={k} className="bg-white rounded-2xl p-3 border border-indigo-100/50">
+                                            <label className="text-[8px] font-black text-slate-400 uppercase block mb-1">{l}</label>
+                                            <input type="number" step="0.1" className="w-full bg-transparent text-sm font-black text-indigo-700 focus:outline-none"
+                                                value={(form.risk_index as any)?.[k] || 0}
+                                                onChange={e => setForm(f => ({ ...f, risk_index: { ...f.risk_index, [k]: Number(e.target.value) } }))} />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {step === 8 && (
+                        <div className="space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                {/* Economic Indicators */}
+                                <section className="space-y-4">
+                                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-amber-400" /> Economic Risk
+                                    </h4>
+                                    <div className="space-y-3">
+                                        {[
+                                            ['concentration_small_informal_businesses', 'Small Business Conc.'],
+                                            ['market_exposure', 'Market Exposure'],
+                                            ['daily_labor_dependency', 'Labor Dependency']
+                                        ].map(([k, l]) => (
+                                            <div key={k}>
+                                                <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">{l}</label>
+                                                <select className={inputCls} value={(form.economic_risk_indicators as any)?.[k] || ''} onChange={e => setForm(f => ({ ...f, economic_risk_indicators: { ...f.economic_risk_indicators, [k]: e.target.value } }))}>
+                                                    <option value="">Select Level</option>
+                                                    {['Low', 'Medium', 'High'].map(v => <option key={v}>{v}</option>)}
+                                                </select>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+
+                                {/* Environmental Indicators */}
+                                <section className="space-y-4">
+                                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-emerald-400" /> Environmental
+                                    </h4>
+                                    <div className="space-y-3">
+                                        {[
+                                            ['green_space_per_capita', 'Green Space'],
+                                            ['waste_dumping_sites', 'Waste Management'],
+                                            ['urban_drainage_blockage_frequency', 'Drainage Blockage']
+                                        ].map(([k, l]) => (
+                                            <div key={k}>
+                                                <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">{l}</label>
+                                                <select className={inputCls} value={(form.environmental_indicators as any)?.[k] || ''} onChange={e => setForm(f => ({ ...f, environmental_indicators: { ...f.environmental_indicators, [k]: e.target.value } }))}>
+                                                    <option value="">Select Level</option>
+                                                    {['Good', 'Fair', 'Critical'].map(v => <option key={v}>{v}</option>)}
+                                                </select>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+
+                                {/* Preparedness Indicators */}
+                                <section className="space-y-4">
+                                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-indigo-400" /> Preparedness
+                                    </h4>
+                                    <div className="space-y-3">
+                                        {[
+                                            ['emergency_shelters_availability', 'Emergency Shelters'],
+                                            ['ambulance_coverage', 'Ambulance Coverage'],
+                                            ['community_awareness_level', 'Community Awareness']
+                                        ].map(([k, l]) => (
+                                            <div key={k}>
+                                                <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">{l}</label>
+                                                <select className={inputCls} value={(form.preparedness_indicators as any)?.[k] || ''} onChange={e => setForm(f => ({ ...f, preparedness_indicators: { ...f.preparedness_indicators, [k]: e.target.value } }))}>
+                                                    <option value="">Select Level</option>
+                                                    {['Low', 'Medium', 'High'].map(v => <option key={v}>{v}</option>)}
+                                                </select>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+
+                                {/* Recovery Indicators */}
+                                <section className="space-y-4">
+                                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-rose-400" /> Recovery
+                                    </h4>
+                                    <div className="space-y-3">
+                                        {[
+                                            ['post_disaster_recovery_plans', 'Recovery Plans'],
+                                            ['access_to_credit_safety_nets', 'Credit Access'],
+                                            ['climate_adaptation_initiatives', 'Adaptation Focus']
+                                        ].map(([k, l]) => (
+                                            <div key={k}>
+                                                <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">{l}</label>
+                                                <select className={inputCls} value={(form.recovery_indicators as any)?.[k] || ''} onChange={e => setForm(f => ({ ...f, recovery_indicators: { ...f.recovery_indicators, [k]: e.target.value } }))}>
+                                                    <option value="">Select Level</option>
+                                                    {['None', 'Developing', 'Established'].map(v => <option key={v}>{v}</option>)}
+                                                </select>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            </div>
+
+                            <div className="pt-6 border-t border-slate-100">
+                                <label className={labelCls}>Final Status</label>
+                                <div className="flex bg-slate-100 p-1.5 rounded-[2rem]">
                                     {['Draft', 'Submitted', 'Reviewed'].map(s => (
                                         <button key={s} type="button" onClick={() => setForm(f => ({ ...f, status: s as any }))}
-                                            className={`flex-1 py-3 rounded-2xl text-sm font-bold border transition-all ${form.status === s ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>{s}</button>
+                                            className={`flex-1 py-4 rounded-3xl text-xs font-black uppercase tracking-widest transition-all ${form.status === s ? 'bg-white text-indigo-700 shadow-xl shadow-indigo-100 border border-indigo-50' : 'text-slate-400 hover:text-slate-600'}`}>{s}</button>
                                     ))}
                                 </div>
                             </div>
@@ -431,18 +681,18 @@ const DetailView: React.FC<{ profile: WProfile; onBack: () => void; onEdit?: () 
                     <div>
                         <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">{profile.location.house_no && profile.location.house_no !== 'Aggregated Data' ? 'Household Profile' : 'Woreda Profile'}</p>
                         <h2 className="text-2xl font-black text-slate-900">
-                            {profile.location.house_no && profile.location.house_no !== 'Aggregated Data' 
-                                ? `House ${profile.location.house_no}` 
+                            {profile.location.house_no && profile.location.house_no !== 'Aggregated Data'
+                                ? `House ${profile.location.house_no}`
                                 : profile.location.block && profile.location.block !== 'All Blocks'
-                                ? `Block-${profile.location.block}`
-                                : profile.location.woreda === 'All Woredas' 
-                                ? (profile.location.subcity === 'All Subcities' ? 'All Addis Ababa' : `${profile.location.subcity} Subcity`)
-                                : `Woreda ${profile.location.woreda}`}
+                                    ? `Block-${profile.location.block}`
+                                    : profile.location.woreda === 'All Woredas'
+                                        ? (profile.location.subcity === 'All Subcities' ? 'All Addis Ababa' : `${profile.location.subcity} Subcity`)
+                                        : `Woreda ${profile.location.woreda}`}
                         </h2>
                         <p className="text-xs text-slate-400">
                             {profile.location.block && profile.location.block !== 'All Blocks' && (!profile.location.house_no || profile.location.house_no === 'Aggregated Data') ? `Woreda ${profile.location.woreda} • ` : ''}
-                            {profile.location.house_no && profile.location.house_no !== 'Aggregated Data' 
-                                ? (profile.location.block !== 'Unknown' && profile.location.block !== 'All Blocks' ? `Block-${profile.location.block} • ` : '') + `Woreda ${profile.location.woreda}` 
+                            {profile.location.house_no && profile.location.house_no !== 'Aggregated Data'
+                                ? (profile.location.block !== 'Unknown' && profile.location.block !== 'All Blocks' ? `Block-${profile.location.block} • ` : '') + `Woreda ${profile.location.woreda}`
                                 : (profile.location.subcity === 'All Subcities' ? 'City Level Summary' : `${profile.location.subcity} Subcity`)}
                         </p>
                     </div>
@@ -508,7 +758,7 @@ const DetailView: React.FC<{ profile: WProfile; onBack: () => void; onEdit?: () 
                 {tab === 'demographics' && d && (
                     <div className="space-y-6">
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            {[['Total Population', d.total_population],['Male', d.male_population],['Female', d.female_population],['Children 0–17', d.children_0_17],['Youth 18–29', d.youth_18_29],['Adults 30–59', d.adults_30_59],['Elderly 60+', d.elderly_60_plus],['Total Households', d.total_households],['Female-headed HH', d.female_headed_households],['Informal Settlement', d.informal_settlement_population],['Low Income HH', d.low_income_households],['IDPs', d.internally_displaced_population]].map(([l, v]) => (
+                            {[['Total Population', d.total_population], ['Male', d.male_population], ['Female', d.female_population], ['Children 0–17', d.children_0_17], ['Youth 18–29', d.youth_18_29], ['Adults 30–59', d.adults_30_59], ['Elderly 60+', d.elderly_60_plus], ['Total Households', d.total_households], ['Female-headed HH', d.female_headed_households], ['Informal Settlement', d.informal_settlement_population], ['Low Income HH', d.low_income_households], ['IDPs', d.internally_displaced_population]].map(([l, v]) => (
                                 <div key={String(l)} className="bg-slate-50 rounded-2xl p-4">
                                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">{l}</p>
                                     <p className="text-2xl font-black text-slate-900">{(v as number)?.toLocaleString() ?? '—'}</p>
@@ -565,7 +815,7 @@ const DetailView: React.FC<{ profile: WProfile; onBack: () => void; onEdit?: () 
                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Road Access</p>
                             <p className="text-lg font-black text-slate-900">{profile.basic_services.road_access || '—'}</p>
                         </div>
-                        {[['electricity','Electricity'],['drainage_system_coverage','Drainage System'],['solid_waste_management_coverage','Solid Waste Mgmt'],['telecommunications_access','Telecommunications'],['critical_lifeline_redundancy','Lifeline Redundancy']].map(([k,l]) => (
+                        {[['electricity', 'Electricity'], ['drainage_system_coverage', 'Drainage System'], ['solid_waste_management_coverage', 'Solid Waste Mgmt'], ['telecommunications_access', 'Telecommunications'], ['critical_lifeline_redundancy', 'Lifeline Redundancy']].map(([k, l]) => (
                             <div key={k} className={`flex items-center gap-3 rounded-2xl p-5 ${(profile.basic_services as any)[k] ? 'bg-emerald-50 border border-emerald-100' : 'bg-slate-50 border border-slate-100'}`}>
                                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${(profile.basic_services as any)[k] ? 'bg-emerald-100' : 'bg-slate-100'}`}>
                                     {(profile.basic_services as any)[k] ? <CheckCircle size={18} className="text-emerald-600" /> : <X size={18} className="text-slate-400" />}
@@ -996,7 +1246,7 @@ const SyncInterviewModal: React.FC<{
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" />
             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
                 className="relative bg-white rounded-[2.5rem] w-full max-w-md flex flex-col shadow-2xl border border-slate-100 overflow-hidden">
-                
+
                 <div className="p-8 border-b border-slate-50 flex items-center justify-between">
                     <div>
                         <h2 className="text-xl font-black text-slate-900">Sync from Interview</h2>
@@ -1008,7 +1258,7 @@ const SyncInterviewModal: React.FC<{
                 <div className="p-8 space-y-6">
                     <div>
                         <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Response ID</label>
-                        <input 
+                        <input
                             className="w-full px-4 py-3 rounded-2xl border border-slate-100 bg-slate-50 text-slate-800 font-bold text-sm focus:outline-none focus:border-indigo-300 focus:bg-white transition-all"
                             value={responseId} onChange={e => setResponseId(e.target.value)} placeholder="Enter Interview Response ID"
                         />
@@ -1018,7 +1268,7 @@ const SyncInterviewModal: React.FC<{
                             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Select Mapping Configuration</label>
                             <Link to="/admin/profile-mapping" className="text-[10px] font-bold text-indigo-600 hover:underline">Create New Mapping</Link>
                         </div>
-                        <select 
+                        <select
                             className="w-full px-4 py-3 rounded-2xl border border-slate-100 bg-slate-50 text-slate-800 font-bold text-sm focus:outline-none focus:border-indigo-300 focus:bg-white transition-all"
                             value={mappingId} onChange={e => setMappingId(e.target.value)}
                         >
@@ -1047,9 +1297,9 @@ const SyncInterviewModal: React.FC<{
                 </div>
 
                 <div className="p-8 border-t border-slate-50 bg-white">
-                    <button 
-                        disabled={!responseId || !mappingId || syncing} 
-                        onClick={() => onSync({ responseId, mappingId, dryRun: isDryRun })} 
+                    <button
+                        disabled={!responseId || !mappingId || syncing}
+                        onClick={() => onSync({ responseId, mappingId, dryRun: isDryRun })}
                         className="w-full py-4 bg-slate-900 text-white rounded-2xl text-sm font-bold hover:bg-black transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
                     >
                         {syncing ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}
@@ -1112,7 +1362,7 @@ const SyncPreviewModal: React.FC<{
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" />
             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
                 className="relative bg-white rounded-[2.5rem] w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl border border-slate-100 overflow-hidden">
-                
+
                 <div className="p-8 border-b border-slate-50 flex items-center justify-between">
                     <div>
                         <h2 className="text-xl font-black text-slate-900">Sync Preview</h2>
@@ -1182,9 +1432,9 @@ const SyncPreviewModal: React.FC<{
                         Cancel
                     </button>
                     <Can resource="WoredaProfile" action="sync">
-                        <button 
-                            disabled={syncing} 
-                            onClick={onConfirm} 
+                        <button
+                            disabled={syncing}
+                            onClick={onConfirm}
                             className="px-10 py-4 bg-emerald-600 text-white rounded-2xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-lg flex items-center justify-center gap-2 flex-[2]"
                         >
                             {syncing ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
@@ -1200,7 +1450,7 @@ const SyncPreviewModal: React.FC<{
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const WoredaProfile: React.FC = () => {
     const location = useLocation();
-    
+
     const [profiles, setProfiles] = useState<WProfile[]>([]);
     const [stats, setStats] = useState<WoredaProfileStats | null>(null);
     const [loading, setLoading] = useState(true);
@@ -1214,11 +1464,11 @@ const WoredaProfile: React.FC = () => {
     const [statusFilter, setStatusFilter] = useState<'ALL' | 'Draft' | 'Submitted' | 'Reviewed'>('ALL');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
-    
+
     // Auto-open sync modal if navigated here from Response Explorer
     const searchParams = new URLSearchParams(location.search);
     const initialSyncId = searchParams.get('syncResponseId');
-    
+
     useEffect(() => {
         if (initialSyncId) {
             setShowSync(true);
@@ -1240,7 +1490,7 @@ const WoredaProfile: React.FC = () => {
             if (path.block) params.block = path.block;
 
             const [pList, pStats, mList] = await Promise.all([
-                getWoredaProfiles(params), 
+                getWoredaProfiles(params),
                 getWoredaProfileStats(),
                 getProfileMappings()
             ]);
@@ -1260,14 +1510,14 @@ const WoredaProfile: React.FC = () => {
         try {
             // Uniqueness check for household level
             if (level === 'household' && data.location.house_no && data.location.house_no !== 'Aggregated Data') {
-                const isDuplicate = profiles.some(p => 
-                    p._id !== editProfile?._id && 
+                const isDuplicate = profiles.some(p =>
+                    p._id !== editProfile?._id &&
                     p.location.house_no === data.location.house_no &&
                     p.location.block === data.location.block &&
                     p.location.woreda === data.location.woreda &&
                     p.location.subcity === data.location.subcity
                 );
-                
+
                 if (isDuplicate) {
                     toast.error(`Household No. ${data.location.house_no} already exists in this block.`);
                     return;
@@ -1297,14 +1547,14 @@ const WoredaProfile: React.FC = () => {
         try {
             const params = JSON.parse(paramsJson);
             setImporting(true);
-            
+
             // For standard Excel import, mappingId is not required.
             // We only pass status and dryRun if applicable.
-            const result = await importWoredaProfile(file, { 
+            const result = await importWoredaProfile(file, {
                 status: params.status,
-                mappingId: params.mappingId 
+                mappingId: params.mappingId
             });
-            
+
             toast.success(result.message || 'Import successful');
             setShowImport(false);
             fetchData();
@@ -1315,6 +1565,7 @@ const WoredaProfile: React.FC = () => {
         }
     };
 
+    // Sync from interview
     const handleSync = async (data: { responseId: string; mappingId: string; dryRun?: boolean }) => {
         try {
             setSaving(true);
@@ -1336,6 +1587,18 @@ const WoredaProfile: React.FC = () => {
         }
     };
 
+    //
+    const handleStatusChange = async (id: string, status: string) => {
+        try {
+            await updateWoredaProfile(id, { status: status as any });
+            toast.success(`Status updated to ${status}`);
+            fetchData();
+        } catch {
+            toast.error('Failed to update status');
+        }
+    };
+
+    // Filter only applies at household level — aggregated rows are always shown as a group
     const handleDelete = async (id: string) => {
         if (!window.confirm('Delete this Woreda Profile?')) return;
         try {
@@ -1347,7 +1610,9 @@ const WoredaProfile: React.FC = () => {
         }
     };
 
+    // Filter only applies at household level — aggregated rows are always shown as a group
     const filtered = profiles.filter(p => {
+        if (level !== 'household') return true; // aggregated rows — no status filter
         const searchText = search.toLowerCase();
         const matchesSearch = [p.location.woreda, p.location.subcity, p.location.block, p.location.house_no].some(v =>
             (v || '').toLowerCase().includes(searchText)
@@ -1359,6 +1624,7 @@ const WoredaProfile: React.FC = () => {
     const totalPages = Math.ceil(filtered.length / itemsPerPage);
     const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+    //
     useEffect(() => {
         setCurrentPage(1);
     }, [search, statusFilter, level, path]);
@@ -1391,13 +1657,13 @@ const WoredaProfile: React.FC = () => {
                     <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full md:w-auto">
                         <button onClick={fetchData} className="w-10 h-10 rounded-2xl bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 flex items-center justify-center shadow-sm transition-all"><RefreshCw size={16} /></button>
                         <Can resource="WoredaProfile" action="sync">
-                            <button 
+                            <button
                                 onClick={() => {
                                     if (mappings.length === 0) {
                                         toast.warn('No profile mappings configured. Please create one first.');
                                     }
                                     setShowSync(true);
-                                }} 
+                                }}
                                 className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 md:px-5 py-3 bg-white border border-slate-100 text-slate-700 rounded-2xl text-[11px] md:text-sm font-bold hover:bg-slate-50 transition-all shadow-sm"
                             >
                                 <ArrowRightLeft size={16} className="text-indigo-600" /> Sync
@@ -1427,6 +1693,17 @@ const WoredaProfile: React.FC = () => {
                     </div>
                 )}
 
+                {/* Breadcrumb Trail */}
+                {(path.subcity || path.woreda || path.block) && (
+                    <div className="flex items-center gap-2 mb-4 px-1 text-xs font-bold">
+                        <button onClick={() => { setLevel('all'); setPath({ subcity: null, woreda: null, block: null }); }} className="text-indigo-500 hover:underline">All</button>
+                        {path.subcity && <><span className="text-slate-300">›</span><button onClick={() => { setLevel('subcity'); setPath({ subcity: null, woreda: null, block: null }); }} className="text-indigo-500 hover:underline">{path.subcity}</button></>}
+                        {path.woreda && <><span className="text-slate-300">›</span><button onClick={() => { setLevel('woreda'); setPath(p => ({ ...p, woreda: null, block: null })); }} className="text-indigo-500 hover:underline">Woreda {path.woreda}</button></>}
+                        {path.block && <><span className="text-slate-300">›</span><button onClick={() => { setLevel('block'); setPath(p => ({ ...p, block: null })); }} className="text-indigo-500 hover:underline">Block {path.block}</button></>}
+                        <span className="text-slate-300">›</span><span className="text-slate-500 capitalize">{level} level</span>
+                    </div>
+                )}
+
                 {/* Tabs */}
                 <div className="flex bg-slate-100 p-1 rounded-2xl w-full md:w-auto overflow-x-auto text-[11px] font-black uppercase tracking-wider mb-6">
                     {(['all', 'subcity', 'woreda', 'block', 'household'] as const).map(l => (
@@ -1449,46 +1726,47 @@ const WoredaProfile: React.FC = () => {
                         <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Search in ${level}...`}
                             className="w-full pl-12 pr-5 py-3 bg-white rounded-2xl border border-slate-100 text-sm font-medium text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 shadow-sm" />
                     </div>
-                    
+
                     {/* View Mode Toggle */}
                     <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 shadow-inner">
-                        <button 
-                            onClick={() => setViewMode('grid')} 
+                        <button
+                            onClick={() => setViewMode('grid')}
                             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'grid' ? 'bg-white text-indigo-700 shadow-sm border border-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
                         >
                             Grid
                         </button>
-                        <button 
-                            onClick={() => setViewMode('table')} 
+                        <button
+                            onClick={() => setViewMode('table')}
                             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'table' ? 'bg-white text-indigo-700 shadow-sm border border-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
                         >
                             Table
                         </button>
                     </div>
 
-                    {/* Status Tabs (The Filter Engine) */}
-                    <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 shadow-inner overflow-x-auto no-scrollbar">
-                        {[
-                            { label: 'All Profiles', value: 'ALL', color: 'bg-white text-slate-900 border-slate-100' },
-                            { label: 'Drafts', value: 'Draft', color: 'bg-amber-50 text-amber-700 border-amber-100' },
-                            { label: 'Submitted', value: 'Submitted', color: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
-                            { label: 'Reviewed', value: 'Reviewed', color: 'bg-blue-50 text-blue-700 border-blue-100' },
-                        ].map((tab) => (
-                            <button
-                                key={tab.value}
-                                onClick={() => setStatusFilter(tab.value as any)}
-                                className={`px-4 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap ${
-                                    statusFilter === tab.value 
-                                    ? `${tab.color} shadow-sm border ring-1 ring-slate-100` 
-                                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/50'
-                                }`}
-                            >
-                                {tab.label}
-                            </button>
-                        ))}
-                    </div>
+                    {/* Status Tabs — only shown at household level where actual statuses apply */}
+                    {level === 'household' && (
+                        <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 shadow-inner overflow-x-auto no-scrollbar">
+                            {[
+                                { label: 'All', value: 'ALL', color: 'bg-white text-slate-900 border-slate-100' },
+                                { label: 'Draft', value: 'Draft', color: 'bg-amber-50 text-amber-700 border-amber-100' },
+                                { label: 'Submitted', value: 'Submitted', color: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
+                                { label: 'Reviewed', value: 'Reviewed', color: 'bg-blue-50 text-blue-700 border-blue-100' },
+                            ].map((tab) => (
+                                <button
+                                    key={tab.value}
+                                    onClick={() => setStatusFilter(tab.value as any)}
+                                    className={`px-4 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap ${statusFilter === tab.value
+                                            ? `${tab.color} shadow-sm border ring-1 ring-slate-100`
+                                            : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/50'
+                                        }`}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
 
-                    <span className="text-xs font-bold text-slate-400 px-2 whitespace-nowrap md:ml-auto">{filtered.length} profiles</span>
+                    <span className="text-xs font-bold text-slate-400 px-2 whitespace-nowrap md:ml-auto">{filtered.length} {level !== 'household' ? 'aggregated zones' : 'profiles'}</span>
                 </div>
 
                 {/* Profile Grid */}
@@ -1518,12 +1796,13 @@ const WoredaProfile: React.FC = () => {
                                     onView={() => setViewProfile(p)}
                                     onDrillDown={level !== 'household' ? () => {
                                         if (level === 'all') { setPath({ subcity: null, woreda: null, block: null }); setLevel('subcity'); }
-                                        else if (level === 'subcity') { setPath({ subcity: p.location.subcity || null, woreda: null, block: null }); setLevel('woreda'); }
+                                            else if (level === 'subcity') { setPath({ subcity: p.location.subcity || null, woreda: null, block: null }); setLevel('woreda'); }
                                         else if (level === 'woreda') { setPath({ subcity: p.location.subcity || null, woreda: p.location.woreda || null, block: null }); setLevel('block'); }
                                         else if (level === 'block') { setPath({ subcity: p.location.subcity || null, woreda: p.location.woreda || null, block: p.location.block && p.location.block !== 'All Blocks' ? p.location.block : 'Unknown' }); setLevel('household'); }
                                     } : undefined}
                                     onEdit={level === 'household' ? () => { setEditProfile(p); setShowForm(true); } : undefined}
-                                    onDelete={level === 'household' ? () => handleDelete(p._id) : undefined} />
+                                    onDelete={level === 'household' ? () => handleDelete(p._id) : undefined}
+                                    onStatusChange={level === 'household' ? (s) => handleStatusChange(p._id, s) : undefined} />
                             ))}
                         </AnimatePresence>
                     </motion.div>
@@ -1546,29 +1825,27 @@ const WoredaProfile: React.FC = () => {
                                         const statusKey = p.status || 'Draft';
                                         const sc = STATUS_CONFIG[statusKey] || STATUS_CONFIG.Draft;
                                         return (
-                                            <tr key={p._id} className={`group transition-all border-l-4 ${
-                                                p.status === 'Submitted' ? 'bg-emerald-50/20 hover:bg-emerald-50/40 border-emerald-500' :
-                                                p.status === 'Reviewed' ? 'bg-blue-50/20 hover:bg-blue-50/40 border-blue-500' :
-                                                'bg-amber-50/20 hover:bg-amber-50/40 border-amber-500'
-                                            }`}>
+                                            <tr key={p._id} className={`group transition-all border-l-4 ${p.status === 'Submitted' ? 'bg-emerald-50/20 hover:bg-emerald-50/40 border-emerald-500' :
+                                                    p.status === 'Reviewed' ? 'bg-blue-50/20 hover:bg-blue-50/40 border-blue-500' :
+                                                        'bg-amber-50/20 hover:bg-amber-50/40 border-amber-500'
+                                                }`}>
                                                 <td className="px-8 py-6">
                                                     <div className="flex items-center gap-4">
-                                                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-mono text-[10px] font-bold group-hover:scale-110 transition-all ${
-                                                            p.status === 'Submitted' ? 'bg-emerald-100/50 text-emerald-700' :
-                                                            p.status === 'Reviewed' ? 'bg-blue-100/50 text-blue-700' :
-                                                            'bg-amber-100/50 text-amber-700'
-                                                        }`}>
+                                                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-mono text-[10px] font-bold group-hover:scale-110 transition-all ${p.status === 'Submitted' ? 'bg-emerald-100/50 text-emerald-700' :
+                                                                p.status === 'Reviewed' ? 'bg-blue-100/50 text-blue-700' :
+                                                                    'bg-amber-100/50 text-amber-700'
+                                                            }`}>
                                                             #{p._id.slice(-4).toUpperCase()}
                                                         </div>
                                                         <div>
                                                             <p className="text-sm font-black text-slate-900 leading-tight">
-                                                                {p.location.house_no && p.location.house_no !== 'Aggregated Data' 
-                                                                    ? `House ${p.location.house_no}` 
+                                                                {p.location.house_no && p.location.house_no !== 'Aggregated Data'
+                                                                    ? `House ${p.location.house_no}`
                                                                     : p.location.block && p.location.block !== 'All Blocks'
-                                                                    ? `Block-${p.location.block}`
-                                                                    : p.location.woreda === 'All Woredas' 
-                                                                    ? (p.location.subcity === 'All Subcities' ? 'All Addis' : p.location.subcity)
-                                                                    : `Woreda ${p.location.woreda}`}
+                                                                        ? `Block-${p.location.block}`
+                                                                        : p.location.woreda === 'All Woredas'
+                                                                            ? (p.location.subcity === 'All Subcities' ? 'All Addis' : p.location.subcity)
+                                                                            : `Woreda ${p.location.woreda}`}
                                                             </p>
                                                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mt-0.5">
                                                                 {p.location.subcity} {p.location.woreda !== 'All Woredas' ? `• Zone W${p.location.woreda}` : ''}
@@ -1584,11 +1861,10 @@ const WoredaProfile: React.FC = () => {
                                                 </td>
                                                 <td className="px-8 py-6">
                                                     <div className="flex items-center gap-3">
-                                                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
-                                                            p.status === 'Submitted' ? 'bg-emerald-100 text-emerald-600' :
-                                                            p.status === 'Reviewed' ? 'bg-blue-100 text-blue-600' :
-                                                            'bg-amber-100 text-amber-600'
-                                                        }`}>
+                                                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${p.status === 'Submitted' ? 'bg-emerald-100 text-emerald-600' :
+                                                                p.status === 'Reviewed' ? 'bg-blue-100 text-blue-600' :
+                                                                    'bg-amber-100 text-amber-600'
+                                                            }`}>
                                                             <BarChart3 size={16} />
                                                         </div>
                                                         <div>
@@ -1598,10 +1874,16 @@ const WoredaProfile: React.FC = () => {
                                                     </div>
                                                 </td>
                                                 <td className="px-8 py-6 text-center">
-                                                    <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border ${sc.bg} ${sc.text}`}>
-                                                        <div className={`w-1.5 h-1.5 rounded-full ${sc.dot} ${p.status === 'Submitted' ? 'animate-pulse' : ''}`} />
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const next: Record<string, string> = { 'Draft': 'Submitted', 'Submitted': 'Reviewed', 'Reviewed': 'Draft' };
+                                                            handleStatusChange(p._id, next[p.status || 'Draft'] || 'Draft');
+                                                        }}
+                                                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 ${sc.bg} ${sc.text} border border-transparent hover:border-current shadow-sm`}>
+                                                        <div className={`w-2 h-2 rounded-full ${sc.dot} ${p.status === 'Submitted' ? 'animate-pulse' : ''}`} />
                                                         {p.status}
-                                                    </span>
+                                                    </button>
                                                 </td>
                                                 <td className="px-8 py-6">
                                                     <div className="flex flex-col gap-1">
@@ -1617,7 +1899,7 @@ const WoredaProfile: React.FC = () => {
                                                 <td className="px-8 py-6 text-right relative z-10">
                                                     <div className="flex items-center justify-end gap-2">
                                                         {level !== 'household' && (
-                                                            <button 
+                                                            <button
                                                                 onClick={() => {
                                                                     if (level === 'all') { setPath({ subcity: null, woreda: null, block: null }); setLevel('subcity'); }
                                                                     else if (level === 'subcity') { setPath({ subcity: p.location.subcity || null, woreda: null, block: null }); setLevel('woreda'); }
@@ -1630,7 +1912,7 @@ const WoredaProfile: React.FC = () => {
                                                                 <ChevronRight size={18} />
                                                             </button>
                                                         )}
-                                                        <button 
+                                                        <button
                                                             onClick={() => setViewProfile(p)}
                                                             className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center hover:bg-indigo-600 transition-all shadow-lg"
                                                             title="Inspect Payload"
@@ -1639,7 +1921,7 @@ const WoredaProfile: React.FC = () => {
                                                         </button>
                                                         {level === 'household' && (
                                                             <Can resource="WoredaProfile" action="update">
-                                                                <button 
+                                                                <button
                                                                     onClick={() => { setEditProfile(p); setShowForm(true); }}
                                                                     className="w-10 h-10 rounded-2xl border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-100 hover:bg-white flex items-center justify-center transition-all shadow-sm"
                                                                     title="Modify Protocol"
@@ -1673,11 +1955,10 @@ const WoredaProfile: React.FC = () => {
                                     <button
                                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                         disabled={currentPage === 1}
-                                        className={`p-2 rounded-xl border transition-all ${
-                                            currentPage === 1 
-                                            ? 'bg-slate-50 text-slate-300 border-slate-100' 
-                                            : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600 shadow-sm'
-                                        }`}
+                                        className={`p-2 rounded-xl border transition-all ${currentPage === 1
+                                                ? 'bg-slate-50 text-slate-300 border-slate-100'
+                                                : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600 shadow-sm'
+                                            }`}
                                     >
                                         <ChevronLeft size={18} />
                                     </button>
@@ -1690,11 +1971,10 @@ const WoredaProfile: React.FC = () => {
                                                 <button
                                                     key={pageNum}
                                                     onClick={() => setCurrentPage(pageNum)}
-                                                    className={`w-8 h-8 rounded-lg text-xs font-black transition-all ${
-                                                        currentPage === pageNum 
-                                                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
-                                                        : 'text-slate-400 hover:text-slate-600 hover:bg-white'
-                                                    }`}
+                                                    className={`w-8 h-8 rounded-lg text-xs font-black transition-all ${currentPage === pageNum
+                                                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
+                                                            : 'text-slate-400 hover:text-slate-600 hover:bg-white'
+                                                        }`}
                                                 >
                                                     {pageNum}
                                                 </button>
@@ -1704,11 +1984,10 @@ const WoredaProfile: React.FC = () => {
                                     <button
                                         onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                         disabled={currentPage === totalPages}
-                                        className={`p-2 rounded-xl border transition-all ${
-                                            currentPage === totalPages 
-                                            ? 'bg-slate-50 text-slate-300 border-slate-100' 
-                                            : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600 shadow-sm'
-                                        }`}
+                                        className={`p-2 rounded-xl border transition-all ${currentPage === totalPages
+                                                ? 'bg-slate-50 text-slate-300 border-slate-100'
+                                                : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600 shadow-sm'
+                                            }`}
                                     >
                                         <ChevronRight size={18} />
                                     </button>
@@ -1732,7 +2011,7 @@ const WoredaProfile: React.FC = () => {
                     <ImportModal onClose={() => setShowImport(false)} onImport={handleImport} importing={importing} />
                 )}
                 {showSync && (
-                    <SyncInterviewModal 
+                    <SyncInterviewModal
                         onClose={() => setShowSync(false)}
                         onSync={handleSync}
                         mappings={mappings}
@@ -1741,9 +2020,9 @@ const WoredaProfile: React.FC = () => {
                     />
                 )}
                 {syncPreviewData && (
-                    <SyncPreviewModal 
-                        data={syncPreviewData} 
-                        onClose={() => setSyncPreviewData(null)} 
+                    <SyncPreviewModal
+                        data={syncPreviewData}
+                        onClose={() => setSyncPreviewData(null)}
                         onConfirm={() => handleSync({ ...syncPreviewData.requestData, dryRun: false })}
                         syncing={saving}
                     />
