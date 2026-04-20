@@ -24,15 +24,22 @@ const IncidentAttachmentSchema = new mongoose.Schema(
 const IncidentReportSchema = new mongoose.Schema(
   {
     reportCode: { type: String, trim: true, default: '' },
+    reportType: {
+      type: String,
+      enum: ['incident', 'concern'],
+      default: 'incident',
+    },
     status: {
       type: String,
       enum: ['submitted', 'received', 'dispatched', 'closed'],
       default: 'submitted',
     },
     category: { type: String, trim: true, default: '' },
+    concernCategory: { type: String, trim: true, default: '' },
     severity: { type: String, trim: true, default: 'moderate' },
     location: { type: IncidentLocationSchema, default: () => ({}) },
     details: { type: String, trim: true, default: '' },
+    concernDetails: { type: String, trim: true, default: '' },
     fireInfo: {
       smellOfGas: { type: Boolean, default: false },
       estimatedSize: { type: String, trim: true, default: '' },
@@ -68,6 +75,10 @@ const IncidentReportSchema = new mongoose.Schema(
     otherInfo: {
       categoryNote: { type: String, trim: true, default: '' },
     },
+    concernInfo: {
+      nature: { type: String, trim: true, default: '' },
+      peopleAffected: { type: String, trim: true, default: '' },
+    },
     attachments: { type: [IncidentAttachmentSchema], default: [] },
     contact: {
       phone: { type: String, trim: true, default: '' },
@@ -81,8 +92,10 @@ const IncidentReportSchema = new mongoose.Schema(
 );
 
 IncidentReportSchema.index({ reportCode: 1 });
+IncidentReportSchema.index({ reportType: 1 });
 IncidentReportSchema.index({ status: 1 });
 IncidentReportSchema.index({ category: 1 });
+IncidentReportSchema.index({ concernCategory: 1 });
 IncidentReportSchema.index({ severity: 1 });
 
 export default mongoose.model('IncidentReport', IncidentReportSchema);

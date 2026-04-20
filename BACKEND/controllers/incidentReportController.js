@@ -19,18 +19,33 @@ export const createIncidentReportPublic = async (req, res) => {
   try {
     const payload = sanitizeIncomingPayload(req.body || {});
 
+    const reportType = (payload.reportType || 'incident').toString().trim();
     const category = (payload.category || '').toString().trim();
+    const concernCategory = (payload.concernCategory || '').toString().trim();
     const severity = (payload.severity || '').toString().trim();
     const details = (payload.details || '').toString().trim();
+    const concernDetails = (payload.concernDetails || '').toString().trim();
 
-    if (!category) {
-      return res.status(400).json({ message: 'Incident category is required' });
+    if (reportType !== 'incident' && reportType !== 'concern') {
+      return res.status(400).json({ message: 'Report type must be incident or concern' });
     }
-    if (!severity) {
-      return res.status(400).json({ message: 'Severity is required' });
-    }
-    if (!details) {
-      return res.status(400).json({ message: 'Details are required' });
+    if (reportType === 'incident') {
+      if (!category) {
+        return res.status(400).json({ message: 'Incident category is required' });
+      }
+      if (!severity) {
+        return res.status(400).json({ message: 'Severity is required' });
+      }
+      if (!details) {
+        return res.status(400).json({ message: 'Details are required' });
+      }
+    } else {
+      if (!concernCategory) {
+        return res.status(400).json({ message: 'Concern category is required' });
+      }
+      if (!concernDetails) {
+        return res.status(400).json({ message: 'Concern details are required' });
+      }
     }
 
     let reportCode = generateReportCode();
@@ -60,17 +75,22 @@ export const createIncidentReportPublic = async (req, res) => {
 // GET /api/incident-reports
 export const listIncidentReports = async (req, res) => {
   try {
-    const { status, search, category, severity } = req.query;
+    const { status, search, category, severity, reportType, concernCategory } = req.query;
     const query = {};
     if (status) query.status = status;
+    if (reportType) query.reportType = reportType;
     if (category) query.category = category;
+    if (concernCategory) query.concernCategory = concernCategory;
     if (severity) query.severity = severity;
     if (search) {
       query.$or = [
         { reportCode: { $regex: search, $options: 'i' } },
+        { reportType: { $regex: search, $options: 'i' } },
         { category: { $regex: search, $options: 'i' } },
+        { concernCategory: { $regex: search, $options: 'i' } },
         { severity: { $regex: search, $options: 'i' } },
         { details: { $regex: search, $options: 'i' } },
+        { concernDetails: { $regex: search, $options: 'i' } },
         { 'location.addressLine': { $regex: search, $options: 'i' } },
         { 'location.city': { $regex: search, $options: 'i' } },
         { 'location.region': { $regex: search, $options: 'i' } },

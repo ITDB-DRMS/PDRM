@@ -32,8 +32,10 @@ import { resolvePortalAssetUrl } from "@/utils/resolvePortalAssetUrl";
 type IncidentAttachment = { url: string; type: string; name: string };
 
 type IncidentReportDraft = {
+  reportType: "incident" | "concern";
   category: string;
   severity: "minor" | "moderate" | "critical";
+  concernCategory: string;
   location: {
     addressLine: string;
     city: string;
@@ -43,6 +45,7 @@ type IncidentReportDraft = {
     longitude: string;
   };
   details: string;
+  concernDetails: string;
   fireInfo: { smellOfGas: boolean; estimatedSize: string };
   floodInfo: { waterDepth: string; fastRising: boolean };
   collapseInfo: { peopleTrapped: boolean; buildingType: string };
@@ -52,6 +55,7 @@ type IncidentReportDraft = {
   trafficInfo: { lanesBlocked: string; injuries: boolean };
   animalInfo: { animalType: string; aggressive: boolean };
   otherInfo: { categoryNote: string };
+  concernInfo: { nature: string; peopleAffected: string };
   attachments: IncidentAttachment[];
   contact: { phone: string; email: string };
   anonymous: boolean;
@@ -63,8 +67,10 @@ L.Icon.Default.mergeOptions({
 });
 
 const DEFAULT_DRAFT: IncidentReportDraft = {
+  reportType: "incident",
   category: "",
   severity: "moderate",
+  concernCategory: "",
   location: {
     addressLine: "",
     city: "",
@@ -74,6 +80,7 @@ const DEFAULT_DRAFT: IncidentReportDraft = {
     longitude: "",
   },
   details: "",
+  concernDetails: "",
   fireInfo: { smellOfGas: false, estimatedSize: "" },
   floodInfo: { waterDepth: "", fastRising: false },
   collapseInfo: { peopleTrapped: false, buildingType: "" },
@@ -83,6 +90,7 @@ const DEFAULT_DRAFT: IncidentReportDraft = {
   trafficInfo: { lanesBlocked: "", injuries: false },
   animalInfo: { animalType: "", aggressive: false },
   otherInfo: { categoryNote: "" },
+  concernInfo: { nature: "", peopleAffected: "" },
   attachments: [],
   contact: { phone: "", email: "" },
   anonymous: false,
@@ -98,6 +106,15 @@ const CATEGORIES = [
   { key: "traffic", label: "Traffic", icon: Car, color: "text-brand-500" },
   { key: "animal", label: "Animal", icon: PawPrint, color: "text-accent-500" },
   { key: "other", label: "Other", icon: Plus, color: "text-slate-500" },
+];
+
+const CONCERN_CATEGORIES = [
+  { key: "sanitation", label: "Sanitation & Waste" },
+  { key: "public_health", label: "Public Health" },
+  { key: "infrastructure", label: "Infrastructure Risk" },
+  { key: "environment", label: "Environmental Hazard" },
+  { key: "safety", label: "Public Safety" },
+  { key: "other", label: "Other" },
 ];
 
 const SEVERITIES = [
@@ -211,7 +228,14 @@ const IncidentReportingPage: React.FC = () => {
       if (transcript.trim()) {
         setDraft((prev) => ({
           ...prev,
-          details: `${prev.details ? `${prev.details} ` : ""}${transcript.trim()}`,
+          details:
+            prev.reportType === "incident"
+              ? `${prev.details ? `${prev.details} ` : ""}${transcript.trim()}`
+              : prev.details,
+          concernDetails:
+            prev.reportType === "concern"
+              ? `${prev.concernDetails ? `${prev.concernDetails} ` : ""}${transcript.trim()}`
+              : prev.concernDetails,
         }));
       }
     };
@@ -437,22 +461,35 @@ const IncidentReportingPage: React.FC = () => {
   };
 
   const submitReport = async () => {
-    if (!draft.category) {
-      toast.error("Please select what happened.");
-      return;
-    }
-    if (!draft.severity) {
-      toast.error("Please select severity.");
-      return;
-    }
-    if (!draft.details.trim()) {
-      toast.error("Please add details.");
-      return;
+    if (draft.reportType === "incident") {
+      if (!draft.category) {
+        toast.error("Please select what happened.");
+        return;
+      }
+      if (!draft.severity) {
+        toast.error("Please select severity.");
+        return;
+      }
+      if (!draft.details.trim()) {
+        toast.error("Please add details.");
+        return;
+      }
+    } else {
+      if (!draft.concernCategory) {
+        toast.error("Please select a concern category.");
+        return;
+      }
+      if (!draft.concernDetails.trim()) {
+        toast.error("Please describe the concern.");
+        return;
+      }
     }
 
     const payload = {
+      reportType: draft.reportType,
       category: draft.category,
-      severity: draft.severity,
+      severity: draft.reportType === "incident" ? draft.severity : "moderate",
+      concernCategory: draft.concernCategory,
       location: {
         addressLine: draft.location.addressLine,
         city: draft.location.city,
@@ -461,7 +498,8 @@ const IncidentReportingPage: React.FC = () => {
         latitude: draft.location.latitude ? Number(draft.location.latitude) : null,
         longitude: draft.location.longitude ? Number(draft.location.longitude) : null,
       },
-      details: draft.details,
+      details: draft.reportType === "incident" ? draft.details : "",
+      concernDetails: draft.reportType === "concern" ? draft.concernDetails : "",
       fireInfo: draft.category === "fire" ? draft.fireInfo : { smellOfGas: false, estimatedSize: "" },
       floodInfo: draft.category === "flood" ? draft.floodInfo : { waterDepth: "", fastRising: false },
       collapseInfo: draft.category === "collapse" ? draft.collapseInfo : { peopleTrapped: false, buildingType: "" },
@@ -471,6 +509,7 @@ const IncidentReportingPage: React.FC = () => {
       trafficInfo: draft.category === "traffic" ? draft.trafficInfo : { lanesBlocked: "", injuries: false },
       animalInfo: draft.category === "animal" ? draft.animalInfo : { animalType: "", aggressive: false },
       otherInfo: draft.category === "other" ? draft.otherInfo : { categoryNote: "" },
+      concernInfo: draft.concernInfo,
       attachments: draft.attachments,
       contact: draft.anonymous ? { phone: "", email: "" } : draft.contact,
       anonymous: draft.anonymous,
@@ -514,11 +553,11 @@ const IncidentReportingPage: React.FC = () => {
                 <span className="text-brand-600 text-[11px] font-black uppercase tracking-[0.25em]">Rapid Response</span>
               </div>
               <h1 className="text-4xl lg:text-5xl font-black text-white leading-tight tracking-tight">
-                Report an Incident, <br />
+                Report an Incident or Concern, <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-br from-brand-400 via-brand-400 to-accent-400">Fast.</span>
               </h1>
               <p className="text-lg text-slate-300 max-w-lg mx-auto lg:mx-0 leading-relaxed font-medium">
-                Share critical details in minutes. Your report helps responders act quickly and save lives.
+                Share critical details in minutes. Your report helps responders act quickly and keep communities safe.
               </p>
             </div>
           </div>
@@ -530,7 +569,7 @@ const IncidentReportingPage: React.FC = () => {
           <div className="bg-white rounded-[40px] border border-white/80 shadow-[0_60px_120px_-30px_rgba(15,23,42,0.2)] overflow-hidden">
             <div className="relative px-6 py-5 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 text-white flex items-center justify-between">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.2),transparent)]" />
-              <h1 className="relative text-xl font-black tracking-tight">Report Incident</h1>
+              <h1 className="relative text-xl font-black tracking-tight">Report Incident or Concern</h1>
               <button className="relative text-white/80 hover:text-white text-xl" onClick={() => navigate("/portal")}>X</button>
             </div>
 
@@ -666,66 +705,146 @@ const IncidentReportingPage: React.FC = () => {
                 ) : null}
 
                 <div>
-                  <h2 className="text-lg font-bold text-slate-900">WHAT HAPPENED?</h2>
-                  <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {CATEGORIES.map((category) => {
-                      const Icon = category.icon;
-                      const active = draft.category === category.key;
+                  <h2 className="text-lg font-bold text-slate-900">REPORT TYPE</h2>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    {[
+                      { key: "incident", label: "Incident" },
+                      { key: "concern", label: "Concern" },
+                    ].map((option) => {
+                      const active = draft.reportType === option.key;
                       return (
                         <button
-                          key={category.key}
+                          key={option.key}
                           type="button"
-                          onClick={() => setDraft((p) => ({ ...p, category: category.key }))}
-                          className={`rounded-2xl border p-4 text-center transition-all ${
-                            active ? "border-brand-500 shadow-md" : "border-slate-200 hover:border-slate-300"
+                          onClick={() =>
+                            setDraft((p) => ({
+                              ...p,
+                              reportType: option.key as "incident" | "concern",
+                            }))
+                          }
+                          className={`rounded-2xl border px-4 py-3 text-center font-semibold transition-all ${
+                            active ? "border-brand-500 shadow-md text-brand-600" : "border-slate-200 hover:border-slate-300"
                           }`}
                         >
-                          <Icon className={`mx-auto mb-2 ${category.color}`} />
-                          <div className="text-sm font-semibold text-slate-700">{category.label}</div>
+                          {option.label}
                         </button>
                       );
                     })}
                   </div>
-                  {draft.category === "other" ? (
-                    <div className="mt-4">
-                      <label className="text-sm font-semibold text-slate-700">Add another incident type</label>
-                      <input
-                        className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-700"
-                        value={draft.otherInfo.categoryNote}
-                        onChange={(e) =>
-                          setDraft((p) => ({ ...p, otherInfo: { categoryNote: e.target.value } }))
-                        }
-                        placeholder="e.g., Gas leak, Missing person"
-                      />
-                    </div>
-                  ) : null}
                 </div>
 
-                <div>
-                  <h2 className="text-lg font-bold text-slate-900">HOW BAD?</h2>
-                  <div className="mt-4 space-y-3">
-                    {SEVERITIES.map((sev) => (
-                      <label
-                        key={sev.key}
-                        className={`flex items-center gap-4 border rounded-2xl px-4 py-4 ${sev.card}`}
-                      >
-                        <input
-                          type="radio"
-                          name="severity"
-                          checked={draft.severity === sev.key}
-                          onChange={() => setDraft((p) => ({ ...p, severity: sev.key }))}
-                        />
-                        <div>
-                          <div className={`font-bold ${sev.color}`}>
-                            <span className={`inline-block w-3 h-3 rounded-full ${sev.dot} mr-2`} />
-                            {sev.label}
-                          </div>
-                          <div className="text-sm text-slate-500">{sev.description}</div>
+                {draft.reportType === "incident" ? (
+                  <div className="space-y-6">
+                    <div>
+                      <h2 className="text-lg font-bold text-slate-900">WHAT HAPPENED?</h2>
+                      <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {CATEGORIES.map((category) => {
+                          const Icon = category.icon;
+                          const active = draft.category === category.key;
+                          return (
+                            <button
+                              key={category.key}
+                              type="button"
+                              onClick={() => setDraft((p) => ({ ...p, category: category.key }))}
+                              className={`rounded-2xl border p-4 text-center transition-all ${
+                                active ? "border-brand-500 shadow-md" : "border-slate-200 hover:border-slate-300"
+                              }`}
+                            >
+                              <Icon className={`mx-auto mb-2 ${category.color}`} />
+                              <div className="text-sm font-semibold text-slate-700">{category.label}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {draft.category === "other" ? (
+                        <div className="mt-4">
+                          <label className="text-sm font-semibold text-slate-700">Add another incident type</label>
+                          <input
+                            className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-700"
+                            value={draft.otherInfo.categoryNote}
+                            onChange={(e) =>
+                              setDraft((p) => ({ ...p, otherInfo: { categoryNote: e.target.value } }))
+                            }
+                            placeholder="e.g., Gas leak, Missing person"
+                          />
                         </div>
-                      </label>
-                    ))}
+                      ) : null}
+                    </div>
+
+                    <div>
+                      <h2 className="text-lg font-bold text-slate-900">HOW BAD?</h2>
+                      <div className="mt-4 space-y-3">
+                        {SEVERITIES.map((sev) => (
+                          <label
+                            key={sev.key}
+                            className={`flex items-center gap-4 border rounded-2xl px-4 py-4 ${sev.card}`}
+                          >
+                            <input
+                              type="radio"
+                              name="severity"
+                              checked={draft.severity === sev.key}
+                              onChange={() => setDraft((p) => ({ ...p, severity: sev.key }))}
+                            />
+                            <div>
+                              <div className={`font-bold ${sev.color}`}>
+                                <span className={`inline-block w-3 h-3 rounded-full ${sev.dot} mr-2`} />
+                                {sev.label}
+                              </div>
+                              <div className="text-sm text-slate-500">{sev.description}</div>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div>
+                      <h2 className="text-lg font-bold text-slate-900">CONCERN CATEGORY</h2>
+                      <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <select
+                          className="w-full rounded-xl border border-slate-200 px-4 py-3"
+                          value={draft.concernCategory}
+                          onChange={(e) => setDraft((p) => ({ ...p, concernCategory: e.target.value }))}
+                        >
+                          <option value="">Select category...</option>
+                          {CONCERN_CATEGORIES.map((item) => (
+                            <option key={item.key} value={item.key}>
+                              {item.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-semibold text-slate-700">Nature of Concern</label>
+                        <input
+                          className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-700"
+                          value={draft.concernInfo.nature}
+                          onChange={(e) =>
+                            setDraft((p) => ({ ...p, concernInfo: { ...p.concernInfo, nature: e.target.value } }))
+                          }
+                          placeholder="e.g., Uncollected trash, open drain"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-semibold text-slate-700">People Affected (optional)</label>
+                        <input
+                          className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-700"
+                          value={draft.concernInfo.peopleAffected}
+                          onChange={(e) =>
+                            setDraft((p) => ({
+                              ...p,
+                              concernInfo: { ...p.concernInfo, peopleAffected: e.target.value },
+                            }))
+                          }
+                          placeholder="e.g., 10 families"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
 {/* 
                 {draft.category === "fire" ? (
                   <div className="bg-orange-50 border border-orange-100 rounded-2xl p-6 space-y-4">
@@ -1028,9 +1147,19 @@ const IncidentReportingPage: React.FC = () => {
                   <div className="mt-3 relative">
                     <textarea
                       className="w-full min-h-[120px] rounded-xl border border-slate-200 px-4 py-3 text-slate-700"
-                      placeholder="Use simple words: 'Fire on third floor, people waving from window.'"
-                      value={draft.details}
-                      onChange={(e) => setDraft((p) => ({ ...p, details: e.target.value }))}
+                      placeholder={
+                        draft.reportType === "incident"
+                          ? "Use simple words: 'Fire on third floor, people waving from window.'"
+                          : "Describe the concern clearly: what, where, and why it matters."
+                      }
+                      value={draft.reportType === "incident" ? draft.details : draft.concernDetails}
+                      onChange={(e) =>
+                        setDraft((p) => ({
+                          ...p,
+                          details: p.reportType === "incident" ? e.target.value : p.details,
+                          concernDetails: p.reportType === "concern" ? e.target.value : p.concernDetails,
+                        }))
+                      }
                     />
                     <button
                       type="button"

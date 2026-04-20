@@ -208,7 +208,6 @@ const AlertSubscriptionPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [locating, setLocating] = useState(false);
-  const [reverseGeocoding, setReverseGeocoding] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
@@ -441,7 +440,6 @@ const AlertSubscriptionPage: React.FC = () => {
   const reverseGeocode = async (lat: string, lng: string) => {
     if (!lat || !lng) return;
     try {
-      setReverseGeocoding(true);
       const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${encodeURIComponent(
         lat
       )}&lon=${encodeURIComponent(lng)}`;
@@ -462,8 +460,6 @@ const AlertSubscriptionPage: React.FC = () => {
       }));
     } catch (error) {
       toast.error("Failed to reverse geocode location.");
-    } finally {
-      setReverseGeocoding(false);
     }
   };
 
