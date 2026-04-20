@@ -1,6 +1,6 @@
 import { useAuth } from '../context/AuthContext';
 
-export type PermissionAction = 'create' | 'view' | 'update' | 'delete';
+export type PermissionAction = 'create' | 'view' | 'update' | 'delete' | 'import' | 'sync';
 
 /**
  * Hook to check if the current user has a specific permission

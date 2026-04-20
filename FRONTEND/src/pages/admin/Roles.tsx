@@ -67,6 +67,7 @@ export default function Roles() {
     // UI State
     const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
     const [searchTerm, setSearchTerm] = useState('');
+    const [permissionSearchTerm, setPermissionSearchTerm] = useState('');
 
 
 
@@ -93,6 +94,7 @@ export default function Roles() {
     };
 
     const handleOpenModal = async (role?: any) => {
+        setPermissionSearchTerm('');
         if (role) {
             setEditRole(role);
             setFormData({ name: role.name, description: role.description });
@@ -175,6 +177,54 @@ export default function Roles() {
         );
     };
 
+    // Helper functions for Select All functionality
+    const filteredPermissionsForAssignment = permissions.filter(perm => 
+        perm.name.toLowerCase().includes(permissionSearchTerm.toLowerCase()) || 
+        (perm.resource || '').toLowerCase().includes(permissionSearchTerm.toLowerCase()) ||
+        (perm.action || '').toLowerCase().includes(permissionSearchTerm.toLowerCase())
+    );
+
+    const groupedPermissions = filteredPermissionsForAssignment.reduce((acc, perm) => {
+        const resource = perm.resource || 'Other';
+        if (!acc[resource]) {
+            acc[resource] = [];
+        }
+        acc[resource].push(perm);
+        return acc;
+    }, {} as Record<string, Permission[]>);
+
+    const isAllSelected = filteredPermissionsForAssignment.length > 0 && filteredPermissionsForAssignment.every(p => selectedPermissions.includes(p.id || (p as any)._id));
+    const isSomeSelected = filteredPermissionsForAssignment.length > 0 && !isAllSelected && filteredPermissionsForAssignment.some(p => selectedPermissions.includes(p.id || (p as any)._id));
+
+    const handleSelectAll = (checked: boolean) => {
+        const visibleIds = filteredPermissionsForAssignment.map(p => p.id || (p as any)._id);
+        if (checked) {
+            setSelectedPermissions(prev => [...new Set([...prev, ...visibleIds])]);
+        } else {
+            setSelectedPermissions(prev => prev.filter(id => !visibleIds.includes(id)));
+        }
+    };
+
+    const handleSelectResource = (resource: string, checked: boolean) => {
+        const resourcePermIds = groupedPermissions[resource].map(p => p.id || (p as any)._id);
+        if (checked) {
+            setSelectedPermissions(prev => [...new Set([...prev, ...resourcePermIds])]);
+        } else {
+            setSelectedPermissions(prev => prev.filter(id => !resourcePermIds.includes(id)));
+        }
+    };
+
+    const isResourceFullySelected = (resource: string) => {
+        const resourcePermIds = groupedPermissions[resource].map(p => p.id || (p as any)._id);
+        return resourcePermIds.length > 0 && resourcePermIds.every(id => selectedPermissions.includes(id));
+    };
+
+    const isResourcePartiallySelected = (resource: string) => {
+        const resourcePermIds = groupedPermissions[resource].map(p => p.id || (p as any)._id);
+        const selectedInResource = resourcePermIds.filter(id => selectedPermissions.includes(id));
+        return selectedInResource.length > 0 && selectedInResource.length < resourcePermIds.length;
+    };
+
     const handleViewRole = async (role: Role) => {
         setViewRole(role);
         setIsViewModalOpen(true);
@@ -186,6 +236,16 @@ export default function Roles() {
             setViewPermissions([]);
         }
     };
+
+    // Group view permissions by resource
+    const groupedViewPermissions = viewPermissions.reduce((acc, perm) => {
+        const resource = perm.resource || 'Other';
+        if (!acc[resource]) {
+            acc[resource] = [];
+        }
+        acc[resource].push(perm);
+        return acc;
+    }, {} as Record<string, Permission[]>);
 
     const closeViewModal = () => {
         setViewRole(null);
@@ -374,29 +434,117 @@ export default function Roles() {
                                 </div>
 
                                 {/* Permissions Selection */}
-                                <div>
-                                    <Label className="mb-4 block">Permissions Overview</Label>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                        {permissions.map(perm => (
-                                            <label
-                                                key={perm.id || (perm as any)._id}
-                                                className={`flex items-start space-x-3 p-3 border rounded-2xl transition-all cursor-pointer ${selectedPermissions.includes(perm.id || (perm as any)._id)
-                                                    ? 'border-primary/50 bg-primary/5 dark:bg-primary/10'
-                                                    : 'border-slate-200 hover:border-slate-300 dark:border-white/10 dark:hover:border-white/20'
-                                                    }`}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedPermissions.includes(perm.id || (perm as any)._id)}
-                                                    onChange={() => togglePermission(perm.id || (perm as any)._id)}
-                                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                                <div className="space-y-8">
+                                    <div className="flex flex-col gap-4 border-b border-slate-200 pb-4 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
+                                        <Label className="!mb-0 text-xl font-bold">Permissions</Label>
+                                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                                            {/* Permission Search */}
+                                            <div className="relative group/search">
+                                                <Search 
+                                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within/search:text-primary transition-colors" 
+                                                    size={16} 
                                                 />
-                                                <div>
-                                                    <span className="font-semibold text-slate-900 dark:text-white block text-sm">{perm.name}</span>
-                                                    <span className="text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-wider">{perm.resource} : {perm.action}</span>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Search permissions..."
+                                                    value={permissionSearchTerm}
+                                                    onChange={(e) => setPermissionSearchTerm(e.target.value)}
+                                                    className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10 dark:border-white/10 dark:bg-white/5 dark:text-white sm:w-64"
+                                                />
+                                            </div>
+
+                                            <label className="flex items-center space-x-2 cursor-pointer group">
+                                                <div className="relative flex items-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isAllSelected}
+                                                        ref={el => { if (el) el.indeterminate = isSomeSelected; }}
+                                                        onChange={(e) => handleSelectAll(e.target.checked)}
+                                                        className="h-5 w-5 rounded border-slate-300 text-primary focus:ring-primary cursor-pointer transition-all"
+                                                    />
                                                 </div>
+                                                <span className="text-sm font-semibold text-slate-700 dark:text-white/80 group-hover:text-primary transition-colors">
+                                                    Select {permissionSearchTerm ? 'Filtered' : 'All'}
+                                                </span>
                                             </label>
-                                        ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-6">
+                                        {Object.entries(groupedPermissions).length > 0 ? (
+                                            Object.entries(groupedPermissions).map(([resource, perms]) => (
+                                                <div 
+                                                    key={resource} 
+                                                    className="rounded-2xl border border-slate-200 bg-slate-50/50 p-5 dark:border-white/10 dark:bg-white/[0.02]"
+                                                >
+                                                    <div className="flex items-center justify-between mb-4">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="h-2 w-2 rounded-full bg-primary shadow-[0_0_8px_rgba(var(--color-primary),0.5)]" />
+                                                            <h5 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+                                                                {resource} <span className="ml-1 text-[10px] text-slate-400 font-normal">({perms.length})</span>
+                                                            </h5>
+                                                        </div>
+                                                        <label className="flex items-center space-x-2 cursor-pointer group">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isResourceFullySelected(resource)}
+                                                                ref={el => { if (el) el.indeterminate = isResourcePartiallySelected(resource); }}
+                                                                onChange={(e) => handleSelectResource(resource, e.target.checked)}
+                                                                className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary cursor-pointer transition-all"
+                                                            />
+                                                            <span className="text-xs font-medium text-slate-500 group-hover:text-primary dark:text-slate-400">
+                                                                Select {resource}
+                                                            </span>
+                                                        </label>
+                                                    </div>
+                                                    
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                                        {perms.map(perm => (
+                                                            <label
+                                                                key={perm.id || (perm as any)._id}
+                                                                className={`flex items-start space-x-3 p-3 border rounded-xl transition-all cursor-pointer hover:shadow-sm ${
+                                                                    selectedPermissions.includes(perm.id || (perm as any)._id)
+                                                                    ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20 dark:bg-primary/10'
+                                                                    : 'border-slate-200 bg-white hover:border-slate-300 dark:border-white/10 dark:bg-white/5 dark:hover:border-white/20'
+                                                                }`}
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={selectedPermissions.includes(perm.id || (perm as any)._id)}
+                                                                    onChange={() => togglePermission(perm.id || (perm as any)._id)}
+                                                                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary transition-colors"
+                                                                />
+                                                                <div className="flex-1 min-w-0">
+                                                                    <span className="font-semibold text-slate-900 dark:text-white block text-xs truncate">
+                                                                        {perm.name}
+                                                                    </span>
+                                                                    <span className="text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-wider font-medium">
+                                                                        {perm.action}
+                                                                    </span>
+                                                                </div>
+                                                            </label>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center py-12 bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-200 dark:bg-white/[0.02] dark:border-white/10">
+                                                <div className="h-16 w-16 bg-slate-100 dark:bg-white/5 rounded-full flex items-center justify-center mb-4">
+                                                    <Search className="text-slate-400" size={28} />
+                                                </div>
+                                                <h6 className="text-lg font-bold text-slate-900 dark:text-white mb-1">No permissions found</h6>
+                                                <p className="text-slate-500 text-sm max-w-[300px] text-center">
+                                                    We couldn't find any permissions matching "{permissionSearchTerm}". Try a different term.
+                                                </p>
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => setPermissionSearchTerm('')}
+                                                    className="mt-4 text-primary text-sm font-bold hover:underline"
+                                                >
+                                                    Clear search
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -444,22 +592,35 @@ export default function Roles() {
                                 <Label className="opacity-60 text-lg">Assigned Permissions</Label>
                                 <span className="bg-primary/10 text-primary text-[10px] font-bold px-3 py-1 rounded-full">{viewPermissions.length} TOTAL</span>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2 pt-1 pb-1">
+                            <div className="space-y-6 max-h-[450px] overflow-y-auto custom-scrollbar pr-2">
                                 {viewPermissions.length > 0 ? (
-                                    viewPermissions.map(perm => (
-                                        <div key={perm.id || (perm as any)._id} className="group p-4 border border-slate-100 rounded-2xl bg-slate-50 hover:border-primary/30 transition-all dark:bg-white/5 dark:border-white/5 dark:hover:border-white/20">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <Key size={14} className="text-primary" />
-                                                <span className="font-bold text-slate-900 dark:text-white text-sm">{perm.name}</span>
+                                    Object.entries(groupedViewPermissions).map(([resource, perms]) => (
+                                        <div key={resource} className="space-y-3">
+                                            <div className="flex items-center gap-2 border-b border-slate-100 pb-1 dark:border-white/5">
+                                                <h5 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                                                    {resource}
+                                                </h5>
+                                                <div className="h-[1px] flex-1 bg-slate-100 dark:bg-white/5" />
                                             </div>
-                                            <div className="flex flex-wrap gap-2 mt-2">
-                                                <span className="bg-white px-2 py-0.5 rounded-md text-[9px] font-bold text-slate-400 uppercase tracking-tighter shadow-sm dark:bg-white/5 dark:text-white/30">{perm.resource}</span>
-                                                <span className="bg-blue-50 px-2 py-0.5 rounded-md text-[9px] font-bold text-blue-500 uppercase tracking-tighter shadow-sm dark:bg-blue-500/10">{perm.action}</span>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                                {perms.map(perm => (
+                                                    <div key={perm.id || (perm as any)._id} className="group p-3 border border-slate-100 rounded-xl bg-slate-50/50 hover:border-primary/30 transition-all dark:bg-white/[0.02] dark:border-white/5 dark:hover:border-white/10">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <Key size={12} className="text-primary/70" />
+                                                            <span className="font-bold text-slate-900 dark:text-white text-xs">{perm.name}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="bg-blue-50/50 px-1.5 py-0.5 rounded text-[8px] font-bold text-blue-500 uppercase tracking-tighter dark:bg-blue-500/10">
+                                                                {perm.action}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
                                             </div>
                                         </div>
                                     ))
                                 ) : (
-                                    <div className="col-span-full flex flex-col items-center justify-center py-10 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 dark:bg-white/5 dark:border-white/10">
+                                    <div className="flex flex-col items-center justify-center py-10 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 dark:bg-white/5 dark:border-white/10">
                                         <Lock className="text-slate-300 mb-2" size={32} />
                                         <p className="text-slate-500 text-sm">No permissions assigned to this role.</p>
                                     </div>

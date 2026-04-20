@@ -11,19 +11,18 @@ import {
     syncFromInterview
 } from '../controllers/woredaProfileController.js';
 import { protect } from '../middleware/authMiddleware.js';
+import { checkPermission } from '../middleware/permissionMiddleware.js';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-router.use(protect); // All routes require authentication
-
-router.get('/stats', getWoredaProfileStats);
-router.get('/', getWoredaProfiles);
-router.post('/', createWoredaProfile);
-router.post('/import', upload.single('file'), importWoredaProfile);
-router.post('/sync-interview', syncFromInterview);
-router.get('/:id', getWoredaProfileById);
-router.put('/:id', updateWoredaProfile);
-router.delete('/:id', deleteWoredaProfile);
+router.get('/stats', protect, checkPermission('woredaprofile', 'view'), getWoredaProfileStats);
+router.get('/', protect, checkPermission('woredaprofile', 'view'), getWoredaProfiles);
+router.post('/', protect, checkPermission('woredaprofile', 'create'), createWoredaProfile);
+router.post('/import', protect, checkPermission('woredaprofile', 'import'), upload.single('file'), importWoredaProfile);
+router.post('/sync-interview', protect, checkPermission('woredaprofile', 'sync'), syncFromInterview);
+router.get('/:id', protect, checkPermission('woredaprofile', 'view'), getWoredaProfileById);
+router.put('/:id', protect, checkPermission('woredaprofile', 'update'), updateWoredaProfile);
+router.delete('/:id', protect, checkPermission('woredaprofile', 'delete'), deleteWoredaProfile);
 
 export default router;

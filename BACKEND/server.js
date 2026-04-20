@@ -21,6 +21,13 @@ import portalContentRoutes from './routes/portalContentRoutes.js';
 import incidentReportRoutes from './routes/incidentReportRoutes.js';
 import alertSubscriptionRoutes from './routes/alertSubscriptionRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
+import adminLogRoutes from './routes/adminLogRoutes.js';
+import emailLogRoutes from './routes/emailLogRoutes.js';
+import profileMappingRoutes from './routes/profileMappingRoutes.js';
+import portalContentRoutes from './routes/portalContentRoutes.js';
+import incidentReportRoutes from './routes/incidentReportRoutes.js';
+import alertSubscriptionRoutes from './routes/alertSubscriptionRoutes.js';
+import uploadRoutes from './routes/uploadRoutes.js';
 import { errorHandler } from './middleware/errorMiddleware.js';
 import cors from 'cors';
 
@@ -34,8 +41,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+// app.use(cors());
+// for external access
 app.use(cors({
-    origin: '*',
+    origin: "*"
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -44,10 +53,17 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 import fs from 'fs';
 const logFile = fs.createWriteStream('server_logs.txt', { flags: 'a' });
 
+
+
+//request logging middleware
 app.use((req, res, next) => {
-    const logLine = `${new Date().toISOString()} - ${req.method} ${req.originalUrl}\n`;
-    console.log(logLine.trim());
-    logFile.write(logLine);
+    const originalSend = res.send;
+    res.send = function (data) {
+        const logLine = `${new Date().toISOString()} - ${req.method} ${req.originalUrl} - STATUS: ${res.statusCode}\n`;
+        console.log(logLine.trim());
+        logFile.write(logLine);
+        return originalSend.apply(res, arguments);
+    };
     next();
 });
 
@@ -74,6 +90,13 @@ app.use('/api/site-settings', portalContentRoutes);
 app.use('/api/incident-reports', incidentReportRoutes);
 app.use('/api/alert-subscriptions', alertSubscriptionRoutes);
 app.use('/api/uploads', uploadRoutes);
+app.use('/api/admin-logs', adminLogRoutes);
+app.use('/api/email-logs', emailLogRoutes);
+app.use('/api/profile-mappings', profileMappingRoutes);
+app.use('/api/site-settings', portalContentRoutes);
+app.use('/api/incident-reports', incidentReportRoutes);
+app.use('/api/alert-subscriptions', alertSubscriptionRoutes);
+app.use('/api/uploads', uploadRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
@@ -89,4 +112,14 @@ if (FormResponse.schema.paths.moduleContextType.enumValues) {
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT,"0.0.0.0", () => console.log(`Server running on port ${PORT}`));
+// app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// for external access
+app.listen(5000, "0.0.0.0", () => {
+    console.log("Server running");
+});
+
+
+
+
+

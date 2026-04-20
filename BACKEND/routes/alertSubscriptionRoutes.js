@@ -13,9 +13,10 @@ const router = express.Router();
 router.post('/', upsertAlertSubscriptionPublic);
 
 // Admin management
-router.get('/', protect, admin, listAlertSubscriptions);
-router.get('/:id', protect, admin, getAlertSubscriptionById);
-router.put('/:id', protect, admin, updateAlertSubscription);
+import { checkPermission } from '../middleware/permissionMiddleware.js';
+router.get('/', protect, checkPermission('alertsubscription', 'view'), listAlertSubscriptions);
+router.get('/:id', protect, checkPermission('alertsubscription', 'view'), getAlertSubscriptionById);
+router.put('/:id', protect, checkPermission('alertsubscription', 'update'), updateAlertSubscription);
 
 export default router;
 

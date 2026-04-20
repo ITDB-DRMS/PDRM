@@ -51,13 +51,21 @@ const navItems: NavItem[] = [
     icon: <GridIcon />,
     name: "Dashboard",
     path: "/dashboard",
+    permission: "dashboard_view",
   },
   {
     icon: <BoxCubeIcon />,
     name: "Woreda Profile",
     path: "/woreda-profile",
+    permission: "woredaprofile_view",
   },
   {
+    icon: <DocsIcon />,
+    name: "Site Survey",
+    path: "/survey-library",
+    permission: "template_view",
+  },
+  /* {
     icon: <DocsIcon />,
     name: "Disaster Risk Assessment",
     path: "/disaster-risk-assessment",
@@ -96,33 +104,31 @@ const navItems: NavItem[] = [
     icon: <PieChartIcon />,
     name: "Analytics",
     path: "/analytics",
-  },
+  }, */
 ];
 
 const adminItems: NavItem[] = [
   {
     icon: <FolderIcon />,
     name: "Site Management",
-    superAdminOnly: true,
     subItems: [
       {
         name: "Site Settings",
         path: "/admin/site-settings",
         icon: <DocsIcon />,
-        permission: "view_template",
+        permission: "portalcontent_view",
       },
     ],
   },
   {
     icon: <ListIcon />,
     name: "Menu",
-    superAdminOnly: true,
     subItems: [
       {
         name: "Alert Subscriptions",
         path: "/admin/alert-subscriptions",
         icon: <MailIcon />,
-        permission: "view_template",
+        permission: "alertsubscription_view",
       },
       {
         name: "Incident Reports",
@@ -135,113 +141,108 @@ const adminItems: NavItem[] = [
   {
     icon: <BoxCubeIcon />,
     name: "Structure",
-    superAdminOnly: true,
     subItems: [
-
       {
         name: "Organizations",
         path: "/admin/organizations",
         icon: <BoxCubeIcon />,
-        permission: "view_organization",
+        permission: "organization_view",
       },
       {
         name: "Sectors",
         path: "/admin/sectors",
         icon: <BoxIconLine />,
-        permission: "view_sector",
+        permission: "sector_view",
       },
       {
         name: "Departments",
         path: "/admin/departments",
         icon: <FolderIcon />,
-        permission: "view_department",
+        permission: "department_view",
       },
       {
         name: "Teams",
         path: "/admin/teams",
         icon: <GroupIcon />,
-        permission: "view_team",
+        permission: "team_view",
       },
       {
         name: "Graph",
         path: "/admin/structure-graph",
         icon: <GridIcon />,
-        permission: "view_organization",
+        permission: "organization_view",
       }
     ],
   },
   {
     icon: <LockIcon />,
     name: "Auth",
-    superAdminOnly: true,
     subItems: [
       {
         name: "Permissions",
         path: "/admin/permissions",
         icon: <LockIcon />,
-        permission: "view_permission",
+        permission: "permission_view",
       },
       {
         name: "Roles",
         path: "/admin/roles",
         icon: <CheckCircleIcon />,
-        permission: "view_role",
+        permission: "role_view",
       },
       {
         name: "Users",
         path: "/admin/users",
         icon: <UserIcon />,
-        permission: "view_user",
+        permission: "user_view",
       },
-      /* {
-        name: "Hierarchy",
-        path: "/admin/hierarchy",
-        icon: <BoxIconLine />,
-        permission: "view_user",
-      }, */
     ],
   },
   {
     icon: <ListIcon />,
     name: "Audit",
-    superAdminOnly: true,
     subItems: [
       {
         name: "Audit Logs",
         path: "/admin/audit-logs",
         icon: <ListIcon />,
-        permission: "view_audit_log",
+        permission: "audit_log_view",
+      },
+      {
+        name: "Admin Logs",
+        path: "/admin/admin-logs",
+        icon: <LockIcon />,
+        permission: "adminlog_view",
       },
       {
         name: "Email Logs",
         path: "/admin/email-logs",
         icon: <MailIcon />,
-        permission: "view_audit_log",
+        permission: "audit_log_view",
       },
     ],
   },
   {
     icon: <DocsIcon />,
     name: "Template Engine",
-    superAdminOnly: true,
     subItems: [
-      {
-        name: "Template Library",
-        path: "/admin/template-library",
-        icon: <ListIcon />,
-        permission: "view_template",
-      },
       {
         name: "Form Builder",
         path: "/admin/form-builder",
         icon: <PencilIcon />,
-        permission: "create_template",
+        permission: "template_create",
+      },
+      {
+        name: "Template Library",
+        path: "/admin/template-library",
+        icon: <GroupIcon />,
+        permission: "template_create",
       },
       {
         name: "Profile Mapping",
         path: "/admin/profile-mapping",
         icon: <GroupIcon />,
-        permission: "view_template",
+        permission: "profilemapping_view",
       },
     ],
   },
@@ -309,6 +310,15 @@ const AppSidebar: React.FC = () => {
         return item;
       }
 
+    const isSuperAdmin = user?.roles?.some(r => ['superadmin', 'super admin', 'super_admin', "admin", "Admin", "branch_admin", "Branch Admin", "manager", "Manager"].includes(r.name.toLowerCase()));
+
+    return items.map(item => {
+      // Check super admin restriction first
+      if (item.superAdminOnly && !isSuperAdmin) {
+        return null;
+      }
+
+      // If item has subItems, filter them
       if (item.subItems) {
         // If regular user (even branch admin) has access to some children, show the parent
         if (filteredSub.length > 0) {
@@ -326,6 +336,7 @@ const AppSidebar: React.FC = () => {
     }).filter(Boolean) as NavItem[];
   };
 
+  const filteredNavItems = filterItems(navItems);
   const filteredAdminItems = filterItems(adminItems);
   const hasAdminAccess = filteredAdminItems.length > 0;
 
@@ -553,7 +564,7 @@ const AppSidebar: React.FC = () => {
                   <HorizontaLDots className="size-6" />
                 )}
               </h2>
-              {renderMenuItems(navItems, "main")}
+              {renderMenuItems(filteredNavItems, "main")}
             </div>
 
             <div className="">

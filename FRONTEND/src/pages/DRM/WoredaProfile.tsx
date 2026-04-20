@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import PageMeta from '../../components/common/PageMeta';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
 import {
     MapPin, Users, Home, Zap, ShieldCheck, Heart, Plus, X,
-    Search, RefreshCw, ChevronRight, Loader2, BarChart3,
+    Search, RefreshCw, ChevronRight, ChevronLeft, Loader2, BarChart3,
     FileText, CheckCircle, Clock, Edit3, Trash2, Eye,
     Building2, Wheat, AlertTriangle, ArrowLeft,
     Upload, FileSpreadsheet, ArrowRightLeft, AlertCircle
@@ -19,19 +19,20 @@ import {
     type WoredaProfileStats
 } from '../../api/woredaProfileService';
 import { getProfileMappings, type ProfileMapping } from '../../api/profileMappingService';
+import { Can } from '../../components/auth/PermissionGuard';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 const TABS = [
-    { id: 'overview',    label: 'Overview',          icon: BarChart3 },
-    { id: 'demographics',label: 'Demographics',       icon: Users },
-    { id: 'livelihoods', label: 'Livelihoods',        icon: Wheat },
-    { id: 'services',    label: 'Basic Services',     icon: Zap },
-    { id: 'facilities',  label: 'Critical Facilities',icon: Building2 },
-    { id: 'vulnerable',  label: 'Vulnerable Groups',  icon: Heart },
-    { id: 'capacity',    label: 'Community Capacity', icon: ShieldCheck },
-    { id: 'hazards',     label: 'Hazards & Risks',    icon: AlertTriangle },
-    { id: 'risk',        label: 'Risk Assessment',    icon: BarChart3 },
-    { id: 'indicators',  label: 'Social & Env. Indicators', icon: ShieldCheck },
+    { id: 'overview', label: 'Overview', icon: BarChart3 },
+    { id: 'demographics', label: 'Demographics', icon: Users },
+    { id: 'livelihoods', label: 'Livelihoods', icon: Wheat },
+    { id: 'services', label: 'Basic Services', icon: Zap },
+    { id: 'facilities', label: 'Critical Facilities', icon: Building2 },
+    { id: 'vulnerable', label: 'Vulnerable Groups', icon: Heart },
+    { id: 'capacity', label: 'Community Capacity', icon: ShieldCheck },
+    { id: 'hazards', label: 'Hazards & Risks', icon: AlertTriangle },
+    { id: 'risk', label: 'Risk Assessment', icon: BarChart3 },
+    { id: 'indicators', label: 'Social & Env. Indicators', icon: ShieldCheck },
 ];
 
 const FACILITY_TYPES = ['Health Center', 'School', 'Police Station', 'Fire Station', 'Emergency Shelter'];
@@ -40,10 +41,15 @@ const EDUCATION_CATS = ['No Education', 'Primary', 'Secondary', 'Higher Educatio
 const VG_TYPES = ['Women-headed HH', 'Persons with Disability (PWD)', 'Elderly living alone', 'Orphans', 'Chronically ill'];
 const CAPACITY_TYPES = ['Kebele DRM Committee', 'Community Volunteers', 'Early Warning System', 'Search & Rescue Team', 'First Aid Team'];
 
+const STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string; strip: string }> = {
+    Submitted: { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500', strip: 'bg-gradient-to-r from-emerald-400 to-teal-500' },
+    Reviewed: { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500', strip: 'bg-gradient-to-r from-blue-400 to-indigo-500' },
+    Draft: { bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-500', strip: 'bg-gradient-to-r from-amber-400 to-orange-500' },
+};
+
 const statusColor = (s?: string) => {
-    if (s === 'Submitted') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-    if (s === 'Reviewed')  return 'bg-blue-50 text-blue-700 border-blue-200';
-    return 'bg-amber-50 text-amber-700 border-amber-200';
+    const sc = STATUS_CONFIG[s || 'Draft'] || STATUS_CONFIG.Draft;
+    return `${sc.bg} ${sc.text} border-transparent`;
 };
 
 const emptyProfile = (): WoredaProfileInput => ({
@@ -60,6 +66,40 @@ const emptyProfile = (): WoredaProfileInput => ({
     vulnerability_assessments: [],
     capacity_assessments: [],
     risk_assessments: [],
+    risk_index: { hazard_index: 0, vulnerability_index: 0, exposure_index: 0, capacity_index: 0, overall_woreda_risk_score: 0 },
+    economic_risk_indicators: {
+        concentration_small_informal_businesses: '',
+        market_exposure: '',
+        daily_labor_dependency: '',
+        business_interruption_risk: '',
+        industrial_hazard_exposure: '',
+        insurance_coverage_level: ''
+    },
+    environmental_indicators: {
+        green_space_per_capita: '',
+        wetland_encroachment: '',
+        soil_sealing_coverage: '',
+        waste_dumping_sites: '',
+        urban_drainage_blockage_frequency: '',
+        pollution_hotspots: ''
+    },
+    preparedness_indicators: {
+        emergency_shelters_availability: '',
+        evacuation_routes_mapped: '',
+        firefighting_equipment_availability: '',
+        ambulance_coverage: '',
+        emergency_drills_frequency: '',
+        community_awareness_level: '',
+        stockpiled_emergency_supplies: ''
+    },
+    recovery_indicators: {
+        post_disaster_recovery_plans: '',
+        livelihood_diversification: '',
+        access_to_credit_safety_nets: '',
+        community_self_help_groups: '',
+        urban_upgrading_programs: '',
+        climate_adaptation_initiatives: ''
+    },
     status: 'Draft',
 });
 
@@ -67,59 +107,141 @@ const emptyProfile = (): WoredaProfileInput => ({
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ElementType; color: string }> = ({ label, value, icon: Icon, color }) => (
     <div className={`relative bg-white rounded-3xl p-6 border border-slate-100 shadow-sm overflow-hidden group hover:shadow-md transition-all`}>
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-        <p className={`text-3xl font-black ${color}`}>{value}</p>
+        <p className={`text-2xl sm:text-3xl font-black ${color} truncate`}>{value}</p>
         <Icon size={64} className="absolute -right-4 -bottom-4 text-slate-50 group-hover:scale-110 transition-transform" />
     </div>
 );
 
 // ─── Profile Card ────────────────────────────────────────────────────────────
-const ProfileCard: React.FC<{ profile: WProfile; onView: () => void; onEdit: () => void; onDelete: () => void }> = ({ profile, onView, onEdit, onDelete }) => (
-    <motion.div layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-        className="bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-lg transition-all p-6 group cursor-pointer"
-        onClick={onView}>
-        <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center">
-                    <MapPin size={22} className="text-indigo-600" />
+const ProfileCard: React.FC<{
+    profile: WProfile;
+    onView: () => void;
+    onDrillDown?: () => void;
+    onEdit?: () => void;
+    onDelete?: () => void;
+    onStatusChange?: (s: string) => void;
+    drillDownLabel?: string;
+}> = ({ profile, onView, onDrillDown, onEdit, onDelete, onStatusChange, drillDownLabel }) => {
+    const statusKey = profile.status || 'Draft';
+    const sc = STATUS_CONFIG[statusKey] || STATUS_CONFIG.Draft;
+
+    return (
+        <motion.div layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            className="bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all group cursor-pointer flex flex-col overflow-hidden"
+            onClick={onView}>
+
+            {/* Top Color Strip */}
+            <div className={`h-1.5 w-full ${sc.strip}`} />
+
+            <div className="p-6 flex-1">
+                <div className="flex items-start justify-between mb-5">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center group-hover:bg-indigo-50 transition-colors">
+                            <MapPin size={22} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                        </div>
+                        <div>
+                            <h3 className="font-black text-slate-900 leading-tight">
+                                {profile.location.house_no && profile.location.house_no !== 'Aggregated Data'
+                                    ? `House ${profile.location.house_no}`
+                                    : profile.location.block && profile.location.block !== 'All Blocks'
+                                        ? `Block-${profile.location.block}`
+                                        : profile.location.woreda === 'All Woredas'
+                                            ? (profile.location.subcity === 'All Subcities' ? 'All Addis Ababa' : `${profile.location.subcity} Subcity`)
+                                            : `Woreda ${profile.location.woreda}`}
+                            </h3>
+                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tight mt-0.5">
+                                {profile.location.block && profile.location.block !== 'All Blocks' && (!profile.location.house_no || profile.location.house_no === 'Aggregated Data') ? `Woreda ${profile.location.woreda} • ` : ''}
+                                {profile.location.house_no && profile.location.house_no !== 'Aggregated Data'
+                                    ? (profile.location.block !== 'Unknown' && profile.location.block !== 'All Blocks' ? `Block-${profile.location.block} • ` : '') + `Woreda ${profile.location.woreda}`
+                                    : (profile.location.subcity === 'All Subcities' ? 'City Level Summary' : `${profile.location.subcity} Subcity`)}
+                            </p>
+                        </div>
+                    </div>
+                    <div
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (onStatusChange) {
+                                const next: Record<string, string> = { 'Draft': 'Submitted', 'Submitted': 'Reviewed', 'Reviewed': 'Draft' };
+                                onStatusChange(next[profile.status || 'Draft'] || 'Draft');
+                            }
+                        }}
+                        className={`group/status flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all hover:scale-105 active:scale-95 ${sc.bg} ${sc.text} ${onStatusChange ? 'cursor-pointer' : ''}`}
+                    >
+                        <div className={`w-1.5 h-1.5 rounded-full ${sc.dot} ${profile.status === 'Submitted' ? 'animate-pulse' : ''}`} />
+                        {profile.status}
+                        {onStatusChange && <RefreshCw size={10} className="ml-1 opacity-0 group-hover/status:opacity-100 transition-opacity" />}
+                    </div>
                 </div>
-                <div>
-                    <h3 className="font-bold text-slate-900">{profile.location.woreda} Woreda</h3>
-                    <p className="text-xs text-slate-400">{profile.location.subcity} Subcity</p>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
+                    <div className="bg-slate-50/50 rounded-2xl p-3 text-center border border-transparent hover:border-slate-100 transition-all">
+                        <p className="text-lg font-black text-slate-900">{(profile.demographics?.total_population || 0).toLocaleString()}</p>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Pop.</p>
+                    </div>
+                    <div className="bg-slate-50/50 rounded-2xl p-3 text-center border border-transparent hover:border-slate-100 transition-all">
+                        <p className="text-lg font-black text-slate-900">{(profile.vulnerable_groups?.reduce((a, g) => a + (g.number || 0), 0) || 0).toLocaleString()}</p>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Vuln.</p>
+                    </div>
+                    <div className="bg-slate-50/50 rounded-2xl p-3 text-center border border-transparent hover:border-slate-100 transition-all">
+                        <p className="text-lg font-black text-slate-900">{profile.risk_index?.overall_woreda_risk_score || '—'}</p>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Risk</p>
+                    </div>
+                    <div className={`rounded-2xl p-3 text-center border border-transparent transition-all ${(profile.hazards?.length || 0) > 0 ? 'bg-rose-50 text-rose-700 hover:border-rose-100' : 'bg-amber-50 text-amber-700 hover:border-amber-100'}`}>
+                        <p className="text-lg font-black">{(profile.hazards?.length || 0)}</p>
+                        <p className="text-[9px] font-bold uppercase tracking-widest">Hazards</p>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between border-t border-slate-50 pt-4">
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        <Clock size={12} className="text-slate-300" />
+                        {new Date(profile.assessment_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </div>
+
+                    <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                        {onDrillDown && (
+                            <button onClick={onDrillDown} className="px-4 h-9 rounded-xl bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white text-[10px] font-black uppercase tracking-wider flex items-center justify-center transition-all opacity-0 group-hover:opacity-100">
+                                {drillDownLabel || 'Explore'} <ChevronRight size={14} className="ml-1" />
+                            </button>
+                        )}
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+                            {onEdit && (
+                                <Can resource="WoredaProfile" action="update">
+                                    <button onClick={onEdit} title="Edit Profile" className="w-9 h-9 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-white border border-transparent hover:border-indigo-100 flex items-center justify-center transition-all">
+                                        <Edit3 size={16} />
+                                    </button>
+                                </Can>
+                            )}
+                            {onDelete && (
+                                <Can resource="WoredaProfile" action="delete">
+                                    <button onClick={onDelete} title="Delete Profile" className="w-9 h-9 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-white border border-transparent hover:border-rose-100 flex items-center justify-center transition-all">
+                                        <Trash2 size={16} />
+                                    </button>
+                                </Can>
+                            )}
+                            <button onClick={onView} title="View Details" className="w-9 h-9 rounded-xl bg-slate-900 hover:bg-indigo-600 text-white flex items-center justify-center transition-all shadow-lg hover:shadow-indigo-200">
+                                <Eye size={16} />
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <span className={`text-[10px] font-bold px-3 py-1 rounded-full border ${statusColor(profile.status)}`}>{profile.status}</span>
-        </div>
-        <div className="grid grid-cols-4 gap-2 mb-4">
-            <div className="bg-slate-50 rounded-2xl p-3 text-center">
-                <p className="text-lg font-black text-slate-900">{(profile.demographics?.total_population || 0).toLocaleString()}</p>
-                <p className="text-[9px] text-slate-400 uppercase tracking-wider">Pop.</p>
-            </div>
-            <div className="bg-slate-50 rounded-2xl p-3 text-center">
-                <p className="text-lg font-black text-slate-900">{(profile.vulnerable_groups?.reduce((a, g) => a + (g.number || 0), 0) || 0).toLocaleString()}</p>
-                <p className="text-[9px] text-slate-400 uppercase tracking-wider">Vuln.</p>
-            </div>
-            <div className="bg-slate-50 rounded-2xl p-3 text-center">
-                <p className="text-lg font-black text-slate-900">{profile.risk_index?.overall_woreda_risk_score || '—'}</p>
-                <p className="text-[9px] text-slate-400 uppercase tracking-wider">Risk</p>
-            </div>
-            <div className={`rounded-2xl p-3 text-center ${profile.status === 'Submitted' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                <p className="text-lg font-black">{(profile.risk_assessments?.length || 0)}</p>
-                <p className="text-[9px] uppercase tracking-wider">Hazards</p>
-            </div>
-        </div>
-        <div className="flex items-center justify-between">
-            <p className="text-[10px] text-slate-400">{new Date(profile.assessment_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                <button onClick={onEdit} className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-400 flex items-center justify-center transition-all"><Edit3 size={14} /></button>
-                <button onClick={onDelete} className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-rose-50 hover:text-rose-500 text-slate-400 flex items-center justify-center transition-all"><Trash2 size={14} /></button>
-                <button onClick={onView} className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center"><ChevronRight size={14} /></button>
-            </div>
-        </div>
-    </motion.div>
-);
+        </motion.div>
+    );
+};
 
 // ─── Form Wizard ─────────────────────────────────────────────────────────────
-const STEPS = ['Location', 'Demographics', 'Livelihoods', 'Basic Services', 'Critical Facilities', 'Vulnerable Groups', 'Capacity'];
+const STEPS = [
+    'Location',
+    'Demographics',
+    'Livelihoods',
+    'Basic Services',
+    'Critical Facilities',
+    'Vulnerability',
+    'Capacity',
+    'Hazards & Risk',
+    'Indicators'
+];
 
 const FormWizard: React.FC<{ initial?: WProfile | null; onSave: (d: WoredaProfileInput) => void; onClose: () => void; saving: boolean }> = ({ initial, onSave, onClose, saving }) => {
     const [step, setStep] = useState(0);
@@ -127,13 +249,28 @@ const FormWizard: React.FC<{ initial?: WProfile | null; onSave: (d: WoredaProfil
         location: initial.location,
         assessment_date: initial.assessment_date?.toString().split('T')[0] || '',
         remarks: initial.remarks,
-        demographics: initial.demographics,
+        demographics: {
+            ...emptyProfile().demographics,
+            ...initial.demographics,
+            education_levels: initial.demographics?.education_levels?.length
+                ? initial.demographics.education_levels
+                : (emptyProfile().demographics?.education_levels ?? EDUCATION_CATS.map(c => ({ category: c, count: 0 })))
+        },
         livelihoods: initial.livelihoods?.length ? initial.livelihoods : emptyProfile().livelihoods,
-        basic_services: initial.basic_services,
+        basic_services: { ...emptyProfile().basic_services, ...initial.basic_services },
         critical_facilities: initial.critical_facilities?.length ? initial.critical_facilities : emptyProfile().critical_facilities,
         vulnerable_groups: initial.vulnerable_groups?.length ? initial.vulnerable_groups : emptyProfile().vulnerable_groups,
         community_capacity: initial.community_capacity?.length ? initial.community_capacity : emptyProfile().community_capacity,
-        status: initial.status,
+        hazards: initial.hazards || [],
+        vulnerability_assessments: initial.vulnerability_assessments || [],
+        capacity_assessments: initial.capacity_assessments || [],
+        risk_assessments: initial.risk_assessments || [],
+        risk_index: { ...emptyProfile().risk_index, ...initial.risk_index },
+        economic_risk_indicators: { ...emptyProfile().economic_risk_indicators, ...initial.economic_risk_indicators },
+        environmental_indicators: { ...emptyProfile().environmental_indicators, ...initial.environmental_indicators },
+        preparedness_indicators: { ...emptyProfile().preparedness_indicators, ...initial.preparedness_indicators },
+        recovery_indicators: { ...emptyProfile().recovery_indicators, ...initial.recovery_indicators },
+        status: initial.status || 'Draft',
     } : emptyProfile());
 
     const setLoc = (k: string, v: string) => setForm(f => ({ ...f, location: { ...f.location, [k]: v } }));
@@ -150,12 +287,26 @@ const FormWizard: React.FC<{ initial?: WProfile | null; onSave: (d: WoredaProfil
                 className="relative bg-white rounded-[2.5rem] w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl border border-slate-100 overflow-hidden">
 
                 {/* Header */}
-                <div className="px-8 py-6 border-b border-slate-50 flex items-center justify-between">
-                    <div>
-                        <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest mb-1">{initial ? 'Edit' : 'New'} Woreda Profile</p>
-                        <h2 className="text-xl font-black text-slate-900">Step {step + 1}: {STEPS[step]}</h2>
+                <div className="px-8 py-6 border-b border-slate-50 flex items-center justify-between bg-white sticky top-0 z-10">
+                    <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${initial ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                            {initial ? <Edit3 size={24} /> : <Plus size={24} />}
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{initial ? 'Update Existing' : 'Register New'} Profile</p>
+                            <h2 className="text-xl font-black text-slate-900">{STEPS[step]}</h2>
+                        </div>
                     </div>
-                    <button onClick={onClose} className="w-10 h-10 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-400 flex items-center justify-center transition-all"><X size={18} /></button>
+
+                    <div className="flex items-center gap-3">
+                        <div className="hidden sm:flex bg-slate-100 p-1 rounded-xl">
+                            {['Draft', 'Submitted', 'Reviewed'].map(s => (
+                                <button key={s} type="button" onClick={() => setForm(f => ({ ...f, status: s as any }))}
+                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${form.status === s ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>{s}</button>
+                            ))}
+                        </div>
+                        <button onClick={onClose} className="w-10 h-10 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-400 flex items-center justify-center transition-all"><X size={18} /></button>
+                    </div>
                 </div>
 
                 {/* Step indicator */}
@@ -169,22 +320,22 @@ const FormWizard: React.FC<{ initial?: WProfile | null; onSave: (d: WoredaProfil
                 {/* Body */}
                 <div className="flex-1 overflow-y-auto p-8">
                     {step === 0 && (
-                        <div className="grid grid-cols-2 gap-4">
-                            {[['subcity','Subcity'],['woreda','Woreda'],['block','Block'],['house_no','House No']].map(([k,l]) => (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {[['subcity', 'Subcity'], ['woreda', 'Woreda'], ['block', 'Block'], ['house_no', 'House No']].map(([k, l]) => (
                                 <div key={k} className={k === 'block' || k === 'house_no' ? 'col-span-1' : ''}>
                                     <label className={labelCls}>{l}</label>
                                     <input className={inputCls} value={(form.location as any)[k] || ''} onChange={e => setLoc(k, e.target.value)} placeholder={`Enter ${l}`} />
                                 </div>
                             ))}
                             <div><label className={labelCls}>Assessment Date</label><input type="date" className={inputCls} value={form.assessment_date} onChange={e => setForm(f => ({ ...f, assessment_date: e.target.value }))} /></div>
-                            <div className="col-span-2"><label className={labelCls}>Remarks</label><textarea className={inputCls} rows={2} value={form.remarks || ''} onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))} /></div>
+                            <div className="col-span-1 md:col-span-2"><label className={labelCls}>Remarks</label><textarea className={inputCls} rows={2} value={form.remarks || ''} onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))} /></div>
                         </div>
                     )}
 
                     {step === 1 && (
                         <div className="space-y-6">
-                            <div className="grid grid-cols-3 gap-4">
-                                {[['total_population','Total Population'],['male_population','Male'],['female_population','Female'],['children_0_17','Children (0–17)'],['youth_18_29','Youth (18–29)'],['adults_30_59','Adults (30–59)'],['elderly_60_plus','Elderly (60+)'],['total_households','Total Households'],['female_headed_households','Female-headed HH'],['informal_settlement_population','Informal Settlement Pop.'],['low_income_households','Low-income HH'],['unemployment_rate','Unemployment Rate (%)'],['internally_displaced_population','IDPs']].map(([k,l]) => (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                {[['total_population', 'Total Population'], ['male_population', 'Male'], ['female_population', 'Female'], ['children_0_17', 'Children (0–17)'], ['youth_18_29', 'Youth (18–29)'], ['adults_30_59', 'Adults (30–59)'], ['elderly_60_plus', 'Elderly (60+)'], ['total_households', 'Total Households'], ['female_headed_households', 'Female-headed HH'], ['informal_settlement_population', 'Informal Settlement Pop.'], ['low_income_households', 'Low-income HH'], ['unemployment_rate', 'Unemployment Rate (%)'], ['internally_displaced_population', 'IDPs']].map(([k, l]) => (
                                     <div key={k}>
                                         <label className={labelCls}>{l}</label>
                                         <input type="number" min={0} className={inputCls} value={(form.demographics as any)?.[k] || 0} onChange={e => setDemo(k, Number(e.target.value))} />
@@ -227,15 +378,15 @@ const FormWizard: React.FC<{ initial?: WProfile | null; onSave: (d: WoredaProfil
                     )}
 
                     {step === 3 && (
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="col-span-2"><label className={labelCls}>Water Source</label><input className={inputCls} value={form.basic_services?.water_source || ''} onChange={e => setSvc('water_source', e.target.value)} placeholder="e.g. Piped Water, Borehole" /></div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="col-span-1 md:col-span-2"><label className={labelCls}>Water Source</label><input className={inputCls} value={form.basic_services?.water_source || ''} onChange={e => setSvc('water_source', e.target.value)} placeholder="e.g. Piped Water, Borehole" /></div>
                             <div><label className={labelCls}>Road Access</label>
                                 <select className={inputCls} value={form.basic_services?.road_access || ''} onChange={e => setSvc('road_access', e.target.value)}>
                                     <option value="">Select</option>
                                     {['All-weather', 'Seasonal', 'No road'].map(o => <option key={o}>{o}</option>)}
                                 </select>
                             </div>
-                            {[['electricity','Electricity Access'],['drainage_system_coverage','Drainage System'],['solid_waste_management_coverage','Solid Waste Mgmt'],['telecommunications_access','Telecommunications'],['critical_lifeline_redundancy','Lifeline Redundancy']].map(([k,l]) => (
+                            {[['electricity', 'Electricity Access'], ['drainage_system_coverage', 'Drainage System'], ['solid_waste_management_coverage', 'Solid Waste Mgmt'], ['telecommunications_access', 'Telecommunications'], ['critical_lifeline_redundancy', 'Lifeline Redundancy']].map(([k, l]) => (
                                 <div key={k} className="flex items-center justify-between bg-slate-50 rounded-2xl px-5 py-4">
                                     <span className="text-sm font-semibold text-slate-700">{l}</span>
                                     <button type="button"
@@ -253,7 +404,7 @@ const FormWizard: React.FC<{ initial?: WProfile | null; onSave: (d: WoredaProfil
                             {(form.critical_facilities || []).map((f, i) => (
                                 <div key={i} className="bg-slate-50 rounded-2xl p-5">
                                     <p className="text-sm font-bold text-slate-800 mb-3">{f.facility_type}</p>
-                                    <div className="grid grid-cols-3 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                         <div><label className={labelCls}>Distance (km)</label>
                                             <input type="number" min={0} className={inputCls} value={f.distance_to_nearest_emergency_service || 0}
                                                 onChange={e => setForm(fr => ({ ...fr, critical_facilities: fr.critical_facilities?.map((cf, idx) => idx === i ? { ...cf, distance_to_nearest_emergency_service: Number(e.target.value) } : cf) }))} />
@@ -279,40 +430,206 @@ const FormWizard: React.FC<{ initial?: WProfile | null; onSave: (d: WoredaProfil
                     )}
 
                     {step === 5 && (
-                        <div className="space-y-3">
-                            {(form.vulnerable_groups || []).map((g, i) => (
-                                <div key={i} className="flex items-center gap-4 bg-slate-50 rounded-2xl px-5 py-4">
-                                    <span className="flex-1 text-sm font-bold text-slate-700">{g.group_type}</span>
-                                    <input type="number" min={0} className="w-32 px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-bold text-center focus:outline-none focus:border-indigo-300" value={g.number || 0}
-                                        onChange={e => setForm(f => ({ ...f, vulnerable_groups: f.vulnerable_groups?.map((vg, idx) => idx === i ? { ...vg, number: Number(e.target.value) } : vg) }))} />
-                                    <span className="text-xs text-slate-400">people</span>
-                                </div>
-                            ))}
+                        <div className="space-y-6">
+                            <div className="space-y-3">
+                                <label className={labelCls}>Vulnerable Groups (Count)</label>
+                                {(form.vulnerable_groups || []).map((g, i) => (
+                                    <div key={i} className="flex items-center gap-4 bg-slate-50 rounded-2xl px-5 py-4 border border-transparent hover:border-slate-100 transition-all">
+                                        <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-rose-500 shadow-sm">
+                                            <Heart size={14} />
+                                        </div>
+                                        <span className="flex-1 text-sm font-bold text-slate-700">{g.group_type}</span>
+                                        <div className="flex items-center gap-2">
+                                            <input type="number" min={0} className="w-28 px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm font-bold text-center focus:outline-none focus:border-indigo-300" value={g.number || 0}
+                                                onChange={e => setForm(f => ({ ...f, vulnerable_groups: f.vulnerable_groups?.map((vg, idx) => idx === i ? { ...vg, number: Number(e.target.value) } : vg) }))} />
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase">Pax</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
 
                     {step === 6 && (
-                        <div className="space-y-3">
-                            {(form.community_capacity || []).map((c, i) => (
-                                <div key={i} className="bg-slate-50 rounded-2xl p-5">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <span className="text-sm font-bold text-slate-800">{c.capacity_type}</span>
-                                        <button type="button"
-                                            onClick={() => setForm(f => ({ ...f, community_capacity: f.community_capacity?.map((cc, idx) => idx === i ? { ...cc, available: !cc.available } : cc) }))}
-                                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${c.available ? 'bg-indigo-100 text-indigo-700' : 'bg-white border border-slate-200 text-slate-400'}`}>
-                                            <CheckCircle size={14} /> {c.available ? 'Available' : 'Not Available'}
-                                        </button>
+                        <div className="space-y-6">
+                            <div className="space-y-3">
+                                <label className={labelCls}>Community DRM Capacity</label>
+                                {(form.community_capacity || []).map((c, i) => (
+                                    <div key={i} className="bg-slate-50 rounded-2xl p-5 border border-transparent hover:border-slate-100 transition-all">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${c.available ? 'bg-emerald-100 text-emerald-600' : 'bg-white text-slate-300'} shadow-sm`}>
+                                                    <ShieldCheck size={16} />
+                                                </div>
+                                                <span className="text-sm font-bold text-slate-800">{c.capacity_type}</span>
+                                            </div>
+                                            <button type="button"
+                                                onClick={() => setForm(f => ({ ...f, community_capacity: f.community_capacity?.map((cc, idx) => idx === i ? { ...cc, available: !cc.available } : cc) }))}
+                                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${c.available ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white border border-slate-200 text-slate-400'}`}>
+                                                {c.available ? <CheckCircle size={14} /> : <Clock size={14} />} {c.available ? 'Active' : 'Inactive'}
+                                            </button>
+                                        </div>
+                                        <input className={`${inputCls} !py-2.5 !bg-white`} placeholder="Remarks on this capacity..." value={c.remarks || ''}
+                                            onChange={e => setForm(f => ({ ...f, community_capacity: f.community_capacity?.map((cc, idx) => idx === i ? { ...cc, remarks: e.target.value } : cc) }))} />
                                     </div>
-                                    <input className={`${inputCls} !py-2`} placeholder="Remarks (optional)" value={c.remarks || ''}
-                                        onChange={e => setForm(f => ({ ...f, community_capacity: f.community_capacity?.map((cc, idx) => idx === i ? { ...cc, remarks: e.target.value } : cc) }))} />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {step === 7 && (
+                        <div className="space-y-8">
+                            {/* Hazards Section */}
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <label className={labelCls}>Community Hazards</label>
+                                    <button type="button" onClick={() => setForm(f => ({ ...f, hazards: [...(f.hazards || []), { hazard_name: '', severity: 'Medium', frequency: 'Low' }] }))}
+                                        className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg flex items-center gap-1">
+                                        <Plus size={12} /> Add Hazard
+                                    </button>
                                 </div>
-                            ))}
-                            <div className="pt-2">
-                                <label className={labelCls}>Status</label>
-                                <div className="flex gap-3">
+                                <div className="grid grid-cols-1 gap-4">
+                                    {(form.hazards || []).map((h, i) => (
+                                        <div key={i} className="bg-slate-50 border border-slate-100 rounded-2xl p-4 relative group/h">
+                                            <button onClick={() => setForm(f => ({ ...f, hazards: f.hazards?.filter((_, idx) => idx !== i) }))} className="absolute -top-2 -right-2 w-6 h-6 bg-rose-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/h:opacity-100 transition-all"><X size={12} /></button>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                                <div className="md:col-span-2">
+                                                    <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">Hazard Name</label>
+                                                    <input className={`${inputCls} !py-2 !bg-white`} value={h.hazard_name || ''} onChange={e => setForm(f => ({ ...f, hazards: f.hazards?.map((item, idx) => idx === i ? { ...item, hazard_name: e.target.value } : item) }))} placeholder="e.g. Flash Flood" />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">Severity</label>
+                                                    <select className={`${inputCls} !py-2 !bg-white`} value={h.severity || ''} onChange={e => setForm(f => ({ ...f, hazards: f.hazards?.map((item, idx) => idx === i ? { ...item, severity: e.target.value } : item) }))}>
+                                                        {['Low', 'Medium', 'High', 'Critical'].map(v => <option key={v}>{v}</option>)}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Risk Index Section */}
+                            <div className="bg-indigo-50/50 rounded-3xl p-6 border border-indigo-100">
+                                <label className={`${labelCls} text-indigo-900`}>Risk Index Scorecard</label>
+                                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-3">
+                                    {[
+                                        ['hazard_index', 'Hazard'],
+                                        ['vulnerability_index', 'Vuln.'],
+                                        ['exposure_index', 'Exposure'],
+                                        ['capacity_index', 'Capacity'],
+                                        ['overall_woreda_risk_score', 'Score']
+                                    ].map(([k, l]) => (
+                                        <div key={k} className="bg-white rounded-2xl p-3 border border-indigo-100/50">
+                                            <label className="text-[8px] font-black text-slate-400 uppercase block mb-1">{l}</label>
+                                            <input type="number" step="0.1" className="w-full bg-transparent text-sm font-black text-indigo-700 focus:outline-none"
+                                                value={(form.risk_index as any)?.[k] || 0}
+                                                onChange={e => setForm(f => ({ ...f, risk_index: { ...f.risk_index, [k]: Number(e.target.value) } }))} />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {step === 8 && (
+                        <div className="space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                {/* Economic Indicators */}
+                                <section className="space-y-4">
+                                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-amber-400" /> Economic Risk
+                                    </h4>
+                                    <div className="space-y-3">
+                                        {[
+                                            ['concentration_small_informal_businesses', 'Small Business Conc.'],
+                                            ['market_exposure', 'Market Exposure'],
+                                            ['daily_labor_dependency', 'Labor Dependency']
+                                        ].map(([k, l]) => (
+                                            <div key={k}>
+                                                <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">{l}</label>
+                                                <select className={inputCls} value={(form.economic_risk_indicators as any)?.[k] || ''} onChange={e => setForm(f => ({ ...f, economic_risk_indicators: { ...f.economic_risk_indicators, [k]: e.target.value } }))}>
+                                                    <option value="">Select Level</option>
+                                                    {['Low', 'Medium', 'High'].map(v => <option key={v}>{v}</option>)}
+                                                </select>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+
+                                {/* Environmental Indicators */}
+                                <section className="space-y-4">
+                                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-emerald-400" /> Environmental
+                                    </h4>
+                                    <div className="space-y-3">
+                                        {[
+                                            ['green_space_per_capita', 'Green Space'],
+                                            ['waste_dumping_sites', 'Waste Management'],
+                                            ['urban_drainage_blockage_frequency', 'Drainage Blockage']
+                                        ].map(([k, l]) => (
+                                            <div key={k}>
+                                                <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">{l}</label>
+                                                <select className={inputCls} value={(form.environmental_indicators as any)?.[k] || ''} onChange={e => setForm(f => ({ ...f, environmental_indicators: { ...f.environmental_indicators, [k]: e.target.value } }))}>
+                                                    <option value="">Select Level</option>
+                                                    {['Good', 'Fair', 'Critical'].map(v => <option key={v}>{v}</option>)}
+                                                </select>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+
+                                {/* Preparedness Indicators */}
+                                <section className="space-y-4">
+                                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-indigo-400" /> Preparedness
+                                    </h4>
+                                    <div className="space-y-3">
+                                        {[
+                                            ['emergency_shelters_availability', 'Emergency Shelters'],
+                                            ['ambulance_coverage', 'Ambulance Coverage'],
+                                            ['community_awareness_level', 'Community Awareness']
+                                        ].map(([k, l]) => (
+                                            <div key={k}>
+                                                <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">{l}</label>
+                                                <select className={inputCls} value={(form.preparedness_indicators as any)?.[k] || ''} onChange={e => setForm(f => ({ ...f, preparedness_indicators: { ...f.preparedness_indicators, [k]: e.target.value } }))}>
+                                                    <option value="">Select Level</option>
+                                                    {['Low', 'Medium', 'High'].map(v => <option key={v}>{v}</option>)}
+                                                </select>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+
+                                {/* Recovery Indicators */}
+                                <section className="space-y-4">
+                                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-rose-400" /> Recovery
+                                    </h4>
+                                    <div className="space-y-3">
+                                        {[
+                                            ['post_disaster_recovery_plans', 'Recovery Plans'],
+                                            ['access_to_credit_safety_nets', 'Credit Access'],
+                                            ['climate_adaptation_initiatives', 'Adaptation Focus']
+                                        ].map(([k, l]) => (
+                                            <div key={k}>
+                                                <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">{l}</label>
+                                                <select className={inputCls} value={(form.recovery_indicators as any)?.[k] || ''} onChange={e => setForm(f => ({ ...f, recovery_indicators: { ...f.recovery_indicators, [k]: e.target.value } }))}>
+                                                    <option value="">Select Level</option>
+                                                    {['None', 'Developing', 'Established'].map(v => <option key={v}>{v}</option>)}
+                                                </select>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            </div>
+
+                            <div className="pt-6 border-t border-slate-100">
+                                <label className={labelCls}>Final Status</label>
+                                <div className="flex bg-slate-100 p-1.5 rounded-[2rem]">
                                     {['Draft', 'Submitted', 'Reviewed'].map(s => (
                                         <button key={s} type="button" onClick={() => setForm(f => ({ ...f, status: s as any }))}
-                                            className={`flex-1 py-3 rounded-2xl text-sm font-bold border transition-all ${form.status === s ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>{s}</button>
+                                            className={`flex-1 py-4 rounded-3xl text-xs font-black uppercase tracking-widest transition-all ${form.status === s ? 'bg-white text-indigo-700 shadow-xl shadow-indigo-100 border border-indigo-50' : 'text-slate-400 hover:text-slate-600'}`}>{s}</button>
                                     ))}
                                 </div>
                             </div>
@@ -343,7 +660,7 @@ const FormWizard: React.FC<{ initial?: WProfile | null; onSave: (d: WoredaProfil
 };
 
 // ─── Detail View ─────────────────────────────────────────────────────────────
-const DetailView: React.FC<{ profile: WProfile; onBack: () => void; onEdit: () => void }> = ({ profile, onBack, onEdit }) => {
+const DetailView: React.FC<{ profile: WProfile; onBack: () => void; onEdit?: () => void }> = ({ profile, onBack, onEdit }) => {
     const [tab, setTab] = useState('overview');
     const d = profile.demographics;
     const totalVulnerable = profile.vulnerable_groups?.reduce((a, g) => a + (g.number || 0), 0) || 0;
@@ -362,16 +679,33 @@ const DetailView: React.FC<{ profile: WProfile; onBack: () => void; onEdit: () =
                 <div className="flex items-center gap-4">
                     <button onClick={onBack} className="w-10 h-10 rounded-2xl bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 flex items-center justify-center shadow-sm transition-all"><ArrowLeft size={18} /></button>
                     <div>
-                        <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Woreda Profile</p>
-                        <h2 className="text-2xl font-black text-slate-900">{profile.location.woreda} Woreda</h2>
-                        <p className="text-xs text-slate-400">{profile.location.subcity} Subcity</p>
+                        <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">{profile.location.house_no && profile.location.house_no !== 'Aggregated Data' ? 'Household Profile' : 'Woreda Profile'}</p>
+                        <h2 className="text-2xl font-black text-slate-900">
+                            {profile.location.house_no && profile.location.house_no !== 'Aggregated Data'
+                                ? `House ${profile.location.house_no}`
+                                : profile.location.block && profile.location.block !== 'All Blocks'
+                                    ? `Block-${profile.location.block}`
+                                    : profile.location.woreda === 'All Woredas'
+                                        ? (profile.location.subcity === 'All Subcities' ? 'All Addis Ababa' : `${profile.location.subcity} Subcity`)
+                                        : `Woreda ${profile.location.woreda}`}
+                        </h2>
+                        <p className="text-xs text-slate-400">
+                            {profile.location.block && profile.location.block !== 'All Blocks' && (!profile.location.house_no || profile.location.house_no === 'Aggregated Data') ? `Woreda ${profile.location.woreda} • ` : ''}
+                            {profile.location.house_no && profile.location.house_no !== 'Aggregated Data'
+                                ? (profile.location.block !== 'Unknown' && profile.location.block !== 'All Blocks' ? `Block-${profile.location.block} • ` : '') + `Woreda ${profile.location.woreda}`
+                                : (profile.location.subcity === 'All Subcities' ? 'City Level Summary' : `${profile.location.subcity} Subcity`)}
+                        </p>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
                     <span className={`text-xs font-bold px-4 py-2 rounded-full border ${statusColor(profile.status)}`}>{profile.status}</span>
-                    <button onClick={onEdit} className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
-                        <Edit3 size={14} /> Edit
-                    </button>
+                    {onEdit && (
+                        <Can resource="WoredaProfile" action="update">
+                            <button onClick={onEdit} className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
+                                <Edit3 size={14} /> Edit
+                            </button>
+                        </Can>
+                    )}
                 </div>
             </div>
 
@@ -395,20 +729,27 @@ const DetailView: React.FC<{ profile: WProfile; onBack: () => void; onEdit: () =
                             <StatCard label="Vulnerable People" value={totalVulnerable.toLocaleString()} icon={Heart} color="text-rose-600" />
                             <StatCard label="Unemployment" value={`${d?.unemployment_rate || 0}%`} icon={AlertTriangle} color="text-amber-600" />
                         </div>
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Assessment Info</p>
-                                <InfoRow label="Date" value={new Date(profile.assessment_date).toLocaleDateString('en-GB')} />
-                                <InfoRow label="Assessed By" value={(profile.assessed_by as any)?.fullname || 'Woreda DRM Office'} />
-                                <InfoRow label="Remarks" value={profile.remarks} />
+                                <div className="bg-slate-50 rounded-2xl p-4">
+                                    <InfoRow label="Date" value={new Date(profile.assessment_date).toLocaleDateString('en-GB')} />
+                                    <InfoRow label="Assessed By" value={(profile.assessed_by as any)?.fullname || 'Woreda DRM Office'} />
+                                    <div className="mt-3">
+                                        <span className="text-xs font-semibold text-slate-400 block mb-1">Remarks</span>
+                                        <p className="text-sm font-medium text-slate-600 italic">"{profile.remarks || 'No remarks provided.'}"</p>
+                                    </div>
+                                </div>
                             </div>
                             <div>
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Population Breakdown</p>
-                                <InfoRow label="Male" value={`${d?.male_population?.toLocaleString() || 0}`} />
-                                <InfoRow label="Female" value={`${d?.female_population?.toLocaleString() || 0}`} />
-                                <InfoRow label="Children (0–17)" value={`${d?.children_0_17?.toLocaleString() || 0}`} />
-                                <InfoRow label="Youth (18–29)" value={`${d?.youth_18_29?.toLocaleString() || 0}`} />
-                                <InfoRow label="Elderly (60+)" value={`${d?.elderly_60_plus?.toLocaleString() || 0}`} />
+                                <div className="bg-slate-50 rounded-2xl p-4">
+                                    <InfoRow label="Male" value={`${d?.male_population?.toLocaleString() || 0}`} />
+                                    <InfoRow label="Female" value={`${d?.female_population?.toLocaleString() || 0}`} />
+                                    <InfoRow label="Children (0–17)" value={`${d?.children_0_17?.toLocaleString() || 0}`} />
+                                    <InfoRow label="Youth (18–29)" value={`${d?.youth_18_29?.toLocaleString() || 0}`} />
+                                    <InfoRow label="Elderly (60+)" value={`${d?.elderly_60_plus?.toLocaleString() || 0}`} />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -417,7 +758,7 @@ const DetailView: React.FC<{ profile: WProfile; onBack: () => void; onEdit: () =
                 {tab === 'demographics' && d && (
                     <div className="space-y-6">
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            {[['Total Population', d.total_population],['Male', d.male_population],['Female', d.female_population],['Children 0–17', d.children_0_17],['Youth 18–29', d.youth_18_29],['Adults 30–59', d.adults_30_59],['Elderly 60+', d.elderly_60_plus],['Total Households', d.total_households],['Female-headed HH', d.female_headed_households],['Informal Settlement', d.informal_settlement_population],['Low Income HH', d.low_income_households],['IDPs', d.internally_displaced_population]].map(([l, v]) => (
+                            {[['Total Population', d.total_population], ['Male', d.male_population], ['Female', d.female_population], ['Children 0–17', d.children_0_17], ['Youth 18–29', d.youth_18_29], ['Adults 30–59', d.adults_30_59], ['Elderly 60+', d.elderly_60_plus], ['Total Households', d.total_households], ['Female-headed HH', d.female_headed_households], ['Informal Settlement', d.informal_settlement_population], ['Low Income HH', d.low_income_households], ['IDPs', d.internally_displaced_population]].map(([l, v]) => (
                                 <div key={String(l)} className="bg-slate-50 rounded-2xl p-4">
                                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">{l}</p>
                                     <p className="text-2xl font-black text-slate-900">{(v as number)?.toLocaleString() ?? '—'}</p>
@@ -474,7 +815,7 @@ const DetailView: React.FC<{ profile: WProfile; onBack: () => void; onEdit: () =
                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Road Access</p>
                             <p className="text-lg font-black text-slate-900">{profile.basic_services.road_access || '—'}</p>
                         </div>
-                        {[['electricity','Electricity'],['drainage_system_coverage','Drainage System'],['solid_waste_management_coverage','Solid Waste Mgmt'],['telecommunications_access','Telecommunications'],['critical_lifeline_redundancy','Lifeline Redundancy']].map(([k,l]) => (
+                        {[['electricity', 'Electricity'], ['drainage_system_coverage', 'Drainage System'], ['solid_waste_management_coverage', 'Solid Waste Mgmt'], ['telecommunications_access', 'Telecommunications'], ['critical_lifeline_redundancy', 'Lifeline Redundancy']].map(([k, l]) => (
                             <div key={k} className={`flex items-center gap-3 rounded-2xl p-5 ${(profile.basic_services as any)[k] ? 'bg-emerald-50 border border-emerald-100' : 'bg-slate-50 border border-slate-100'}`}>
                                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${(profile.basic_services as any)[k] ? 'bg-emerald-100' : 'bg-slate-100'}`}>
                                     {(profile.basic_services as any)[k] ? <CheckCircle size={18} className="text-emerald-600" /> : <X size={18} className="text-slate-400" />}
@@ -894,8 +1235,9 @@ const SyncInterviewModal: React.FC<{
     onSync: (data: { responseId: string; mappingId: string; dryRun?: boolean }) => Promise<void>;
     mappings: ProfileMapping[];
     syncing: boolean;
-}> = ({ onClose, onSync, mappings, syncing }) => {
-    const [responseId, setResponseId] = useState('');
+    initialResponseId?: string;
+}> = ({ onClose, onSync, mappings, syncing, initialResponseId }) => {
+    const [responseId, setResponseId] = useState(initialResponseId || '');
     const [mappingId, setMappingId] = useState('');
     const [isDryRun, setIsDryRun] = useState(true);
 
@@ -904,7 +1246,7 @@ const SyncInterviewModal: React.FC<{
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" />
             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
                 className="relative bg-white rounded-[2.5rem] w-full max-w-md flex flex-col shadow-2xl border border-slate-100 overflow-hidden">
-                
+
                 <div className="p-8 border-b border-slate-50 flex items-center justify-between">
                     <div>
                         <h2 className="text-xl font-black text-slate-900">Sync from Interview</h2>
@@ -916,7 +1258,7 @@ const SyncInterviewModal: React.FC<{
                 <div className="p-8 space-y-6">
                     <div>
                         <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Response ID</label>
-                        <input 
+                        <input
                             className="w-full px-4 py-3 rounded-2xl border border-slate-100 bg-slate-50 text-slate-800 font-bold text-sm focus:outline-none focus:border-indigo-300 focus:bg-white transition-all"
                             value={responseId} onChange={e => setResponseId(e.target.value)} placeholder="Enter Interview Response ID"
                         />
@@ -926,12 +1268,12 @@ const SyncInterviewModal: React.FC<{
                             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Select Mapping Configuration</label>
                             <Link to="/admin/profile-mapping" className="text-[10px] font-bold text-indigo-600 hover:underline">Create New Mapping</Link>
                         </div>
-                        <select 
+                        <select
                             className="w-full px-4 py-3 rounded-2xl border border-slate-100 bg-slate-50 text-slate-800 font-bold text-sm focus:outline-none focus:border-indigo-300 focus:bg-white transition-all"
                             value={mappingId} onChange={e => setMappingId(e.target.value)}
                         >
                             <option value="">Select a mapping...</option>
-                            {mappings.filter(m => m.sourceType === 'InterviewTemplate').map(m => (
+                            {mappings.filter(m => m.sourceType === 'InterviewTemplate' && m.status === 'Published').map(m => (
                                 <option key={m._id} value={m._id}>{m.name}</option>
                             ))}
                         </select>
@@ -955,9 +1297,9 @@ const SyncInterviewModal: React.FC<{
                 </div>
 
                 <div className="p-8 border-t border-slate-50 bg-white">
-                    <button 
-                        disabled={!responseId || !mappingId || syncing} 
-                        onClick={() => onSync({ responseId, mappingId, dryRun: isDryRun })} 
+                    <button
+                        disabled={!responseId || !mappingId || syncing}
+                        onClick={() => onSync({ responseId, mappingId, dryRun: isDryRun })}
                         className="w-full py-4 bg-slate-900 text-white rounded-2xl text-sm font-bold hover:bg-black transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
                     >
                         {syncing ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}
@@ -966,6 +1308,42 @@ const SyncInterviewModal: React.FC<{
                 </div>
             </motion.div>
         </div>
+    );
+};
+
+const ObjectViewerTable: React.FC<{ data: any }> = ({ data }) => {
+    if (typeof data !== 'object' || data === null) {
+        return <span className="text-slate-800 font-semibold text-sm">{String(data)}</span>;
+    }
+    if (Array.isArray(data)) {
+        return (
+            <div className="flex flex-col gap-2">
+                {data.map((item, idx) => (
+                    <div key={idx} className="bg-slate-50/80 rounded-lg p-2 border border-slate-100/50">
+                        <ObjectViewerTable data={item} />
+                    </div>
+                ))}
+            </div>
+        );
+    }
+    return (
+        <table className="w-full text-left border-collapse">
+            <tbody className="divide-y divide-slate-100">
+                {Object.entries(data).map(([key, value]) => {
+                    if (value === undefined || value === null || value === '') return null;
+                    return (
+                        <tr key={key} className="hover:bg-slate-50/30 transition-colors">
+                            <td className="py-3 pr-4 align-top w-[35%] text-[10px] font-bold text-slate-400 uppercase tracking-widest break-words border-r border-slate-100/80">
+                                {key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').trim()}
+                            </td>
+                            <td className="py-3 pl-4 align-top w-[65%]">
+                                <ObjectViewerTable data={value} />
+                            </td>
+                        </tr>
+                    );
+                })}
+            </tbody>
+        </table>
     );
 };
 
@@ -984,7 +1362,7 @@ const SyncPreviewModal: React.FC<{
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" />
             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
                 className="relative bg-white rounded-[2.5rem] w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl border border-slate-100 overflow-hidden">
-                
+
                 <div className="p-8 border-b border-slate-50 flex items-center justify-between">
                     <div>
                         <h2 className="text-xl font-black text-slate-900">Sync Preview</h2>
@@ -1040,11 +1418,11 @@ const SyncPreviewModal: React.FC<{
                             </div>
                         </section>
 
-                        <section className="bg-indigo-50/50 p-6 rounded-3xl border border-indigo-100">
-                            <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-4">Full Data Object (JSON)</h4>
-                            <pre className="text-[10px] font-mono text-indigo-700 overflow-x-auto whitespace-pre-wrap">
-                                {JSON.stringify(profile, null, 2)}
-                            </pre>
+                        <section className="bg-slate-50/50 p-6 rounded-3xl border border-slate-100">
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Complete Structured Data</h4>
+                            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                                <ObjectViewerTable data={profile} />
+                            </div>
                         </section>
                     </div>
                 </div>
@@ -1053,14 +1431,16 @@ const SyncPreviewModal: React.FC<{
                     <button onClick={onClose} className="px-6 py-4 rounded-2xl text-sm font-bold text-slate-500 hover:bg-slate-50 transition-all flex-1">
                         Cancel
                     </button>
-                    <button 
-                        disabled={syncing} 
-                        onClick={onConfirm} 
-                        className="px-10 py-4 bg-emerald-600 text-white rounded-2xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-lg flex items-center justify-center gap-2 flex-[2]"
-                    >
-                        {syncing ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
-                        {syncing ? 'Applying Changes...' : 'Confirm & Save Profile'}
-                    </button>
+                    <Can resource="WoredaProfile" action="sync">
+                        <button
+                            disabled={syncing}
+                            onClick={onConfirm}
+                            className="px-10 py-4 bg-emerald-600 text-white rounded-2xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-lg flex items-center justify-center gap-2 flex-[2]"
+                        >
+                            {syncing ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
+                            {syncing ? 'Applying Changes...' : 'Confirm & Save Profile'}
+                        </button>
+                    </Can>
                 </div>
             </motion.div>
         </div>
@@ -1069,13 +1449,31 @@ const SyncPreviewModal: React.FC<{
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const WoredaProfile: React.FC = () => {
+    const location = useLocation();
+
     const [profiles, setProfiles] = useState<WProfile[]>([]);
     const [stats, setStats] = useState<WoredaProfileStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
+    const [level, setLevel] = useState<'all' | 'subcity' | 'woreda' | 'block' | 'household'>('woreda');
+    const [path, setPath] = useState<{ subcity: string | null; woreda: string | null; block: string | null }>({ subcity: null, woreda: null, block: null });
     const [showForm, setShowForm] = useState(false);
     const [showImport, setShowImport] = useState(false);
     const [showSync, setShowSync] = useState(false);
+    const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+    const [statusFilter, setStatusFilter] = useState<'ALL' | 'Draft' | 'Submitted' | 'Reviewed'>('ALL');
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
+
+    // Auto-open sync modal if navigated here from Response Explorer
+    const searchParams = new URLSearchParams(location.search);
+    const initialSyncId = searchParams.get('syncResponseId');
+
+    useEffect(() => {
+        if (initialSyncId) {
+            setShowSync(true);
+        }
+    }, [initialSyncId]);
     const [mappings, setMappings] = useState<ProfileMapping[]>([]);
     const [editProfile, setEditProfile] = useState<WProfile | null>(null);
     const [viewProfile, setViewProfile] = useState<WProfile | null>(null);
@@ -1086,8 +1484,13 @@ const WoredaProfile: React.FC = () => {
     const fetchData = useCallback(async () => {
         try {
             setLoading(true);
+            const params: any = { level };
+            if (path.subcity) params.subcity = path.subcity;
+            if (path.woreda) params.woreda = path.woreda;
+            if (path.block) params.block = path.block;
+
             const [pList, pStats, mList] = await Promise.all([
-                getWoredaProfiles(), 
+                getWoredaProfiles(params),
                 getWoredaProfileStats(),
                 getProfileMappings()
             ]);
@@ -1099,12 +1502,28 @@ const WoredaProfile: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [path, level]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
     const handleSave = async (data: WoredaProfileInput) => {
         try {
+            // Uniqueness check for household level
+            if (level === 'household' && data.location.house_no && data.location.house_no !== 'Aggregated Data') {
+                const isDuplicate = profiles.some(p =>
+                    p._id !== editProfile?._id &&
+                    p.location.house_no === data.location.house_no &&
+                    p.location.block === data.location.block &&
+                    p.location.woreda === data.location.woreda &&
+                    p.location.subcity === data.location.subcity
+                );
+
+                if (isDuplicate) {
+                    toast.error(`Household No. ${data.location.house_no} already exists in this block.`);
+                    return;
+                }
+            }
+
             setSaving(true);
             if (editProfile) {
                 await updateWoredaProfile(editProfile._id, data);
@@ -1116,8 +1535,9 @@ const WoredaProfile: React.FC = () => {
             setShowForm(false);
             setEditProfile(null);
             fetchData();
-        } catch {
-            toast.error('Failed to save profile');
+        } catch (err: any) {
+            const msg = err.response?.data?.message || 'Failed to save profile';
+            toast.error(msg);
         } finally {
             setSaving(false);
         }
@@ -1127,14 +1547,14 @@ const WoredaProfile: React.FC = () => {
         try {
             const params = JSON.parse(paramsJson);
             setImporting(true);
-            
+
             // For standard Excel import, mappingId is not required.
             // We only pass status and dryRun if applicable.
-            const result = await importWoredaProfile(file, { 
+            const result = await importWoredaProfile(file, {
                 status: params.status,
-                mappingId: params.mappingId 
+                mappingId: params.mappingId
             });
-            
+
             toast.success(result.message || 'Import successful');
             setShowImport(false);
             fetchData();
@@ -1145,6 +1565,7 @@ const WoredaProfile: React.FC = () => {
         }
     };
 
+    // Sync from interview
     const handleSync = async (data: { responseId: string; mappingId: string; dryRun?: boolean }) => {
         try {
             setSaving(true);
@@ -1166,6 +1587,18 @@ const WoredaProfile: React.FC = () => {
         }
     };
 
+    //
+    const handleStatusChange = async (id: string, status: string) => {
+        try {
+            await updateWoredaProfile(id, { status: status as any });
+            toast.success(`Status updated to ${status}`);
+            fetchData();
+        } catch {
+            toast.error('Failed to update status');
+        }
+    };
+
+    // Filter only applies at household level — aggregated rows are always shown as a group
     const handleDelete = async (id: string) => {
         if (!window.confirm('Delete this Woreda Profile?')) return;
         try {
@@ -1177,17 +1610,30 @@ const WoredaProfile: React.FC = () => {
         }
     };
 
-    const filtered = profiles.filter(p =>
-        [p.location.woreda, p.location.subcity].some(v =>
-            v?.toLowerCase().includes(search.toLowerCase())
-        )
-    );
+    // Filter only applies at household level — aggregated rows are always shown as a group
+    const filtered = profiles.filter(p => {
+        if (level !== 'household') return true; // aggregated rows — no status filter
+        const searchText = search.toLowerCase();
+        const matchesSearch = [p.location.woreda, p.location.subcity, p.location.block, p.location.house_no].some(v =>
+            (v || '').toLowerCase().includes(searchText)
+        );
+        const matchesStatus = statusFilter === 'ALL' || p.status === statusFilter;
+        return matchesSearch && matchesStatus;
+    });
+
+    const totalPages = Math.ceil(filtered.length / itemsPerPage);
+    const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+    //
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [search, statusFilter, level, path]);
 
     if (viewProfile) {
         return (
             <div className="min-h-screen bg-[#F8FAFC] p-6">
                 <PageMeta title={`${viewProfile.location.woreda} Profile | IDRMIS`} description="Woreda Profile Detail" />
-                <DetailView profile={viewProfile} onBack={() => setViewProfile(null)} onEdit={() => { setEditProfile(viewProfile); setViewProfile(null); setShowForm(true); }} />
+                <DetailView profile={viewProfile} onBack={() => setViewProfile(null)} onEdit={level === 'household' ? () => { setEditProfile(viewProfile); setViewProfile(null); setShowForm(true); } : undefined} />
             </div>
         );
     }
@@ -1198,35 +1644,41 @@ const WoredaProfile: React.FC = () => {
 
             {/* Page Header */}
             <div className="px-6 pt-2 pb-8">
-                <div className="flex items-center justify-between mb-8">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-200">
                             <MapPin size={22} className="text-white" />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-black text-slate-900">Woreda Profile</h1>
-                            <p className="text-xs text-slate-400 mt-0.5">Community DRM profiles & vulnerability assessments</p>
+                            <h1 className="text-xl md:text-2xl font-black text-slate-900">Woreda Profile</h1>
+                            <p className="text-[10px] md:text-xs text-slate-400 mt-0.5">Community DRM profiles & vulnerability assessments</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full md:w-auto">
                         <button onClick={fetchData} className="w-10 h-10 rounded-2xl bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 flex items-center justify-center shadow-sm transition-all"><RefreshCw size={16} /></button>
-                        <button 
-                            onClick={() => {
-                                if (mappings.length === 0) {
-                                    toast.warn('No profile mappings configured. Please create one first.');
-                                }
-                                setShowSync(true);
-                            }} 
-                            className="flex items-center gap-2 px-5 py-3 bg-white border border-slate-100 text-slate-700 rounded-2xl text-sm font-bold hover:bg-slate-50 transition-all shadow-sm"
-                        >
-                            <ArrowRightLeft size={16} className="text-indigo-600" /> Sync Interview
-                        </button>
-                        <button onClick={() => setShowImport(true)} className="flex items-center gap-2 px-5 py-3 bg-white border border-slate-100 text-slate-700 rounded-2xl text-sm font-bold hover:bg-slate-50 transition-all shadow-sm">
-                            <Upload size={16} className="text-indigo-600" /> Import Excel
-                        </button>
-                        <button onClick={() => { setEditProfile(null); setShowForm(true); }} className="flex items-center gap-2 px-5 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
-                            <Plus size={16} /> New Profile
-                        </button>
+                        <Can resource="WoredaProfile" action="sync">
+                            <button
+                                onClick={() => {
+                                    if (mappings.length === 0) {
+                                        toast.warn('No profile mappings configured. Please create one first.');
+                                    }
+                                    setShowSync(true);
+                                }}
+                                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 md:px-5 py-3 bg-white border border-slate-100 text-slate-700 rounded-2xl text-[11px] md:text-sm font-bold hover:bg-slate-50 transition-all shadow-sm"
+                            >
+                                <ArrowRightLeft size={16} className="text-indigo-600" /> Sync
+                            </button>
+                        </Can>
+                        <Can resource="WoredaProfile" action="import">
+                            <button onClick={() => setShowImport(true)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 md:px-5 py-3 bg-white border border-slate-100 text-slate-700 rounded-2xl text-[11px] md:text-sm font-bold hover:bg-slate-50 transition-all shadow-sm">
+                                <Upload size={16} className="text-indigo-600" /> Import
+                            </button>
+                        </Can>
+                        <Can resource="WoredaProfile" action="create">
+                            <button onClick={() => { setEditProfile(null); setShowForm(true); }} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 md:px-5 py-3 bg-indigo-600 text-white rounded-2xl text-[11px] md:text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
+                                <Plus size={16} /> Profile
+                            </button>
+                        </Can>
                     </div>
                 </div>
 
@@ -1241,14 +1693,80 @@ const WoredaProfile: React.FC = () => {
                     </div>
                 )}
 
-                {/* Search */}
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="relative flex-1 max-w-md">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by woreda, subcity..."
-                            className="w-full pl-12 pr-5 py-3 bg-white rounded-2xl border border-slate-100 text-sm font-medium text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-indigo-200 shadow-sm" />
+                {/* Breadcrumb Trail */}
+                {(path.subcity || path.woreda || path.block) && (
+                    <div className="flex items-center gap-2 mb-4 px-1 text-xs font-bold">
+                        <button onClick={() => { setLevel('all'); setPath({ subcity: null, woreda: null, block: null }); }} className="text-indigo-500 hover:underline">All</button>
+                        {path.subcity && <><span className="text-slate-300">›</span><button onClick={() => { setLevel('subcity'); setPath({ subcity: null, woreda: null, block: null }); }} className="text-indigo-500 hover:underline">{path.subcity}</button></>}
+                        {path.woreda && <><span className="text-slate-300">›</span><button onClick={() => { setLevel('woreda'); setPath(p => ({ ...p, woreda: null, block: null })); }} className="text-indigo-500 hover:underline">Woreda {path.woreda}</button></>}
+                        {path.block && <><span className="text-slate-300">›</span><button onClick={() => { setLevel('block'); setPath(p => ({ ...p, block: null })); }} className="text-indigo-500 hover:underline">Block {path.block}</button></>}
+                        <span className="text-slate-300">›</span><span className="text-slate-500 capitalize">{level} level</span>
                     </div>
-                    <span className="text-xs font-bold text-slate-400 px-2">{filtered.length} profiles</span>
+                )}
+
+                {/* Tabs */}
+                <div className="flex bg-slate-100 p-1 rounded-2xl w-full md:w-auto overflow-x-auto text-[11px] font-black uppercase tracking-wider mb-6">
+                    {(['all', 'subcity', 'woreda', 'block', 'household'] as const).map(l => (
+                        <button key={l} onClick={() => {
+                            setLevel(l);
+                            if (l === 'all' || l === 'subcity') setPath({ subcity: null, woreda: null, block: null });
+                            else if (l === 'woreda') setPath({ ...path, woreda: null, block: null });
+                            else if (l === 'block') setPath({ ...path, block: null });
+                        }}
+                            className={`flex-[0_0_auto] px-6 py-3 rounded-xl transition-all ${level === l ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                            {l} Level
+                        </button>
+                    ))}
+                </div>
+
+                {/* Controls and Search */}
+                <div className="flex flex-col md:flex-row items-center gap-4 mb-6">
+                    <div className="relative flex-1 w-full max-w-md">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Search in ${level}...`}
+                            className="w-full pl-12 pr-5 py-3 bg-white rounded-2xl border border-slate-100 text-sm font-medium text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300 shadow-sm" />
+                    </div>
+
+                    {/* View Mode Toggle */}
+                    <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 shadow-inner">
+                        <button
+                            onClick={() => setViewMode('grid')}
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'grid' ? 'bg-white text-indigo-700 shadow-sm border border-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            Grid
+                        </button>
+                        <button
+                            onClick={() => setViewMode('table')}
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'table' ? 'bg-white text-indigo-700 shadow-sm border border-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            Table
+                        </button>
+                    </div>
+
+                    {/* Status Tabs — only shown at household level where actual statuses apply */}
+                    {level === 'household' && (
+                        <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 shadow-inner overflow-x-auto no-scrollbar">
+                            {[
+                                { label: 'All', value: 'ALL', color: 'bg-white text-slate-900 border-slate-100' },
+                                { label: 'Draft', value: 'Draft', color: 'bg-amber-50 text-amber-700 border-amber-100' },
+                                { label: 'Submitted', value: 'Submitted', color: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
+                                { label: 'Reviewed', value: 'Reviewed', color: 'bg-blue-50 text-blue-700 border-blue-100' },
+                            ].map((tab) => (
+                                <button
+                                    key={tab.value}
+                                    onClick={() => setStatusFilter(tab.value as any)}
+                                    className={`px-4 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap ${statusFilter === tab.value
+                                            ? `${tab.color} shadow-sm border ring-1 ring-slate-100`
+                                            : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/50'
+                                        }`}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    <span className="text-xs font-bold text-slate-400 px-2 whitespace-nowrap md:ml-auto">{filtered.length} {level !== 'household' ? 'aggregated zones' : 'profiles'}</span>
                 </div>
 
                 {/* Profile Grid */}
@@ -1264,20 +1782,218 @@ const WoredaProfile: React.FC = () => {
                         </div>
                         <p className="text-slate-500 font-bold">No profiles found</p>
                         <p className="text-slate-400 text-sm">Create your first Woreda Profile to get started</p>
-                        <button onClick={() => { setEditProfile(null); setShowForm(true); }} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold mt-2">
-                            <Plus size={16} /> Create Profile
-                        </button>
+                        <Can resource="WoredaProfile" action="create">
+                            <button onClick={() => { setEditProfile(null); setShowForm(true); }} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold mt-2">
+                                <Plus size={16} /> Create Profile
+                            </button>
+                        </Can>
                     </div>
-                ) : (
+                ) : viewMode === 'grid' ? (
                     <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                         <AnimatePresence>
                             {filtered.map(p => (
                                 <ProfileCard key={p._id} profile={p}
                                     onView={() => setViewProfile(p)}
-                                    onEdit={() => { setEditProfile(p); setShowForm(true); }}
-                                    onDelete={() => handleDelete(p._id)} />
+                                    onDrillDown={level !== 'household' ? () => {
+                                        if (level === 'all') { setPath({ subcity: null, woreda: null, block: null }); setLevel('subcity'); }
+                                            else if (level === 'subcity') { setPath({ subcity: p.location.subcity || null, woreda: null, block: null }); setLevel('woreda'); }
+                                        else if (level === 'woreda') { setPath({ subcity: p.location.subcity || null, woreda: p.location.woreda || null, block: null }); setLevel('block'); }
+                                        else if (level === 'block') { setPath({ subcity: p.location.subcity || null, woreda: p.location.woreda || null, block: p.location.block && p.location.block !== 'All Blocks' ? p.location.block : 'Unknown' }); setLevel('household'); }
+                                    } : undefined}
+                                    onEdit={level === 'household' ? () => { setEditProfile(p); setShowForm(true); } : undefined}
+                                    onDelete={level === 'household' ? () => handleDelete(p._id) : undefined}
+                                    onStatusChange={level === 'household' ? (s) => handleStatusChange(p._id, s) : undefined} />
                             ))}
                         </AnimatePresence>
+                    </motion.div>
+                ) : (
+                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left">
+                                <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-200">
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Location Identity</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Demographics</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Risk Index</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Protocol Status</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Time Buffer</th>
+                                        <th className="px-8 py-5 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Operation</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 relative">
+                                    {paginated.map((p) => {
+                                        const statusKey = p.status || 'Draft';
+                                        const sc = STATUS_CONFIG[statusKey] || STATUS_CONFIG.Draft;
+                                        return (
+                                            <tr key={p._id} className={`group transition-all border-l-4 ${p.status === 'Submitted' ? 'bg-emerald-50/20 hover:bg-emerald-50/40 border-emerald-500' :
+                                                    p.status === 'Reviewed' ? 'bg-blue-50/20 hover:bg-blue-50/40 border-blue-500' :
+                                                        'bg-amber-50/20 hover:bg-amber-50/40 border-amber-500'
+                                                }`}>
+                                                <td className="px-8 py-6">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-mono text-[10px] font-bold group-hover:scale-110 transition-all ${p.status === 'Submitted' ? 'bg-emerald-100/50 text-emerald-700' :
+                                                                p.status === 'Reviewed' ? 'bg-blue-100/50 text-blue-700' :
+                                                                    'bg-amber-100/50 text-amber-700'
+                                                            }`}>
+                                                            #{p._id.slice(-4).toUpperCase()}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-black text-slate-900 leading-tight">
+                                                                {p.location.house_no && p.location.house_no !== 'Aggregated Data'
+                                                                    ? `House ${p.location.house_no}`
+                                                                    : p.location.block && p.location.block !== 'All Blocks'
+                                                                        ? `Block-${p.location.block}`
+                                                                        : p.location.woreda === 'All Woredas'
+                                                                            ? (p.location.subcity === 'All Subcities' ? 'All Addis' : p.location.subcity)
+                                                                            : `Woreda ${p.location.woreda}`}
+                                                            </p>
+                                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mt-0.5">
+                                                                {p.location.subcity} {p.location.woreda !== 'All Woredas' ? `• Zone W${p.location.woreda}` : ''}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-6">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-black text-slate-800">{(p.demographics?.total_population || 0).toLocaleString()}</span>
+                                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Total Residents</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-6">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${p.status === 'Submitted' ? 'bg-emerald-100 text-emerald-600' :
+                                                                p.status === 'Reviewed' ? 'bg-blue-100 text-blue-600' :
+                                                                    'bg-amber-100 text-amber-600'
+                                                            }`}>
+                                                            <BarChart3 size={16} />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-black text-slate-900 leading-tight">{p.risk_index?.overall_woreda_risk_score || '0.0'}</p>
+                                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Composite Score</p>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-6 text-center">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const next: Record<string, string> = { 'Draft': 'Submitted', 'Submitted': 'Reviewed', 'Reviewed': 'Draft' };
+                                                            handleStatusChange(p._id, next[p.status || 'Draft'] || 'Draft');
+                                                        }}
+                                                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 ${sc.bg} ${sc.text} border border-transparent hover:border-current shadow-sm`}>
+                                                        <div className={`w-2 h-2 rounded-full ${sc.dot} ${p.status === 'Submitted' ? 'animate-pulse' : ''}`} />
+                                                        {p.status}
+                                                    </button>
+                                                </td>
+                                                <td className="px-8 py-6">
+                                                    <div className="flex flex-col gap-1">
+                                                        <div className="flex items-center gap-2 text-slate-700 text-sm font-semibold">
+                                                            {new Date(p.assessment_date).toLocaleDateString()}
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-bold uppercase">
+                                                            <Clock size={12} />
+                                                            Assessment date
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-6 text-right relative z-10">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        {level !== 'household' && (
+                                                            <button
+                                                                onClick={() => {
+                                                                    if (level === 'all') { setPath({ subcity: null, woreda: null, block: null }); setLevel('subcity'); }
+                                                                    else if (level === 'subcity') { setPath({ subcity: p.location.subcity || null, woreda: null, block: null }); setLevel('woreda'); }
+                                                                    else if (level === 'woreda') { setPath({ subcity: p.location.subcity || null, woreda: p.location.woreda || null, block: null }); setLevel('block'); }
+                                                                    else if (level === 'block') { setPath({ subcity: p.location.subcity || null, woreda: p.location.woreda || null, block: p.location.block && p.location.block !== 'All Blocks' ? p.location.block : 'Unknown' }); setLevel('household'); }
+                                                                }}
+                                                                className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                                                                title="Explore Logic Layer"
+                                                            >
+                                                                <ChevronRight size={18} />
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            onClick={() => setViewProfile(p)}
+                                                            className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center hover:bg-indigo-600 transition-all shadow-lg"
+                                                            title="Inspect Payload"
+                                                        >
+                                                            <Eye size={18} />
+                                                        </button>
+                                                        {level === 'household' && (
+                                                            <Can resource="WoredaProfile" action="update">
+                                                                <button
+                                                                    onClick={() => { setEditProfile(p); setShowForm(true); }}
+                                                                    className="w-10 h-10 rounded-2xl border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-100 hover:bg-white flex items-center justify-center transition-all shadow-sm"
+                                                                    title="Modify Protocol"
+                                                                >
+                                                                    <Edit3 size={18} />
+                                                                </button>
+                                                            </Can>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Pagination Footer (The Sync Engine Style) */}
+                        {totalPages > 1 && (
+                            <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Buffer Page</span>
+                                    <div className="flex items-center gap-1">
+                                        <span className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-xs font-black text-slate-900 shadow-sm">{currentPage}</span>
+                                        <span className="text-[10px] font-bold text-slate-300">/</span>
+                                        <span className="text-[10px] font-bold text-slate-500">{totalPages}</span>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1}
+                                        className={`p-2 rounded-xl border transition-all ${currentPage === 1
+                                                ? 'bg-slate-50 text-slate-300 border-slate-100'
+                                                : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600 shadow-sm'
+                                            }`}
+                                    >
+                                        <ChevronLeft size={18} />
+                                    </button>
+                                    <div className="hidden sm:flex items-center gap-1 mx-2">
+                                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                            let pageNum = currentPage <= 3 ? i + 1 : currentPage + i - 2;
+                                            if (pageNum > totalPages) pageNum = totalPages - (Math.min(5, totalPages) - i - 1);
+                                            if (pageNum < 1) pageNum = i + 1;
+                                            return (
+                                                <button
+                                                    key={pageNum}
+                                                    onClick={() => setCurrentPage(pageNum)}
+                                                    className={`w-8 h-8 rounded-lg text-xs font-black transition-all ${currentPage === pageNum
+                                                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
+                                                            : 'text-slate-400 hover:text-slate-600 hover:bg-white'
+                                                        }`}
+                                                >
+                                                    {pageNum}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className={`p-2 rounded-xl border transition-all ${currentPage === totalPages
+                                                ? 'bg-slate-50 text-slate-300 border-slate-100'
+                                                : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600 shadow-sm'
+                                            }`}
+                                    >
+                                        <ChevronRight size={18} />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </motion.div>
                 )}
             </div>
@@ -1295,17 +2011,18 @@ const WoredaProfile: React.FC = () => {
                     <ImportModal onClose={() => setShowImport(false)} onImport={handleImport} importing={importing} />
                 )}
                 {showSync && (
-                    <SyncInterviewModal 
+                    <SyncInterviewModal
                         onClose={() => setShowSync(false)}
                         onSync={handleSync}
                         mappings={mappings}
                         syncing={saving}
+                        initialResponseId={initialSyncId || undefined}
                     />
                 )}
                 {syncPreviewData && (
-                    <SyncPreviewModal 
-                        data={syncPreviewData} 
-                        onClose={() => setSyncPreviewData(null)} 
+                    <SyncPreviewModal
+                        data={syncPreviewData}
+                        onClose={() => setSyncPreviewData(null)}
                         onConfirm={() => handleSync({ ...syncPreviewData.requestData, dryRun: false })}
                         syncing={saving}
                     />

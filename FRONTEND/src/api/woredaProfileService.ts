@@ -188,8 +188,11 @@ export interface WoredaProfileStats {
 }
 
 export const getWoredaProfiles = async (params?: {
+    subcity?: string;
     woreda?: string;
+    block?: string;
     status?: string;
+    level?: 'all' | 'subcity' | 'woreda' | 'block' | 'household';
 }): Promise<WoredaProfile[]> => {
     const response = await api.get('/woreda-profiles', { params });
     return response.data;

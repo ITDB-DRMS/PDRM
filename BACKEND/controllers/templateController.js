@@ -1,5 +1,6 @@
 import Template from '../models/Template.js';
 import FormResponse from '../models/FormResponse.js';
+import * as auditService from '../services/auditService.js';
 
 // @desc    Get all templates
 // @route   GET /api/templates
@@ -71,6 +72,16 @@ export const createTemplate = async (req, res) => {
         });
 
         const savedTemplate = await template.save();
+
+        await auditService.logAction({
+            userId: req.user?._id,
+            action: 'TEMPLATE_CREATE',
+            resource: 'Template',
+            resourceId: savedTemplate._id,
+            after: savedTemplate,
+            ip: req.ip
+        });
+
         res.status(201).json(savedTemplate);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -91,8 +102,20 @@ export const updateTemplate = async (req, res) => {
             return res.status(403).json({ message: 'Cannot edit a published template. Create a new version instead.' });
         }
 
+        const before = template.toObject();
         Object.assign(template, req.body);
         const updatedTemplate = await template.save();
+
+        await auditService.logAction({
+            userId: req.user?._id,
+            action: 'TEMPLATE_UPDATE',
+            resource: 'Template',
+            resourceId: updatedTemplate._id,
+            before,
+            after: updatedTemplate,
+            ip: req.ip
+        });
+
         res.json(updatedTemplate);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -120,6 +143,16 @@ export const publishTemplate = async (req, res) => {
         template.publishedAt = new Date();
 
         const publishedTemplate = await template.save();
+
+        await auditService.logAction({
+            userId: req.user?._id,
+            action: 'TEMPLATE_PUBLISH',
+            resource: 'Template',
+            resourceId: publishedTemplate._id,
+            after: publishedTemplate,
+            ip: req.ip
+        });
+
         res.json(publishedTemplate);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -149,6 +182,16 @@ export const revertToDraft = async (req, res) => {
         template.publishedAt = null;
 
         const updatedTemplate = await template.save();
+
+        await auditService.logAction({
+            userId: req.user?._id,
+            action: 'TEMPLATE_REVERT',
+            resource: 'Template',
+            resourceId: updatedTemplate._id,
+            after: updatedTemplate,
+            ip: req.ip
+        });
+
         console.log("Revert successful for:", updatedTemplate.name);
         res.json(updatedTemplate);
     } catch (error) {
@@ -184,6 +227,16 @@ export const createNewVersion = async (req, res) => {
         });
 
         const savedTemplate = await newTemplate.save();
+
+        await auditService.logAction({
+            userId: req.user?._id,
+            action: 'TEMPLATE_VERSION_CREATE',
+            resource: 'Template',
+            resourceId: savedTemplate._id,
+            after: savedTemplate,
+            ip: req.ip
+        });
+
         res.status(201).json(savedTemplate);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -197,11 +250,23 @@ export const archiveTemplate = async (req, res) => {
         const template = await Template.findById(req.params.id);
         if (!template) return res.status(404).json({ message: 'NotFound' });
 
+        const before = template.toObject();
         template.status = 'Archived';
         template.isDeleted = true;
         template.isLatest = false; // Archived should not be considered "latest" active
 
         await template.save();
+
+        await auditService.logAction({
+            userId: req.user?._id,
+            action: 'TEMPLATE_ARCHIVE',
+            resource: 'Template',
+            resourceId: template._id,
+            before,
+            after: template,
+            ip: req.ip
+        });
+
         res.json({ message: 'Template moved to archive', template });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -215,9 +280,20 @@ export const restoreTemplate = async (req, res) => {
         const template = await Template.findById(req.params.id);
         if (!template) return res.status(404).json({ message: 'Template not found' });
 
+        const before = template.toObject();
         template.isDeleted = false;
         template.status = 'Draft'; // Default back to draft
         await template.save();
+
+        await auditService.logAction({
+            userId: req.user?._id,
+            action: 'TEMPLATE_RESTORE',
+            resource: 'Template',
+            resourceId: template._id,
+            before,
+            after: template,
+            ip: req.ip
+        });
 
         res.json({ message: 'Template restored successfully', template });
     } catch (error) {
@@ -232,9 +308,20 @@ export const deleteTemplatePermanent = async (req, res) => {
         const template = await Template.findById(req.params.id);
         if (!template) return res.status(404).json({ message: 'Template not found' });
 
+        const before = template.toObject();
         // Ensure it's archived/deleted first before permanent removal? 
         // User's choice, usually yes.
         await Template.findByIdAndDelete(req.params.id);
+
+        await auditService.logAction({
+            userId: req.user?._id,
+            action: 'TEMPLATE_DELETE_PERMANENT',
+            resource: 'Template',
+            resourceId: req.params.id,
+            before,
+            ip: req.ip
+        });
+
         res.json({ message: 'Template permanently deleted' });
     } catch (error) {
         res.status(500).json({ message: error.message });

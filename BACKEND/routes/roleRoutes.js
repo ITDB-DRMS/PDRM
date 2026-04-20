@@ -6,17 +6,18 @@ import {
     updateRole,
     deleteRole
 } from '../controllers/roleController.js';
-import { protect, admin } from '../middleware/authMiddleware.js';
+import { protect } from '../middleware/authMiddleware.js';
+import { checkPermission } from '../middleware/permissionMiddleware.js';
 
 const router = express.Router();
 
 router.route('/')
-    .post(protect, admin, createRole)
-    .get(protect, admin, getRoles);
+    .post(protect, checkPermission('role', 'create'), createRole)
+    .get(protect, checkPermission('role', 'view'), getRoles);
 
 router.route('/:id')
-    .get(protect, admin, getRoleById)
-    .put(protect, admin, updateRole)
-    .delete(protect, admin, deleteRole);
+    .get(protect, checkPermission('role', 'view'), getRoleById)
+    .put(protect, checkPermission('role', 'update'), updateRole)
+    .delete(protect, checkPermission('role', 'delete'), deleteRole);
 
 export default router;

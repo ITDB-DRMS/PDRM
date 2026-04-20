@@ -1,7 +1,8 @@
 import axios from 'axios';
+const API_URL = import.meta.env.VITE_API_URL;
 
 const api = axios.create({
-    baseURL: 'http://10.33.105.21:5000/api', // Adjust if backend port differs
+    baseURL: 'http://localhost:5000/api', // Adjust if backend port differs
     headers: {},
 });
 

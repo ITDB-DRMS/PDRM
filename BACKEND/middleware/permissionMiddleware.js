@@ -15,7 +15,10 @@ export const checkPermission = (resource, action) => {
             }
 
             // Super admins have all permissions
-            if (req.user.accessLevel === 'super_admin') {
+            const isSuperAdmin = req.user.accessLevel === 'super_admin' || 
+                               req.user.roles?.some(r => ['superadmin', 'super admin', 'super_admin'].includes(r.name.toLowerCase()));
+            
+            if (isSuperAdmin) {
                 return next();
             }
 

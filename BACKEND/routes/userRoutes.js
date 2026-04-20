@@ -8,6 +8,7 @@ import {
 } from '../controllers/userController.js';
 import upload from '../middleware/uploadMiddleware.js';
 import { protect } from '../middleware/authMiddleware.js';
+import { checkPermission } from '../middleware/permissionMiddleware.js';
 import { applyScopeFilter, canAccessUser } from '../middleware/dataScope.js';
 import { checkHierarchyLevel } from '../middleware/hierarchyAuth.js';
 
@@ -16,26 +17,28 @@ const router = express.Router();
 
 router.post('/',
     protect,
-    checkHierarchyLevel('branch_admin'), 
-    // checkHierarchyLevel('expert'),
+    checkPermission('user', 'create'),
     upload.single('profileImage'),
     createUser
 );
 
 router.get('/',
     protect,
+    checkPermission('user', 'view'),
     applyScopeFilter,
     getUsers
 );
 
 router.get('/:id',
     protect,
+    checkPermission('user', 'view'),
     canAccessUser,
     getUserById
 );
 
 router.put('/:id',
     protect,
+    checkPermission('user', 'update'),
     canAccessUser,
     upload.single('profileImage'),
     updateUser
@@ -43,8 +46,7 @@ router.put('/:id',
 
 router.delete('/:id',
     protect,
-    // checkHierarchyLevel('branch_admin'), // Relaxed to allow delegated users
-    checkHierarchyLevel('expert'),
+    checkPermission('user', 'delete'),
     canAccessUser,
     deleteUser
 );

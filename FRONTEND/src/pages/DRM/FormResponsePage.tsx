@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import api from '@/api/axios';
 import FormRenderer from '@/components/TemplateEngine/FormRenderer/FormRenderer';
 import { toast } from 'react-toastify';
@@ -11,32 +11,54 @@ import { useAuth } from '@/context/AuthContext';
 const FormResponsePage: React.FC = () => {
     const { templateId } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
+    
+    // Check if we are in Edit Mode
+    const searchParams = new URLSearchParams(location.search);
+    const editResponseId = searchParams.get('edit');
+
     const [template, setTemplate] = useState<any>(null);
+    const [initialData, setInitialData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
 
     useEffect(() => {
-        const fetchTemplate = async () => {
-            console.log("Fetching template with ID:", templateId);
+        const fetchData = async () => {
             try {
                 setLoading(true);
-                const response = await api.get(`/templates/${templateId}`);
-                console.log("Template received:", response.data);
-                setTemplate(response.data);
+                
+                // 1. Fetch Template
+                const tRes = await api.get(`/templates/${templateId}`);
+                setTemplate(tRes.data);
+
+                // 2. If Editing, fetch original response
+                if (editResponseId) {
+                    const rRes = await api.get(`/responses/${editResponseId}`);
+                    const responseData = rRes.data;
+                    
+                    // Transform answers { key: { value } } -> { key: value }
+                    const transformedAnswers: any = {};
+                    if (responseData.answers) {
+                        Object.entries(responseData.answers).forEach(([key, val]: [string, any]) => {
+                            transformedAnswers[key] = val.value ?? val;
+                        });
+                    }
+                    setInitialData(transformedAnswers);
+                }
             } catch (error: any) {
-                console.error("Error fetching template:", error);
-                toast.error(error.response?.data?.message || 'Failed to load template');
+                console.error("Error fetching data:", error);
+                toast.error(error.response?.data?.message || 'Failed to initialize form');
             } finally {
                 setLoading(false);
             }
         };
 
         if (templateId) {
-            fetchTemplate();
+            fetchData();
         }
-    }, [templateId]);
+    }, [templateId, editResponseId]);
 
     const onSubmit = async (data: any) => {
         try {
@@ -55,8 +77,15 @@ const FormResponsePage: React.FC = () => {
                 }
             };
 
-            await api.post('/responses', payload);
-            toast.success('Response submitted successfully!');
+            if (editResponseId) {
+                // Update existing
+                await api.put(`/responses/${editResponseId}`, payload);
+                toast.success('Response updated successfully!');
+            } else {
+                // Submit new
+                await api.post('/responses', payload);
+                toast.success('Response submitted successfully!');
+            }
             setSubmitted(true);
         } catch (error: any) {
             toast.error(error.response?.data?.message || 'Failed to submit response');
@@ -157,6 +186,7 @@ const FormResponsePage: React.FC = () => {
             <FormRenderer
                 template={template}
                 onSubmit={onSubmit}
+                initialData={initialData}
             />
 
             <AnimatePresence>

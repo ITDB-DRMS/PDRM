@@ -8,8 +8,9 @@ import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
 import { Can } from '../../components/auth/PermissionGuard';
-import { LayoutGrid, List, Search, Plus, Eye, Edit2, Trash2 } from 'lucide-react';
+import { LayoutGrid, List, Search, Plus, Eye, Edit2, Trash2, KeyRound } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
 
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
@@ -106,11 +107,9 @@ export default function Users() {
     const [loading, setLoading] = useState(true);
     const [editUser, setEditUser] = useState<User | null>(null);
     const [isViewMode, setIsViewMode] = useState(false);
-
-    // Role Modal State
+    const [selectedUserForRoles, setSelectedUserForRoles] = useState<User | null>(null);
     const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
-    const [userForRoles, setUserForRoles] = useState<User | null>(null);
-    const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+
 
     // Form State
     const [formData, setFormData] = useState({
@@ -234,6 +233,33 @@ export default function Users() {
         }
     }
 
+    const handleOpenRoleModal = (user: User) => {
+        setSelectedUserForRoles(user);
+        setFormData(prev => ({
+            ...prev,
+            roles: user.roles?.map((r: any) => r._id || r.id) || []
+        }));
+        setIsRoleModalOpen(true);
+    };
+
+    const handleUpdateRoles = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedUserForRoles) return;
+
+        try {
+            const data = {
+                roles: formData.roles
+            };
+
+            await api.put(`/users/${selectedUserForRoles.id}`, data);
+            toast.success('User roles updated successfully');
+            setIsRoleModalOpen(false);
+            fetchData();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Failed to update roles');
+        }
+    };
+
     const handleOpenModal = (userItem?: User, mode: 'create' | 'edit' | 'view' = 'create') => {
         setIsViewMode(mode === 'view');
 
@@ -318,19 +344,27 @@ export default function Users() {
                 });
                 closeModal();
                 toast.success('User updated successfully');
+                setAlertState({ show: true, variant: 'success', title: 'Success', message: 'User updated successfully' });
             } else {
                 await api.post('/users', data, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
                 closeModal();
                 toast.success('User created successfully');
+                setAlertState({ show: true, variant: 'success', title: 'Success', message: 'User created successfully' });
             }
             fetchData();
         } catch (error: any) {
             console.error("Failed to save user", error);
-            // Close the form modal and show error popup
-            closeModal();
-            toast.error(error.response?.data?.message || 'Failed to save user');
+            const errorMsg = error.response?.data?.message;
+            const validationErrors = error.response?.data?.errors;
+            
+            if (validationErrors && Array.isArray(validationErrors)) {
+                toast.error(validationErrors.join(', '));
+            } else {
+                toast.error(errorMsg || 'Failed to save user. Please check your network connection or try again.');
+            }
+            // Keep the modal open so user can fix and retry
         }
     };
 
@@ -371,49 +405,6 @@ export default function Users() {
         return false;
     };
 
-    const handleOpenRoleModal = (user: User) => {
-        setUserForRoles(user);
-        setSelectedRoles(user.roles?.map((r: any) => r._id || r.id) || []);
-        setIsRoleModalOpen(true);
-    };
-
-    const handleSaveRoles = async () => {
-        if (!userForRoles) return;
-        try {
-            // We need a specific endpoint to update roles, or use the update user endpoint
-            // Assuming update user endpoint handles roles update
-            const data = {
-                roles: selectedRoles
-            };
-
-            await api.put(`/users/${userForRoles.id}/roles`, data); // Try specific endpoint first or fallback to general update
-            // If backend doesn't have specific route, we might need to send all user data back or modify backend.
-            // Let's assume standard update for now if specific fails, but cleaner to separate.
-            // Actually, based on previous code, we used Put /users/:id with FormData.
-            // Let's stick to that pattern or simpler JSON if backend supports partial updates.
-            // Using a specialized endpoint is safer if exists. If not, we'll try partial update.
-
-            toast.success('Roles updated successfully');
-            setIsRoleModalOpen(false);
-            fetchData();
-        } catch (error: any) {
-            // If 404, maybe endpoint doesn't exist, try general update
-            if (error.response && error.response.status === 404) {
-                try {
-                    const data = { roles: selectedRoles };
-                    await api.put(`/users/${userForRoles.id}`, data);
-                    toast.success('Roles updated successfully');
-                    setIsRoleModalOpen(false);
-                    fetchData();
-                    return;
-                } catch (e) {
-                    console.error("Failed to update roles fallback", e);
-                }
-            }
-            console.error("Failed to update roles", error);
-            toast.error('Failed to update roles');
-        }
-    };
 
     return (
         <>
@@ -500,6 +491,30 @@ export default function Users() {
                             (u.fullname.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase()))
                         ).length} users
                     </div>
+            {/* Alert popup modal for success / error */}
+            {alertState?.show && (
+                <Modal isOpen={true} onClose={() => setAlertState(null)} className="max-w-[480px] m-4">
+                    <div className="relative w-full overflow-y-auto rounded-3xl bg-white p-6 dark:bg-gray-900">
+                        <div className="mb-4">
+                            <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">{alertState.title}</h4>
+                            <p className={`mt-2 text-sm ${alertState.variant === 'success' ? 'text-green-600' : 'text-red-600'}`}>{alertState.message}</p>
+                        </div>
+                        <div className="flex justify-end">
+                            <Button size="sm" variant="outline" onClick={() => setAlertState(null)} type="button">Close</Button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] lg:p-6">
+                <div className="flex justify-between items-center mb-5">
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+                        All Users
+                    </h3>
+                    <Button size="sm" onClick={() => handleOpenModal()}>
+                        + Add User
+                    </Button>
+                </div>
 
                     {loading ? (
                         <div className="flex h-64 items-center justify-center">
@@ -565,8 +580,12 @@ export default function Users() {
                                                     <tr key={user.id} className="group hover:bg-white/60 transition-colors dark:hover:bg-white/[0.02]">
                                                         <td className="px-6 py-4">
                                                             <div className="flex items-center gap-3">
-                                                                <div className="h-10 w-10 flex-shrink-0 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold">
-                                                                    {user.fullname.charAt(0)}
+                                                                <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold">
+                                                                    {user.profileImage ? (
+                                                                        <img src={user.profileImage} alt={user.fullname} className="h-full w-full object-cover" />
+                                                                    ) : (
+                                                                        user.fullname.charAt(0)
+                                                                    )}
                                                                 </div>
                                                                 <div>
                                                                     <div className="font-medium text-slate-900 group-hover:text-primary transition-colors dark:text-white">{user.fullname}</div>
@@ -601,6 +620,9 @@ export default function Users() {
                                                                 <button onClick={() => handleOpenModal(user, 'edit')} title="Edit User" className="p-2 text-slate-400 hover:bg-slate-100 hover:text-primary rounded-lg transition-all dark:text-white/40 dark:hover:bg-white/5 dark:hover:text-white">
                                                                     <Edit2 size={16} />
                                                                 </button>
+                                                                <button onClick={() => handleOpenRoleModal(user)} title="Manage Roles" className="p-2 text-slate-400 hover:bg-slate-100 hover:text-primary rounded-lg transition-all dark:text-white/40 dark:hover:bg-white/5 dark:hover:text-white">
+                                                                    <KeyRound size={16} />
+                                                                </button>
                                                                 <button onClick={() => handleDelete(user.id)} title="Delete User" className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-all dark:text-white/40 dark:hover:bg-red-500/10 dark:hover:text-red-400">
                                                                     <Trash2 size={16} />
                                                                 </button>
@@ -618,277 +640,431 @@ export default function Users() {
             </div>
 
             {/* Modals */}
-            <Modal isOpen={isOpen} onClose={closeModal} className="max-w-[800px] m-4">
-                <div className="no-scrollbar relative w-full max-w-[800px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">
-                    <div className="px-2 pr-14 mb-6">
-                        <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
-                            {isViewMode ? 'View User' : editUser ? 'Edit User' : 'Add New User'}
-                        </h4>
+
+            {/* Create/Edit/View User Modal */}
+            <Modal isOpen={isOpen} onClose={closeModal} className="max-w-[850px] m-4">
+                <div className="no-scrollbar relative w-full overflow-hidden rounded-[2rem] bg-white shadow-2xl dark:bg-slate-900 border border-white/20">
+                    {/* Header with Background Accent */}
+                    <div className="relative h-32 bg-gradient-to-r from-blue-600 to-indigo-700 px-8 flex items-center dark:from-blue-900 dark:to-indigo-950 overflow-hidden">
+                        <div className="absolute inset-0 opacity-20 pointer-events-none">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-white/20 rounded-full blur-3xl -mr-20 -mt-20" />
+                            <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/20 rounded-full blur-2xl -ml-16 -mb-16" />
+                        </div>
+                        <div className="relative z-10 flex items-center gap-6">
+                            <div className="h-16 w-16 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white">
+                                <Plus size={32} />
+                            </div>
+                            <div>
+                                <h4 className="text-3xl font-bold text-white tracking-tight">
+                                    {isViewMode ? 'User Profile Details' : editUser ? 'Modify User Account' : 'Register New User'}
+                                </h4>
+                                <p className="text-blue-100 text-sm opacity-80 mt-1">
+                                    {isViewMode ? 'Review system account access and details' : 'Configure account credentials and organizational access'}
+                                </p>
+                            </div>
+                        </div>
                     </div>
+
                     <form onSubmit={handleSave} className="flex flex-col">
-                        <div className="custom-scrollbar h-[500px] overflow-y-auto px-2 pb-3">
-                            <div className="space-y-5">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <Label>Full Name</Label>
-                                        <Input
-                                            type="text"
-                                            value={formData.fullname}
-                                            onChange={(e) => setFormData({ ...formData, fullname: e.target.value })}
-                                            required
-                                            disabled={isViewMode}
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label>Email</Label>
-                                        <Input
-                                            type="email"
-                                            value={formData.email}
-                                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                            required
-                                            disabled={isViewMode}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <Label>Phone</Label>
-                                        <Input
-                                            type="text"
-                                            value={formData.phone}
-                                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                            disabled={isViewMode}
-                                        />
-                                    </div>
-                                    {/* Access Level First to drive UI */}
-                                    <div>
-                                        <Label>Access Level</Label>
-                                        <div className="relative z-20 bg-transparent dark:bg-gray-800">
-                                            <select
-                                                value={formData.accessLevel}
-                                                onChange={(e) => {
-                                                    setFormData({ ...formData, accessLevel: e.target.value });
-                                                }}
-                                                className="relative z-20 w-full appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-gray-800 dark:text-white dark:focus:border-primary disabled:cursor-default disabled:bg-whiter"
-                                                disabled={isViewMode}
-                                            >
-                                                <option value="public">Public</option>
-                                                <option value="expert">Expert</option>
-                                                <option value="team_leader">Team Leader</option>
-                                                <option value="directorate">Directorate (Department Lead)</option>
-                                                <option value="sector_lead">Sector Lead</option>
-                                                <option value="branch_admin">Branch Admin</option>
-                                                <option value="deputy">Deputy</option>
-                                                <option value="manager">Manager</option>
-                                                <option value="super_admin">Super Admin</option>
-                                            </select>
+                        <div className="custom-scrollbar max-h-[70vh] overflow-y-auto px-8 py-10">
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                                
+                                {/* Left Column: Profile Card */}
+                                <div className="lg:col-span-5 space-y-8">
+                                    <div className="rounded-3xl border border-slate-200 bg-slate-50/50 p-6 dark:border-white/10 dark:bg-white/[0.02]">
+                                        <div className="flex items-center gap-2 mb-6 text-slate-900 dark:text-white pb-3 border-b border-slate-200 dark:border-white/10">
+                                            <div className="h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                                            <h5 className="text-xs font-bold uppercase tracking-widest">Personal Information</h5>
                                         </div>
-                                    </div>
-                                </div>
 
-                                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-4">
-                                    <h5 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Hierarchical Context</h5>
+                                        <div className="space-y-5">
+                                            <div className="flex flex-col items-center mb-6">
+                                                <div className="relative group/avatar cursor-pointer">
+                                                    <div className="h-24 w-24 rounded-3xl bg-slate-200 dark:bg-white/5 border-2 border-dashed border-slate-300 dark:border-white/10 flex items-center justify-center overflow-hidden transition-all group-hover:border-primary">
+                                                        {(formData.profileImage || editUser?.profileImage) ? (
+                                                            <img
+                                                                src={
+                                                                    formData.profileImage instanceof File
+                                                                        ? URL.createObjectURL(formData.profileImage)
+                                                                        : editUser?.profileImage
+                                                                }
+                                                                alt="Profile"
+                                                                className="h-full w-full object-cover"
+                                                                key={formData.profileImage ? 'new' : 'old'}
+                                                            />
+                                                        ) : (
+                                                            <div className="text-slate-400 group-hover:text-primary transition-colors flex flex-col items-center">
+                                                                <Plus size={24} />
+                                                                <span className="text-[10px] mt-1 font-bold">IMAGE</span>
+                                                            </div>
+                                                        )}
+                                                        {!isViewMode && (
+                                                            <input
+                                                                type="file"
+                                                                accept="image/*"
+                                                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                                                onChange={(e) => {
+                                                                    if (e.target.files && e.target.files[0]) {
+                                                                        setFormData({ ...formData, profileImage: e.target.files[0] });
+                                                                    }
+                                                                }}
+                                                            />
+                                                        )}
+                                                    </div>
+                                                    {!isViewMode && (
+                                                        <div className="absolute -bottom-2 -right-2 h-8 w-8 rounded-xl bg-white dark:bg-slate-800 shadow-lg border border-slate-200 dark:border-white/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                                                            <Edit2 size={12} />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <p className="text-[10px] text-slate-400 dark:text-white/30 uppercase mt-3 font-bold tracking-tighter">Profile Avatar</p>
+                                            </div>
 
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <Label>Organization Type</Label>
-                                            <div className="relative z-20 bg-transparent dark:bg-gray-800">
-                                                <select
-                                                    value={formData.organizationType}
-                                                    onChange={(e) => setFormData({ ...formData, organizationType: e.target.value })}
-                                                    className="relative z-20 w-full appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-gray-800 dark:text-white dark:focus:border-primary disabled:cursor-default disabled:bg-whiter"
+                                            <div>
+                                                <Label className="text-xs font-bold uppercase tracking-wider opacity-60">Full Legal Name</Label>
+                                                <Input
+                                                    type="text"
+                                                    value={formData.fullname}
+                                                    onChange={(e) => setFormData({ ...formData, fullname: e.target.value })}
+                                                    placeholder="Enter full name"
+                                                    required
                                                     disabled={isViewMode}
-                                                >
-                                                    <option value="head_office">Head Office</option>
-                                                    <option value="branch">Branch</option>
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                        {shouldShowField('organization') && (
-                                            <div>
-                                                <Label>Organization</Label>
-                                                <div className="relative z-20 bg-transparent dark:bg-gray-800">
-                                                    <select
-                                                        value={formData.organization}
-                                                        onChange={(e) => setFormData({
-                                                            ...formData,
-                                                            organization: e.target.value,
-                                                            sector: '',
-                                                            department: '',
-                                                            team: ''
-                                                        })}
-                                                        className="relative z-20 w-full appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-gray-800 dark:text-white dark:focus:border-primary disabled:cursor-default disabled:bg-whiter"
-                                                        disabled={isViewMode || (user?.accessLevel === 'branch_admin' && !user?.roles?.some(r => ['Super Admin', 'super_admin'].includes(r.name)) && !!formData.organization)}
-                                                    >
-                                                        <option value="">Select Organization</option>
-                                                        {allOrganizations.map(o => <option key={o._id || o.id} value={o._id || o.id}>{o.name}</option>)}
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        {shouldShowField('sector') && (
-                                            <div>
-                                                <Label>Sector</Label>
-                                                <div className="relative z-20 bg-transparent dark:bg-gray-800">
-                                                    <select
-                                                        value={formData.sector}
-                                                        onChange={(e) => setFormData({
-                                                            ...formData,
-                                                            sector: e.target.value,
-                                                            department: '',
-                                                            team: ''
-                                                        })}
-                                                        disabled={isViewMode || !formData.organization}
-                                                        className="relative z-20 w-full appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-gray-800 dark:text-white dark:focus:border-primary disabled:cursor-default disabled:bg-whiter disabled:opacity-50"
-                                                    >
-                                                        <option value="">Select Sector</option>
-                                                        {sectors.map(s => <option key={s._id || s.id} value={s._id || s.id}>{s.name}</option>)}
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {shouldShowField('department') && (
-                                            <div>
-                                                <Label>Department</Label>
-                                                <div className="relative z-20 bg-transparent dark:bg-gray-800">
-                                                    <select
-                                                        value={formData.department}
-                                                        onChange={(e) => setFormData({
-                                                            ...formData,
-                                                            department: e.target.value,
-                                                            team: ''
-                                                        })}
-                                                        disabled={isViewMode || !formData.organization}
-                                                        className="relative z-20 w-full appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-gray-800 dark:text-white dark:focus:border-primary disabled:cursor-default disabled:bg-whiter disabled:opacity-50"
-                                                    >
-                                                        <option value="">Select Department</option>
-                                                        {departments.map(d => <option key={d._id || d.id} value={d._id || d.id}>{d.name}</option>)}
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {shouldShowField('team') && (
-                                        <div>
-                                            <Label>Team</Label>
-                                            <div className="relative z-20 bg-transparent dark:bg-gray-800">
-                                                <select
-                                                    value={formData.team}
-                                                    onChange={(e) => setFormData({ ...formData, team: e.target.value })}
-                                                    disabled={isViewMode || !formData.department}
-                                                    className="relative z-20 w-full appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-gray-800 dark:text-white dark:focus:border-primary disabled:cursor-default disabled:bg-whiter disabled:opacity-50"
-                                                >
-                                                    <option value="">Select Team</option>
-                                                    {teams.map(t => <option key={t._id || t.id} value={t._id || t.id}>{t.name}</option>)}
-                                                </select>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div>
-                                    <Label>Status</Label>
-                                    <div className="relative z-20 bg-transparent dark:bg-gray-800">
-                                        <select
-                                            value={formData.status}
-                                            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                            className="relative z-20 w-full appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-gray-800 dark:text-white dark:focus:border-primary disabled:cursor-default disabled:bg-whiter"
-                                            disabled={isViewMode}
-                                        >
-                                            <option value="pending">Pending</option>
-                                            <option value="active">Active</option>
-                                            <option value="suspended">Suspended</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-col gap-2">
-                                    <Label>Profile Image</Label>
-
-                                    {/* Image Preview */}
-                                    {(formData.profileImage || editUser?.profileImage) && (
-                                        <div className="mb-2">
-                                            <div className="relative h-20 w-20 rounded-full overflow-hidden border border-gray-200 shadow-sm">
-                                                <img
-                                                    src={
-                                                        formData.profileImage instanceof File
-                                                            ? URL.createObjectURL(formData.profileImage)
-                                                            : editUser?.profileImage
-                                                    }
-                                                    alt="Profile Preview"
-                                                    className="h-full w-full object-cover"
+                                                    className="rounded-xl"
                                                 />
                                             </div>
-                                        </div>
-                                    )}
 
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={(e) => {
-                                            if (e.target.files && e.target.files[0]) {
-                                                setFormData({ ...formData, profileImage: e.target.files[0] });
-                                            }
-                                        }}
-                                        className="w-full cursor-pointer rounded-lg border border-stroke bg-transparent py-3 pl-5 pr-5 font-normal text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:text-white dark:focus:border-primary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-opacity-90 disabled:cursor-default"
-                                        disabled={isViewMode}
-                                    />
+                                            <div>
+                                                <Label className="text-xs font-bold uppercase tracking-wider opacity-60">Email Address</Label>
+                                                <Input
+                                                    type="email"
+                                                    value={formData.email}
+                                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                                    placeholder="user@example.com"
+                                                    required
+                                                    disabled={isViewMode}
+                                                    className="rounded-xl"
+                                                />
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4">
+                                                <div>
+                                                    <Label className="text-xs font-bold uppercase tracking-wider opacity-60">Phone Number</Label>
+                                                    <Input
+                                                        type="text"
+                                                        value={formData.phone}
+                                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                                        placeholder="+251 ..."
+                                                        disabled={isViewMode}
+                                                        className="rounded-xl"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label className="text-xs font-bold uppercase tracking-wider opacity-60">Account Status</Label>
+                                                    <select
+                                                        value={formData.status}
+                                                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                                                        className="w-full rounded-xl border border-slate-200 bg-white py-2.5 px-4 text-sm outline-none transition focus:border-primary active:border-primary dark:border-white/10 dark:bg-white/5 dark:text-white disabled:opacity-50"
+                                                        disabled={isViewMode}
+                                                    >
+                                                        <option value="pending">Pending Verification</option>
+                                                        <option value="active">Active Access</option>
+                                                        <option value="suspended">Account Suspended</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-3xl border border-slate-200 bg-slate-50/50 p-6 dark:border-white/10 dark:bg-white/[0.02]">
+                                        <div className="flex items-center gap-2 mb-6 text-slate-900 dark:text-white pb-3 border-b border-slate-200 dark:border-white/10">
+                                            <div className="h-2 w-2 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
+                                            <h5 className="text-xs font-bold uppercase tracking-widest">Access Control</h5>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <div>
+                                                <Label className="text-xs font-bold uppercase tracking-wider opacity-60">System Security Level</Label>
+                                                <select
+                                                    value={formData.accessLevel}
+                                                    onChange={(e) => setFormData({ ...formData, accessLevel: e.target.value })}
+                                                    className="w-full rounded-xl border border-slate-200 bg-white py-2.5 px-4 text-sm outline-none transition focus:border-primary active:border-primary dark:border-white/10 dark:bg-white/5 dark:text-white disabled:opacity-50 font-bold"
+                                                    disabled={isViewMode}
+                                                >
+                                                    <option value="public">🌍 Public User</option>
+                                                    <option value="expert">🎓 Expert</option>
+                                                    <option value="team_leader">👥 Team Leader</option>
+                                                    <option value="directorate">🏢 Directorate Lead</option>
+                                                    <option value="sector_lead">📐 Sector Lead</option>
+                                                    <option value="branch_admin">🛡️ Branch Admin</option>
+                                                    <option value="deputy">🏛️ Deputy</option>
+                                                    <option value="manager">⚙️ Manager</option>
+                                                    <option value="super_admin">👑 Super Admin</option>
+                                                </select>
+                                                <p className="mt-2 text-[10px] text-slate-500 italic opacity-80">
+                                                    * This level dictates visible fields and data scope
+                                                </p>
+                                            </div>
+
+                                            <div>
+                                                <Label className="text-xs font-bold uppercase tracking-wider opacity-60 mb-3 block">User Roles</Label>
+                                                <div className="grid grid-cols-2 gap-2 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar">
+                                                    {roles.map(r => (
+                                                        <label
+                                                            key={r._id || r.id}
+                                                            className={`flex items-center gap-2 p-2 rounded-lg border text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-all ${
+                                                                formData.roles.includes(r._id || r.id || '')
+                                                                ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20'
+                                                                : 'bg-white border-slate-200 text-slate-600 hover:border-blue-300 dark:bg-white/5 dark:border-white/10 dark:text-white/50'
+                                                            } ${isViewMode ? 'pointer-events-none opacity-80' : ''}`}
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={formData.roles.includes(r._id || r.id || '')}
+                                                                onChange={() => {
+                                                                    const roleId = r._id || r.id || '';
+                                                                    setFormData(prev => ({
+                                                                        ...prev,
+                                                                        roles: prev.roles.includes(roleId)
+                                                                            ? prev.roles.filter(id => id !== roleId)
+                                                                            : [...prev.roles, roleId]
+                                                                    }));
+                                                                }}
+                                                                className="hidden"
+                                                                disabled={isViewMode}
+                                                            />
+                                                            {r.name}
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Right Column: Organizational Context */}
+                                <div className="lg:col-span-7 space-y-8">
+                                    <div className="h-full rounded-[2.5rem] border border-slate-200 bg-white p-8 dark:border-white/10 dark:bg-white/[0.03] shadow-xl relative overflow-hidden group/context">
+                                        <div className="absolute top-0 right-0 p-8 opacity-5 dark:opacity-10 group-focus-within/context:opacity-20 transition-opacity">
+                                            <LayoutGrid size={120} />
+                                        </div>
+                                        
+                                        <div className="relative z-10 space-y-8">
+                                            <div className="flex items-center gap-3 mb-4">
+                                                <div className="h-10 w-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                                                    <List size={22} />
+                                                </div>
+                                                <div>
+                                                    <h5 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Placement & Context</h5>
+                                                    <p className="text-xs text-slate-500">Define which part of the organization this user belongs to</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-6">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    <div className="group/field">
+                                                        <Label className="text-xs font-bold uppercase tracking-wider opacity-60 mb-2 block group-focus-within/field:text-primary transition-colors">Organization Level</Label>
+                                                        <select
+                                                            value={formData.organizationType}
+                                                            onChange={(e) => setFormData({ ...formData, organizationType: e.target.value })}
+                                                            className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 px-5 text-sm outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10 dark:border-white/10 dark:bg-white/5 dark:text-white disabled:opacity-50"
+                                                            disabled={isViewMode}
+                                                        >
+                                                            <option value="head_office">🏛️ Head Office</option>
+                                                            <option value="branch">🏢 Branch Office</option>
+                                                        </select>
+                                                    </div>
+
+                                                    {shouldShowField('organization') && (
+                                                        <div className="group/field">
+                                                            <Label className="text-xs font-bold uppercase tracking-wider opacity-60 mb-2 block group-focus-within/field:text-primary transition-colors">Primary Organization</Label>
+                                                            <select
+                                                                value={formData.organization}
+                                                                onChange={(e) => setFormData({
+                                                                    ...formData,
+                                                                    organization: e.target.value,
+                                                                    sector: '',
+                                                                    department: '',
+                                                                    team: ''
+                                                                })}
+                                                                className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 px-5 text-sm outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10 dark:border-white/10 dark:bg-white/5 dark:text-white disabled:opacity-50"
+                                                                disabled={isViewMode || (user?.accessLevel === 'branch_admin' && !user?.roles?.some(r => ['Super Admin', 'super_admin'].includes(r.name)) && !!formData.organization)}
+                                                            >
+                                                                <option value="">-- Select Root Organization --</option>
+                                                                {allOrganizations.map(o => <option key={o._id || o.id} value={o._id || o.id}>{o.name}</option>)}
+                                                            </select>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className={`space-y-6 transition-all ${!formData.organization ? 'opacity-30 pointer-events-none blur-[1px]' : 'opacity-100'}`}>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                        {shouldShowField('sector') && (
+                                                            <div className="group/field">
+                                                                <Label className="text-xs font-bold uppercase tracking-wider opacity-60 mb-2 block group-focus-within/field:text-primary transition-colors">Sector</Label>
+                                                                <select
+                                                                    value={formData.sector}
+                                                                    onChange={(e) => setFormData({
+                                                                        ...formData,
+                                                                        sector: e.target.value,
+                                                                        department: '',
+                                                                        team: ''
+                                                                    })}
+                                                                    disabled={isViewMode || !formData.organization}
+                                                                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 px-5 text-sm outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10 dark:border-white/10 dark:bg-white/5 dark:text-white disabled:opacity-50"
+                                                                >
+                                                                    <option value="">-- No Sector Assigned --</option>
+                                                                    {sectors.map(s => <option key={s._id || s.id} value={s._id || s.id}>{s.name}</option>)}
+                                                                </select>
+                                                            </div>
+                                                        )}
+
+                                                        {shouldShowField('department') && (
+                                                            <div className="group/field">
+                                                                <Label className="text-xs font-bold uppercase tracking-wider opacity-60 mb-2 block group-focus-within/field:text-primary transition-colors">Department / Directorate</Label>
+                                                                <select
+                                                                    value={formData.department}
+                                                                    onChange={(e) => setFormData({
+                                                                        ...formData,
+                                                                        department: e.target.value,
+                                                                        team: ''
+                                                                    })}
+                                                                    disabled={isViewMode || !formData.organization}
+                                                                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 px-5 text-sm outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10 dark:border-white/10 dark:bg-white/5 dark:text-white disabled:opacity-50"
+                                                                >
+                                                                    <option value="">-- No Department Assigned --</option>
+                                                                    {departments.map(d => <option key={d._id || d.id} value={d._id || d.id}>{d.name}</option>)}
+                                                                </select>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {shouldShowField('team') && (
+                                                        <div className="group/field">
+                                                            <Label className="text-xs font-bold uppercase tracking-wider opacity-60 mb-2 block group-focus-within/field:text-primary transition-colors">Specific Team</Label>
+                                                            <select
+                                                                value={formData.team}
+                                                                onChange={(e) => setFormData({ ...formData, team: e.target.value })}
+                                                                disabled={isViewMode || !formData.department}
+                                                                className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 px-5 text-sm outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10 dark:border-white/10 dark:bg-white/5 dark:text-white disabled:opacity-50"
+                                                            >
+                                                                <option value="">-- No Specific Team --</option>
+                                                                {teams.map(t => <option key={t._id || t.id} value={t._id || t.id}>{t.name}</option>)}
+                                                            </select>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {!formData.organization && !isViewMode && (
+                                                    <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 p-4 rounded-2xl flex items-start gap-3">
+                                                        <div className="h-2 w-2 rounded-full bg-amber-500 mt-1.5 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
+                                                        <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">Please select an organization first to reveal sub-hierarchy options like Sectors and Departments.</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3 px-2 mt-6 lg:justify-end">
-                            <Button size="sm" variant="outline" onClick={closeModal} type="button">
-                                {isViewMode ? 'Close' : 'Cancel'}
-                            </Button>
-                            {!isViewMode && (
-                                <Button size="sm" type="submit">
-                                    Save
+
+                        {/* Footer Actions */}
+                        <div className="flex items-center justify-between px-8 py-6 bg-slate-50/50 dark:bg-white/[0.02] border-t border-slate-200 dark:border-white/10">
+                            <div>
+                                {!isViewMode && (
+                                    <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">
+                                        <span className="text-red-500">*</span> Required fields are strictly monitored
+                                    </p>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <Button 
+                                    variant="outline" 
+                                    onClick={closeModal} 
+                                    type="button"
+                                    className="rounded-xl px-6 border-slate-300 dark:border-white/10"
+                                >
+                                    {isViewMode ? 'Dismiss' : 'Cancel Changes'}
                                 </Button>
-                            )}
+                                {!isViewMode && (
+                                    <Button 
+                                        type="submit"
+                                        className="rounded-xl px-10 shadow-xl shadow-blue-600/20 active:scale-95 transition-transform"
+                                    >
+                                        {editUser ? 'Save Account Changes' : 'Complete User Registration'}
+                                    </Button>
+                                )}
+                            </div>
                         </div>
                     </form>
                 </div>
             </Modal>
-
-            {/* Role Assignment Modal */}
-            <Modal isOpen={isRoleModalOpen} onClose={() => setIsRoleModalOpen(false)} className="max-w-[500px] m-4">
-                <div className="relative w-full rounded-3xl bg-white p-6 dark:bg-gray-900 lg:p-10">
-                    <h4 className="mb-6 text-2xl font-semibold text-gray-800 dark:text-white/90">
-                        Manage Roles for {userForRoles?.fullname}
-                    </h4>
-
-                    <div className="mb-6">
-                        <Label>Select Roles</Label>
-                        <div className="relative z-20 bg-transparent dark:bg-gray-800">
-                            <select
-                                multiple
-                                value={selectedRoles}
-                                onChange={(e) => {
-                                    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
-                                    setSelectedRoles(selectedOptions);
-                                }}
-                                className="relative z-20 w-full appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-gray-800 dark:text-white dark:focus:border-primary h-60"
-                            >
-                                {roles.map(r => <option key={r._id || r.id} value={r._id || r.id}>{r.name}</option>)}
-                            </select>
-                            <p className="text-xs text-gray-500 mt-2">Hold Ctrl (Windows) or Cmd (Mac) to select multiple roles.</p>
+            {/* Role Management Modal */}
+            <Modal isOpen={isRoleModalOpen} onClose={() => setIsRoleModalOpen(false)} className="max-w-md">
+                <div className="overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900">
+                    <div className="bg-gradient-to-r from-indigo-600 to-blue-700 px-6 py-8 text-white">
+                        <div className="flex items-center gap-4">
+                            <div className="h-12 w-12 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center">
+                                <KeyRound size={24} />
+                            </div>
+                            <div>
+                                <h4 className="text-xl font-bold">Manage User Roles</h4>
+                                <p className="text-xs text-blue-100 opacity-80">{selectedUserForRoles?.fullname}</p>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3 justify-end">
-                        <Button size="sm" variant="outline" onClick={() => setIsRoleModalOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button size="sm" onClick={handleSaveRoles}>
-                            Save Roles
-                        </Button>
-                    </div>
+                    <form onSubmit={handleUpdateRoles} className="p-6">
+                        <div className="space-y-4">
+                            <Label className="text-xs font-bold uppercase tracking-wider opacity-60">Selected Roles</Label>
+                            <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                {roles.map(r => (
+                                    <label
+                                        key={r._id || r.id}
+                                        className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${
+                                            formData.roles.includes(r._id || r.id || '')
+                                            ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300'
+                                            : 'bg-white border-slate-100 text-slate-600 hover:border-blue-200 dark:bg-white/5 dark:border-white/10 dark:text-white/40'
+                                        }`}
+                                    >
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-bold">{r.name}</span>
+                                            {r.description && <span className="text-[10px] opacity-60">{r.description}</span>}
+                                        </div>
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.roles.includes(r._id || r.id || '')}
+                                            onChange={() => {
+                                                const roleId = r._id || r.id || '';
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    roles: prev.roles.includes(roleId)
+                                                        ? prev.roles.filter(id => id !== roleId)
+                                                        : [...prev.roles, roleId]
+                                                }));
+                                            }}
+                                            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="mt-8 flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setIsRoleModalOpen(false)}
+                                className="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:text-white/50 dark:hover:bg-white/5"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                className="flex-1 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all"
+                            >
+                                Save Changes
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </Modal>
         </>

@@ -1,10 +1,11 @@
 import ProfileMapping from '../models/ProfileMapping.js';
+import * as auditService from '../services/auditService.js';
 
 // @desc    Get all mappings
 // @route   GET /api/profile-mappings
 export const getProfileMappings = async (req, res) => {
     try {
-        const mappings = await ProfileMapping.find({ isActive: true })
+        const mappings = await ProfileMapping.find()
             .populate('createdBy', 'fullname');
         res.json(mappings);
     } catch (error) {
@@ -18,7 +19,7 @@ export const getMappingBySource = async (req, res) => {
     try {
         const mapping = await ProfileMapping.findOne({ 
             sourceId: req.params.sourceId, 
-            isActive: true 
+            status: 'Published' 
         }).sort({ version: -1 });
         
         if (!mapping) return res.status(404).json({ message: 'Mapping not found' });
@@ -34,9 +35,20 @@ export const createProfileMapping = async (req, res) => {
     try {
         const mapping = new ProfileMapping({
             ...req.body,
+            status: 'Draft',
             createdBy: req.user?._id
         });
         const saved = await mapping.save();
+
+        await auditService.logAction({
+            userId: req.user?._id,
+            action: 'PROFILE_MAPPING_CREATE',
+            resource: 'ProfileMapping',
+            resourceId: saved._id,
+            after: saved,
+            ip: req.ip
+        });
+
         res.status(201).json(saved);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -50,8 +62,20 @@ export const updateProfileMapping = async (req, res) => {
         const mapping = await ProfileMapping.findById(req.params.id);
         if (!mapping) return res.status(404).json({ message: 'Mapping not found' });
 
+        const before = mapping.toObject();
         Object.assign(mapping, req.body);
         const updated = await mapping.save();
+
+        await auditService.logAction({
+            userId: req.user?._id,
+            action: 'PROFILE_MAPPING_UPDATE',
+            resource: 'ProfileMapping',
+            resourceId: updated._id,
+            before,
+            after: updated,
+            ip: req.ip
+        });
+
         res.json(updated);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -65,9 +89,46 @@ export const deleteProfileMapping = async (req, res) => {
         const mapping = await ProfileMapping.findById(req.params.id);
         if (!mapping) return res.status(404).json({ message: 'Mapping not found' });
         
+        const before = mapping.toObject();
+        mapping.status = 'Archived';
         mapping.isActive = false;
         await mapping.save();
-        res.json({ message: 'Mapping deactivated successfully' });
+
+        await auditService.logAction({
+            userId: req.user?._id,
+            action: 'PROFILE_MAPPING_DEACTIVATE',
+            resource: 'ProfileMapping',
+            resourceId: mapping._id,
+            before,
+            ip: req.ip
+        });
+
+        res.json({ message: 'Mapping archived successfully' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Permanently delete mapping
+// @route   DELETE /api/profile-mappings/:id/permanent
+export const permanentlyDeleteProfileMapping = async (req, res) => {
+    try {
+        const mapping = await ProfileMapping.findById(req.params.id);
+        if (!mapping) return res.status(404).json({ message: 'Mapping not found' });
+        
+        const before = mapping.toObject();
+        await ProfileMapping.findByIdAndDelete(req.params.id);
+
+        await auditService.logAction({
+            userId: req.user?._id,
+            action: 'PROFILE_MAPPING_PERMANENT_DELETE',
+            resource: 'ProfileMapping',
+            resourceId: req.params.id,
+            before,
+            ip: req.ip
+        });
+
+        res.json({ message: 'Mapping permanently deleted' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

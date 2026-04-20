@@ -30,6 +30,13 @@ const formResponseSchema = new mongoose.Schema({
         of: mongoose.Schema.Types.Mixed
     },
 
+    syncStatus: {
+        type: String,
+        enum: ['UNSYNCED', 'SYNCED', 'UPDATED'],
+        default: 'UNSYNCED'
+    },
+    lastSyncedAt: Date,
+
     isDraft: { type: Boolean, default: false },
     submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     submittedAt: { type: Date, default: Date.now }
