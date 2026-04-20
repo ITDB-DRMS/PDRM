@@ -23,11 +23,6 @@ import alertSubscriptionRoutes from './routes/alertSubscriptionRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import adminLogRoutes from './routes/adminLogRoutes.js';
 import emailLogRoutes from './routes/emailLogRoutes.js';
-import profileMappingRoutes from './routes/profileMappingRoutes.js';
-import portalContentRoutes from './routes/portalContentRoutes.js';
-import incidentReportRoutes from './routes/incidentReportRoutes.js';
-import alertSubscriptionRoutes from './routes/alertSubscriptionRoutes.js';
-import uploadRoutes from './routes/uploadRoutes.js';
 import { errorHandler } from './middleware/errorMiddleware.js';
 import cors from 'cors';
 
@@ -101,13 +96,13 @@ app.use('/api/uploads', uploadRoutes);
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 // Diagnostic for FormResponse model
-import FormResponse from './models/FormResponse.js';
-console.log("FormResponse Schema Keys:", Object.keys(FormResponse.schema.paths));
-if (FormResponse.schema.paths.moduleContextType.enumValues) {
-    console.log("WARNING: moduleContextType still has enums:", FormResponse.schema.paths.moduleContextType.enumValues);
-} else {
-    console.log("SUCCESS: moduleContextType enum has been removed.");
-}
+// import FormResponse from './models/FormResponse.js';
+// console.log("FormResponse Schema Keys:", Object.keys(FormResponse.schema.paths));
+// if (FormResponse.schema.paths.moduleContextType.enumValues) {
+//     console.log("WARNING: moduleContextType still has enums:", FormResponse.schema.paths.moduleContextType.enumValues);
+// } else {
+//     console.log("SUCCESS: moduleContextType enum has been removed.");
+// }
 
 app.use(errorHandler);
 

@@ -37,6 +37,7 @@ interface Option {
     id?: string;
     _id?: string;
     name: string;
+    description?: string;
     organizationId?: string | { _id: string } | any; // Handle populated or string ID
     sectorId?: string | { _id: string } | any;
     department?: string | { _id: string } | any;
@@ -109,6 +110,7 @@ export default function Users() {
     const [isViewMode, setIsViewMode] = useState(false);
     const [selectedUserForRoles, setSelectedUserForRoles] = useState<User | null>(null);
     const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+    const [alertState, setAlertState] = useState<{ show: boolean; variant: 'success' | 'error'; title: string; message: string } | null>(null);
 
 
     // Form State
@@ -491,31 +493,6 @@ export default function Users() {
                             (u.fullname.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase()))
                         ).length} users
                     </div>
-            {/* Alert popup modal for success / error */}
-            {alertState?.show && (
-                <Modal isOpen={true} onClose={() => setAlertState(null)} className="max-w-[480px] m-4">
-                    <div className="relative w-full overflow-y-auto rounded-3xl bg-white p-6 dark:bg-gray-900">
-                        <div className="mb-4">
-                            <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">{alertState.title}</h4>
-                            <p className={`mt-2 text-sm ${alertState.variant === 'success' ? 'text-green-600' : 'text-red-600'}`}>{alertState.message}</p>
-                        </div>
-                        <div className="flex justify-end">
-                            <Button size="sm" variant="outline" onClick={() => setAlertState(null)} type="button">Close</Button>
-                        </div>
-                    </div>
-                </Modal>
-            )}
-
-            <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] lg:p-6">
-                <div className="flex justify-between items-center mb-5">
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-                        All Users
-                    </h3>
-                    <Button size="sm" onClick={() => handleOpenModal()}>
-                        + Add User
-                    </Button>
-                </div>
-
                     {loading ? (
                         <div className="flex h-64 items-center justify-center">
                             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -637,7 +614,6 @@ export default function Users() {
                         </AnimatePresence>
                     )}
                 </div>
-            </div>
 
             {/* Modals */}
 
@@ -1067,6 +1043,8 @@ export default function Users() {
                     </form>
                 </div>
             </Modal>
+            </div>
         </>
     );
 }
+

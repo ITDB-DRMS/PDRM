@@ -284,32 +284,6 @@ const AppSidebar: React.FC = () => {
 
   // Filter items based on permissions
   const filterItems = (items: NavItem[]) => {
-    const isSuperAdmin = user?.roles?.some(r => ['superadmin', 'super admin', 'super_admin'].includes(r.name.toLowerCase()));
-
-    return items.map(item => {
-      // If superAdminOnly, ONLY Super Admin sees it unless we want to open it for permitted subitems
-      // BUT user request says "branch admin... only the part given by role".
-      // This means we should IGNORE superAdminOnly flag if the user has permissions for subItems? 
-      // OR we should remove superAdminOnly from the parent and rely on subItems?
-      // Let's interpret: "superAdminOnly" really means "Hidden from general public, but visible if you have permission".
-      // Actually, standard practice: If I have permission for a child, I should see the parent.
-
-      // Calculate valid subItems first
-      let filteredSub: SubItem[] = [];
-      if (item.subItems) {
-        filteredSub = item.subItems.filter(sub => checkPermission(sub.permission));
-      }
-
-      // Logic:
-      // 1. If Super Admin -> Show everything.
-      // 2. If NOT Super Admin:
-      //    a. If item has subItems: Show item ONLY if there are valid subItems (permissions match).
-      //    b. If item has NO subItems: Show item ONLY if checkPermission returns true.
-
-      if (isSuperAdmin) {
-        return item;
-      }
-
     const isSuperAdmin = user?.roles?.some(r => ['superadmin', 'super admin', 'super_admin', "admin", "Admin", "branch_admin", "Branch Admin", "manager", "Manager"].includes(r.name.toLowerCase()));
 
     return items.map(item => {
@@ -318,9 +292,19 @@ const AppSidebar: React.FC = () => {
         return null;
       }
 
-      // If item has subItems, filter them
+      // Calculate valid subItems first
+      let filteredSub: SubItem[] = [];
       if (item.subItems) {
-        // If regular user (even branch admin) has access to some children, show the parent
+        filteredSub = item.subItems.filter(sub => checkPermission(sub.permission));
+      }
+
+      // If Super Admin -> Show everything.
+      if (isSuperAdmin) {
+        return item;
+      }
+
+      // If item has subItems: Show item ONLY if there are valid subItems (permissions match).
+      if (item.subItems) {
         if (filteredSub.length > 0) {
           return { ...item, subItems: filteredSub };
         }
@@ -328,9 +312,6 @@ const AppSidebar: React.FC = () => {
       }
 
       // No subItems, check direct permission
-      // Also respect superAdminOnly check for leaf nodes if any (though usually for parents)
-      if (item.superAdminOnly) return null; // Hard block for leaf nodes marked superAdminOnly if not super admin
-
       return checkPermission(item.permission) ? item : null;
 
     }).filter(Boolean) as NavItem[];
