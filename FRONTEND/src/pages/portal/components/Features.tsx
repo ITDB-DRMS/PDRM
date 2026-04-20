@@ -145,13 +145,13 @@ const Features: React.FC<{
             >
               <div
                 className={`absolute top-0 right-0 w-32 h-32 opacity-10 blur-3xl rounded-full ${
-                  feature.color || "bg-indigo-600"
+                  feature.color || "bg-brand-600"
                 }`}
               />
 
               <div
-                className={`w-16 h-16 ${feature.color || "bg-indigo-600"} ${
-                  feature.shadow || "shadow-indigo-500/30"
+                className={`w-16 h-16 ${feature.color || "bg-brand-600"} ${
+                  feature.shadow || "shadow-brand-500/30"
                 } rounded-2xl flex items-center justify-center mb-8 shadow-lg transform group-hover:rotate-6 transition-transform duration-500`}
               >
                 {iconFor(feature.iconKey)}
@@ -188,3 +188,4 @@ const Features: React.FC<{
 };
 
 export default Features;
+

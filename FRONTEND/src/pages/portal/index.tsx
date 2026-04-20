@@ -19,7 +19,7 @@ const LandingPage: React.FC = () => {
     const showContact = sectionsVisibility?.contact !== false;
 
     return (
-        <div className="min-h-screen bg-white font-outfit transition-colors duration-300">
+        <div className="portal-theme min-h-screen bg-[#F8FAFF] font-outfit overflow-x-hidden">
             {showHeader ? <Header branding={portalContent?.branding} header={portalContent?.header} /> : null}
             <main>
                 {showHero ? (
@@ -35,6 +35,7 @@ const LandingPage: React.FC = () => {
                         title={portalContent?.about?.title}
                         description={portalContent?.about?.description}
                         items={portalContent?.about?.items}
+                        image={portalContent?.about?.image}
                     />
                 ) : null}
                 {showServices ? (

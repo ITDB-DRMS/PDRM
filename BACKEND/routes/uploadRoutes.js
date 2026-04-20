@@ -3,15 +3,20 @@ import fs from 'fs';
 import path from 'path';
 import multer from 'multer';
 import { protect, admin } from '../middleware/authMiddleware.js';
+import { fileURLToPath } from 'url';
 
 const router = express.Router();
 
-const uploadDir = path.join(process.cwd(), 'uploads', 'portal');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsRoot = path.join(__dirname, '..', 'uploads');
+
+const uploadDir = path.join(uploadsRoot, 'portal');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-const incidentDir = path.join(process.cwd(), 'uploads', 'incidents');
+const incidentDir = path.join(uploadsRoot, 'incidents');
 if (!fs.existsSync(incidentDir)) {
   fs.mkdirSync(incidentDir, { recursive: true });
 }

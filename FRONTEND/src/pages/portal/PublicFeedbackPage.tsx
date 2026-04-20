@@ -83,10 +83,10 @@ const PublicFeedbackPage: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-white flex flex-col items-center justify-center">
+            <div className="portal-theme min-h-screen bg-white flex flex-col items-center justify-center">
                 <div className="relative">
-                    <div className="w-16 h-16 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
-                    <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-indigo-600 w-6 h-6 animate-pulse" />
+                    <div className="w-16 h-16 border-4 border-brand-100 border-t-brand-600 rounded-full animate-spin" />
+                    <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-brand-600 w-6 h-6 animate-pulse" />
                 </div>
                 <p className="mt-6 text-slate-400 font-bold uppercase tracking-widest text-xs">Initializing Dynamic Portal...</p>
             </div>
@@ -95,7 +95,7 @@ const PublicFeedbackPage: React.FC = () => {
 
     if (!showFeedbackPage) {
         return (
-            <div className="min-h-screen bg-[#F8FAFF] font-outfit">
+            <div className="portal-theme min-h-screen bg-[#F8FAFF] font-outfit">
                 <PageMeta title="Feedback | IDRMIS Portal" description="Feedback is currently unavailable" />
                 {showHeader ? <Header branding={portalContent?.branding} header={portalContent?.header} /> : null}
                 <main className="pt-28 px-6 pb-24">
@@ -109,7 +109,7 @@ const PublicFeedbackPage: React.FC = () => {
                         </p>
                         <button
                             onClick={() => navigate("/portal")}
-                            className="px-10 py-4 bg-slate-950 text-white rounded-2xl font-black hover:bg-indigo-600 transition-all"
+                            className="px-10 py-4 bg-accent-600 text-white rounded-2xl font-black hover:bg-accent-700 transition-all"
                         >
                             Back to portal
                         </button>
@@ -128,7 +128,7 @@ const PublicFeedbackPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-[#F8FAFF] font-outfit overflow-x-hidden">
+        <div className="portal-theme min-h-screen bg-[#F8FAFF] font-outfit overflow-x-hidden">
             <PageMeta
                 title={`${portalContent?.pages?.feedback?.title || "Feedback"} | IDRMIS Portal`}
                 description={portalContent?.pages?.feedback?.subtitle || "Give us your feedback"}
@@ -158,10 +158,10 @@ const PublicFeedbackPage: React.FC = () => {
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.8 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="inline-flex items-center gap-3 px-6 py-2 bg-white shadow-xl shadow-indigo-100/50 rounded-2xl border border-indigo-50"
+                                className="inline-flex items-center gap-3 px-6 py-2 bg-white shadow-xl shadow-brand-100/50 rounded-2xl border border-brand-50"
                             >
-                                <div className="w-2 h-2 bg-indigo-600 rounded-full animate-ping" />
-                                <span className="text-indigo-600 text-[11px] font-black uppercase tracking-[0.25em]">Community First</span>
+                                <div className="w-2 h-2 bg-accent-600 rounded-full animate-ping" />
+                                <span className="text-brand-600 text-[11px] font-black uppercase tracking-[0.25em]">Community First</span>
                             </motion.div>
 
                             <motion.h1
@@ -170,7 +170,7 @@ const PublicFeedbackPage: React.FC = () => {
                                 className="text-4xl lg:text-5xl font-black text-white leading-tight tracking-tight"
                             >
                                 Your Voice, Our <br />
-                                <span className="text-transparent bg-clip-text bg-gradient-to-br from-indigo-400 via-violet-400 to-teal-400">Innovation.</span>
+                                <span className="text-transparent bg-clip-text bg-gradient-to-br from-brand-400 via-brand-400 to-accent-400">Innovation.</span>
                             </motion.h1>
 
                             <motion.p
@@ -211,7 +211,7 @@ const PublicFeedbackPage: React.FC = () => {
                             transition={{ duration: 0.8, ease: "easeOut" }}
                             className="hidden lg:block relative group"
                         >
-                            <div className="absolute inset-0 bg-indigo-600 rounded-[32px] rotate-3 blur-2xl opacity-10 group-hover:rotate-1 transition-transform duration-700" />
+                            <div className="absolute inset-0 bg-accent-600 rounded-[32px] rotate-3 blur-2xl opacity-10 group-hover:rotate-1 transition-transform duration-700" />
                             <div className="relative w-[380px] aspect-[1.4] rounded-[32px] overflow-hidden border-4 border-white shadow-[0_20px_50px_-15px_rgba(79,70,229,0.2)]">
                                 <img
                                     src="/src/assets/images/feedback_banner.png"
@@ -228,13 +228,13 @@ const PublicFeedbackPage: React.FC = () => {
                                 className="absolute -bottom-8 -right-8 bg-white/80 backdrop-blur-xl p-6 rounded-3xl shadow-2xl border border-white/50 max-w-[200px]"
                             >
                                 <div className="flex items-center gap-3 mb-3">
-                                    <div className="w-8 h-8 bg-teal-500 text-white rounded-xl flex items-center justify-center">
+                                    <div className="w-8 h-8 bg-accent-500 text-white rounded-xl flex items-center justify-center">
                                         <Zap size={16} />
                                     </div>
                                     <span className="text-xs font-black text-slate-900 leading-tight">Fast<br />Response</span>
                                 </div>
                                 <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                                    <div className="h-full bg-teal-500 w-[85%]" />
+                                    <div className="h-full bg-accent-500 w-[85%]" />
                                 </div>
                             </motion.div>
                         </motion.div>
@@ -261,7 +261,7 @@ const PublicFeedbackPage: React.FC = () => {
                             </p>
                             <button
                                 onClick={() => navigate('/')}
-                                className="px-12 py-5 bg-slate-950 text-white rounded-2xl font-bold hover:bg-indigo-600 transition-all shadow-2xl hover:shadow-indigo-500/40 transform hover:-translate-y-1"
+                                className="px-12 py-5 bg-accent-600 text-white rounded-2xl font-bold hover:bg-accent-700 transition-all shadow-2xl hover:shadow-accent-500/40 transform hover:-translate-y-1"
                             >
                                 Return to Portal
                             </button>
@@ -270,14 +270,14 @@ const PublicFeedbackPage: React.FC = () => {
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="bg-white rounded-[56px] p-24 text-center shadow-[0_60px_120px_-30px_rgba(0,0,0,0.1)] border border-emerald-50 relative overflow-hidden"
+                            className="bg-white rounded-[56px] p-24 text-center shadow-[0_60px_120px_-30px_rgba(0,0,0,0.1)] border border-accent-50 relative overflow-hidden"
                         >
-                            <div className="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-indigo-500 via-teal-400 to-emerald-400" />
+                            <div className="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-brand-500 via-accent-400 to-accent-400" />
                             <motion.div
                                 initial={{ scale: 0 }}
                                 animate={{ scale: 1 }}
                                 transition={{ type: "spring", damping: 10, delay: 0.2 }}
-                                className="w-32 h-32 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-10 text-emerald-500"
+                                className="w-32 h-32 bg-accent-50 rounded-full flex items-center justify-center mx-auto mb-10 text-accent-500"
                             >
                                 <CheckCircle2 size={72} />
                             </motion.div>
@@ -288,7 +288,7 @@ const PublicFeedbackPage: React.FC = () => {
                             <div className="flex flex-col sm:flex-row gap-6 justify-center">
                                 <button
                                     onClick={() => navigate('/')}
-                                    className="px-14 py-5 bg-indigo-600 text-white rounded-2xl font-black hover:bg-slate-950 transition-all shadow-xl shadow-indigo-200"
+                                    className="px-14 py-5 bg-accent-600 text-white rounded-2xl font-black hover:bg-slate-950 transition-all shadow-xl shadow-accent-200"
                                 >
                                     Finish & Exit
                                 </button>
@@ -309,9 +309,9 @@ const PublicFeedbackPage: React.FC = () => {
                         >
                             {/* Form Top Banner */}
                             <div className="relative p-12 lg:p-16 bg-gradient-to-br from-slate-900 to-slate-800 text-white">
-                                <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/20 blur-[120px] rounded-full pointer-events-none" />
+                                <div className="absolute top-0 right-0 w-96 h-96 bg-brand-500/20 blur-[120px] rounded-full pointer-events-none" />
                                 <div className="relative z-10 space-y-4">
-                                    <div className="flex items-center gap-3 text-indigo-400 font-black text-[10px] uppercase tracking-[0.3em]">
+                                    <div className="flex items-center gap-3 text-brand-400 font-black text-[10px] uppercase tracking-[0.3em]">
                                         <Sparkles size={14} className="animate-spin-slow" />
                                         Input Module Active
                                     </div>
@@ -331,20 +331,20 @@ const PublicFeedbackPage: React.FC = () => {
                                     />
 
                                     {/* Small aesthetic corner accent */}
-                                    <div className="absolute top-0 left-0 w-2 h-20 bg-indigo-600 rounded-full -translate-x-full mt-20 opacity-0 lg:opacity-100" />
+                                    <div className="absolute top-0 left-0 w-2 h-20 bg-accent-600 rounded-full -translate-x-full mt-20 opacity-0 lg:opacity-100" />
                                 </div>
 
                                 <div className="mt-16 pt-10 border-t border-slate-200/50 grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-left">
                                     <div className="space-y-2">
                                         <div className="flex items-center gap-2 text-slate-900 font-black text-xs uppercase tracking-widest">
-                                            <ShieldCheck size={16} className="text-indigo-600" />
+                                            <ShieldCheck size={16} className="text-brand-600" />
                                             Privacy
                                         </div>
                                         <p className="text-[11px] text-slate-400 font-medium">Your data is stored using AES-256 standard encryption for complete anonymity.</p>
                                     </div>
                                     <div className="space-y-2">
                                         <div className="flex items-center gap-2 text-slate-900 font-black text-xs uppercase tracking-widest">
-                                            <Globe size={16} className="text-teal-500" />
+                                            <Globe size={16} className="text-accent-500" />
                                             Impact
                                         </div>
                                         <p className="text-[11px] text-slate-400 font-medium">Responses are reviewed by the National Innovation Committee every 24 hours.</p>
@@ -378,16 +378,16 @@ const PublicFeedbackPage: React.FC = () => {
                                     a: "Unless you choose to provide contact details, all feedback is recorded as anonymous metadata."
                                 }].map((item, i) => (
                                     <div key={i} className="group cursor-pointer">
-                                        <p className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors uppercase text-[10px] tracking-widest mb-1">{item.q}</p>
+                                        <p className="font-bold text-slate-900 group-hover:text-brand-600 transition-colors uppercase text-[10px] tracking-widest mb-1">{item.q}</p>
                                         <p className="text-sm text-slate-500">{item.a}</p>
                                     </div>
                                 ))}
                             </div>
                         </div>
-                        <div className="bg-indigo-50 rounded-[40px] p-10 space-y-6 border border-indigo-100/50 relative overflow-hidden">
-                            <div className="absolute -top-10 -right-10 w-40 h-40 bg-indigo-600/5 rounded-full blur-3xl" />
+                        <div className="bg-brand-50 rounded-[40px] p-10 space-y-6 border border-brand-100/50 relative overflow-hidden">
+                            <div className="absolute -top-10 -right-10 w-40 h-40 bg-accent-600/5 rounded-full blur-3xl" />
                             <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm text-indigo-600">
+                                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm text-brand-600">
                                     <UserPlus size={24} />
                                 </div>
                                 <h5 className="font-black text-slate-900">Want to join the test panel?</h5>
@@ -395,7 +395,7 @@ const PublicFeedbackPage: React.FC = () => {
                             <p className="text-sm text-slate-600 leading-relaxed font-medium">
                                 We are looking for early adopters to test and break our newest disaster management modules before they go live nationwide.
                             </p>
-                            <button className="w-full py-4 bg-white border border-indigo-200 text-indigo-600 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm">
+                            <button className="w-full py-4 bg-white border border-accent-200 text-accent-600 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-accent-600 hover:text-white transition-all shadow-sm">
                                 Register as Tester
                             </button>
                         </div>
@@ -422,7 +422,7 @@ const PublicFeedbackPage: React.FC = () => {
                         className="fixed inset-0 z-[100] bg-slate-950/95 backdrop-blur-2xl flex items-center justify-center flex-col"
                     >
                         <div className="relative">
-                            <div className="w-32 h-32 border-2 border-white/5 border-t-indigo-500 rounded-full animate-spin" />
+                            <div className="w-32 h-32 border-2 border-white/5 border-t-brand-500 rounded-full animate-spin" />
                             <div className="absolute inset-0 flex items-center justify-center">
                                 <div className="text-white text-3xl animate-bounce">
                                     <Send size={40} />
@@ -430,7 +430,7 @@ const PublicFeedbackPage: React.FC = () => {
                             </div>
                         </div>
                         <h2 className="text-3xl font-black text-white mt-12 tracking-tight">Syncing Data Gateway</h2>
-                        <p className="text-indigo-400 font-black text-[10px] uppercase tracking-[0.5em] mt-4 animate-pulse">Establishing Secure Socket Link</p>
+                        <p className="text-brand-400 font-black text-[10px] uppercase tracking-[0.5em] mt-4 animate-pulse">Establishing Secure Socket Link</p>
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -450,3 +450,4 @@ const PublicFeedbackPage: React.FC = () => {
 };
 
 export default PublicFeedbackPage;
+

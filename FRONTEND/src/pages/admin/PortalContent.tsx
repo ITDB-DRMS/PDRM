@@ -5,7 +5,7 @@ import { toast } from "react-toastify";
 import { invalidatePortalContentCache } from "@/hooks/usePortalContent";
 import { resolvePortalAssetUrl } from "@/utils/resolvePortalAssetUrl";
 
-type HeroSlide = { title: string; subtitle: string; image: string };
+type HeroSlide = { title: string; subtitle: string; image: string; iconKey?: string };
 type PortalFeature = { title: string; description: string; iconKey?: string; color?: string; shadow?: string };
 type PortalService = {
   title: string;
@@ -39,6 +39,7 @@ type PortalContent = {
     badge?: string;
     title?: string;
     description?: string;
+    image?: string;
     items?: { title: string; description: string; iconKey?: string }[];
   };
   featuresSection?: { heading?: string; subheading?: string; badge?: string; features?: PortalFeature[] };
@@ -113,6 +114,7 @@ const DEFAULT_CONTENT: PortalContent = {
     description:
       "Our platform provides a comprehensive ecosystem for managing disaster risks, ensuring that organizations can respond faster, plan smarter, and save lives through data-driven decisions.",
     badge: "About IDRMIS",
+    image: "/assets/images/disas.png",
     items: [
       {
         title: "Mission",
@@ -558,7 +560,7 @@ const PortalContentPage: React.FC = () => {
         </div>
         <div className="space-y-4">
           {slides.map((slide, idx) => (
-            <div key={idx} className="rounded-2xl border border-slate-100 p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div key={idx} className="rounded-2xl border border-slate-100 p-4 grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="text-xs font-bold text-slate-600">Title</label>
                 <input
@@ -579,6 +581,18 @@ const PortalContentPage: React.FC = () => {
                   onChange={(e) => {
                     const next = [...slides];
                     next[idx] = { ...next[idx], subtitle: e.target.value };
+                    setContent((c) => ({ ...c, hero: { ...(c.hero || {}), slides: next } }));
+                  }}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-600">Icon Key</label>
+                <input
+                  className={inputClass}
+                  value={slide.iconKey ?? ""}
+                  onChange={(e) => {
+                    const next = [...slides];
+                    next[idx] = { ...next[idx], iconKey: e.target.value };
                     setContent((c) => ({ ...c, hero: { ...(c.hero || {}), slides: next } }));
                   }}
                 />
@@ -616,7 +630,7 @@ const PortalContentPage: React.FC = () => {
                 ) : null}
               </div>
 
-              <div className="md:col-span-3 flex justify-end gap-2">
+              <div className="md:col-span-4 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -675,6 +689,36 @@ const PortalContentPage: React.FC = () => {
                 setContent((c) => ({ ...c, about: { ...(c.about || {}), description: e.target.value } }))
               }
             />
+          </div>
+          <div className="md:col-span-3">
+            <label className="text-xs font-bold text-slate-600">About Image Upload</label>
+            <input
+              type="file"
+              accept="image/*"
+              className={inputClass}
+              disabled={uploading}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                try {
+                  setUploading(true);
+                  const url = await uploadPortalImage(file);
+                  setContent((c) => ({ ...c, about: { ...(c.about || {}), image: url } }));
+                  toast.success("Image uploaded");
+                } catch (error) {
+                  toast.error("Failed to upload image");
+                } finally {
+                  setUploading(false);
+                }
+              }}
+            />
+            {content.about?.image ? (
+              <img
+                src={resolvePortalAssetUrl(content.about.image)}
+                alt="About preview"
+                className="mt-2 h-24 w-full object-cover rounded-lg border border-slate-100"
+              />
+            ) : null}
           </div>
         </div>
 

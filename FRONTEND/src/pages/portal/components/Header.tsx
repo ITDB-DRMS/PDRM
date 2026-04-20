@@ -69,20 +69,20 @@ const Header: React.FC<{
                             <a
                                 key={link.label}
                                 href={link.href}
-                                className={`text-sm font-medium relative group transition-colors ${isScrolled ? "text-slate-600 hover:text-brand-500" : "text-white/90 hover:text-white"
+                                className={`text-sm font-medium relative group transition-colors ${isScrolled ? "text-slate-600 hover:text-brand-600" : "text-white/90 hover:text-accent-200"
                                     }`}
                             >
                                 {link.label}
-                                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-accent-500 transition-all duration-300 group-hover:w-full"></span>
+                                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-brand-500 via-brand-500 to-accent-400 transition-all duration-300 group-hover:w-full"></span>
                             </a>
                         ))}
-                        <Link
-                            to={ctaHref}
-                            className="px-6 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold rounded-full transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-brand-500/25 flex items-center gap-2"
-                        >
-                            {ctaLabel}
-                            <LogIn className="w-4 h-4" />
-                        </Link>
+                            <Link
+                                to={ctaHref}
+                                className="px-6 py-2.5 bg-gradient-to-r from-accent-600 via-accent-600 to-accent-500 hover:from-accent-500 hover:via-accent-500 hover:to-accent-400 text-white text-sm font-semibold rounded-full transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-accent-500/25 flex items-center gap-2"
+                            >
+                                {ctaLabel}
+                                <LogIn className="w-4 h-4" />
+                            </Link>
                     </div>
 
                     {/* Mobile menu button */}
@@ -110,7 +110,7 @@ const Header: React.FC<{
                                 <a
                                     key={link.label}
                                     href={link.href}
-                                    className="text-slate-600 dark:text-slate-300 font-medium py-2 px-4 hover:bg-brand-50 dark:hover:bg-brand-500/15 rounded-lg transition-colors"
+                                    className="text-slate-600 dark:text-slate-300 font-medium py-2 px-4 hover:text-brand-600 hover:bg-brand-50/70 dark:hover:text-accent-300 dark:hover:bg-brand-500/15 rounded-lg transition-colors"
                                     onClick={() => setIsMobileMenuOpen(false)}
                                 >
                                     {link.label}
@@ -118,7 +118,7 @@ const Header: React.FC<{
                             ))}
                             <Link
                                 to={ctaHref}
-                                className="mx-4 mt-2 px-6 py-3 bg-brand-500 text-white text-center font-semibold rounded-lg shadow-md flex items-center justify-center gap-2"
+                                className="mx-4 mt-2 px-6 py-3 bg-gradient-to-r from-accent-600 via-accent-600 to-accent-500 text-white text-center font-semibold rounded-lg shadow-md flex items-center justify-center gap-2"
                                 onClick={() => setIsMobileMenuOpen(false)}
                             >
                                 {ctaLabel}
@@ -133,3 +133,4 @@ const Header: React.FC<{
 };
 
 export default Header;
+

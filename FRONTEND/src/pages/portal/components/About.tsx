@@ -34,13 +34,15 @@ const iconFor = (iconKey?: string) => {
     }
 };
 
-const About: React.FC<{ badge?: string; title?: string; description?: string; items?: AboutItem[] }> = ({
+const About: React.FC<{ badge?: string; title?: string; description?: string; items?: AboutItem[]; image?: string }> = ({
     badge,
     title,
     description,
-    items
+    items,
+    image
 }) => {
     const resolvedItems = Array.isArray(items) && items.length > 0 ? items : defaultAboutItems;
+    const aboutImageSrc = image || "/assets/images/disas.png";
     return (
         <section id="about" className="py-24 bg-white overflow-hidden">
             <div className="container mx-auto px-4 md:px-6">
@@ -53,7 +55,7 @@ const About: React.FC<{ badge?: string; title?: string; description?: string; it
                         transition={{ duration: 0.8 }}
                         className="flex-1 space-y-8"
                     >
-                        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 text-indigo-600 font-semibold text-sm border border-indigo-100 dark:bg-indigo-900/40 dark:text-indigo-400 dark:border-indigo-800">
+                        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-50 text-brand-600 font-semibold text-sm border border-brand-100 dark:bg-brand-900/40 dark:text-brand-400 dark:border-brand-800">
                             <Info className="w-4 h-4" />
                             <span>{badge || "About IDRMIS"}</span>
                         </div>
@@ -63,7 +65,7 @@ const About: React.FC<{ badge?: string; title?: string; description?: string; it
                           ) : (
                             <>
                               Welcome to Addis Ababa City{" "}
-                              <span className="text-indigo-600">Disaster Management System</span> Solutions
+                              <span className="text-brand-600">Disaster Management System</span> Solutions
                             </>
                           )}
                         </h2>
@@ -76,9 +78,9 @@ const About: React.FC<{ badge?: string; title?: string; description?: string; it
                                 <motion.div
                                     key={index}
                                     whileHover={{ x: 10 }}
-                                    className="flex items-start gap-5 p-6 rounded-2xl bg-slate-50 shadow-sm border border-slate-100 hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300"
+                                    className="flex items-start gap-5 p-6 rounded-2xl bg-slate-50 shadow-sm border border-slate-100 hover:shadow-xl hover:shadow-brand-500/10 transition-all duration-300"
                                 >
-                                    <div className="flex-shrink-0 p-3 rounded-xl bg-indigo-50">
+                                    <div className="flex-shrink-0 p-3 rounded-xl bg-brand-50">
                                         {iconFor(item.iconKey)}
                                     </div>
                                     <div>
@@ -100,15 +102,15 @@ const About: React.FC<{ badge?: string; title?: string; description?: string; it
                     >
                         <div className="relative z-10 rounded-3xl overflow-hidden shadow-[0_22px_70px_-15px_rgba(79,70,229,0.3)] transform hover:rotate-3 transition-transform duration-500">
                             <img
-                                src="/assets/images/hero2.png"
+                                src={aboutImageSrc}
                                 alt="IDRMIS dashboard"
-                                className="w-full h-[600px] object-cover"
+                                className="w-full h-[600px] object-cover object-top bg-white"
                             />
-                            <div className="absolute inset-0 bg-indigo-600/10 mix-blend-overlay"></div>
+                            <div className="absolute inset-0 bg-brand-600/10 mix-blend-overlay"></div>
                         </div>
                         {/* Soft Neumorphism accents */}
-                        <div className="absolute -top-10 -right-10 w-64 h-64 bg-indigo-400/20 blur-3xl rounded-full" />
-                        <div className="absolute -bottom-10 -left-10 w-64 h-64 bg-indigo-600/20 blur-3xl rounded-full" />
+                        <div className="absolute -top-10 -right-10 w-64 h-64 bg-brand-400/20 blur-3xl rounded-full" />
+                        <div className="absolute -bottom-10 -left-10 w-64 h-64 bg-brand-600/20 blur-3xl rounded-full" />
                     </motion.div>
                 </div>
             </div>

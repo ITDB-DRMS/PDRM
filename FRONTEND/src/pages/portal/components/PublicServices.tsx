@@ -139,6 +139,8 @@ const PublicServices: React.FC<{
                   to={
                     service.slug === "alert-subscription"
                       ? "/alert-subscription"
+                      : service.slug === "incident-reporting"
+                      ? "/incident-reporting"
                       : `/portal/services/${service.slug}`
                   }
                   className="block h-full rounded-3xl bg-white border border-slate-100 shadow-sm hover:shadow-2xl transition-all duration-300 p-8 group"

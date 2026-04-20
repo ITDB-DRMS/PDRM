@@ -37,6 +37,37 @@ const IncidentReportSchema = new mongoose.Schema(
       smellOfGas: { type: Boolean, default: false },
       estimatedSize: { type: String, trim: true, default: '' },
     },
+    floodInfo: {
+      waterDepth: { type: String, trim: true, default: '' },
+      fastRising: { type: Boolean, default: false },
+    },
+    collapseInfo: {
+      peopleTrapped: { type: Boolean, default: false },
+      buildingType: { type: String, trim: true, default: '' },
+    },
+    medicalInfo: {
+      injuriesCount: { type: String, trim: true, default: '' },
+      needsAmbulance: { type: Boolean, default: false },
+    },
+    powerInfo: {
+      liveWires: { type: Boolean, default: false },
+      outageArea: { type: String, trim: true, default: '' },
+    },
+    securityInfo: {
+      ongoingThreat: { type: Boolean, default: false },
+      incidentType: { type: String, trim: true, default: '' },
+    },
+    trafficInfo: {
+      lanesBlocked: { type: String, trim: true, default: '' },
+      injuries: { type: Boolean, default: false },
+    },
+    animalInfo: {
+      animalType: { type: String, trim: true, default: '' },
+      aggressive: { type: Boolean, default: false },
+    },
+    otherInfo: {
+      categoryNote: { type: String, trim: true, default: '' },
+    },
     attachments: { type: [IncidentAttachmentSchema], default: [] },
     contact: {
       phone: { type: String, trim: true, default: '' },

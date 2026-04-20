@@ -124,6 +124,12 @@ const adminItems: NavItem[] = [
         icon: <MailIcon />,
         permission: "view_template",
       },
+      {
+        name: "Incident Reports",
+        path: "/admin/incident-reports",
+        icon: <AlertIcon />,
+        permission: "view_template",
+      },
     ],
   },
   {

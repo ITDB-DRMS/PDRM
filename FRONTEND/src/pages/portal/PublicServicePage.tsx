@@ -53,6 +53,10 @@ const PublicServicePage: React.FC = () => {
           navigate("/alert-subscription", { replace: true });
           return;
         }
+        if (serviceSlug === "incident-reporting") {
+          navigate("/incident-reporting", { replace: true });
+          return;
+        }
         if (!portalContent && portalLoading) return;
         if (!serviceConfig) return;
 
@@ -105,7 +109,7 @@ const PublicServicePage: React.FC = () => {
 
   if (!showServices && !loading) {
     return (
-      <div className="min-h-screen bg-[#F8FAFF] font-outfit">
+      <div className="portal-theme min-h-screen bg-[#F8FAFF] font-outfit overflow-x-hidden">
         <PageMeta title="Service | IDRMIS Portal" description="Public portal service" />
         {showHeader ? <Header branding={portalContent?.branding} header={portalContent?.header} /> : null}
         <main className="pt-28 px-6 pb-24">
@@ -119,7 +123,7 @@ const PublicServicePage: React.FC = () => {
             </p>
             <button
               onClick={() => navigate("/portal")}
-              className="px-10 py-4 bg-slate-950 text-white rounded-2xl font-black hover:bg-indigo-600 transition-all"
+              className="px-10 py-4 bg-accent-600 text-white rounded-2xl font-black hover:bg-accent-700 transition-all"
             >
               Back to portal
             </button>
@@ -134,7 +138,7 @@ const PublicServicePage: React.FC = () => {
 
   if (!serviceConfig && !loading) {
     return (
-      <div className="min-h-screen bg-[#F8FAFF] font-outfit">
+      <div className="portal-theme min-h-screen bg-[#F8FAFF] font-outfit overflow-x-hidden">
         <PageMeta title="Service | IDRMIS Portal" description="Public portal service" />
         {showHeader ? <Header branding={portalContent?.branding} header={portalContent?.header} /> : null}
         <main className="pt-28 px-6 pb-24">
@@ -148,7 +152,7 @@ const PublicServicePage: React.FC = () => {
             </p>
             <button
               onClick={() => navigate("/portal")}
-              className="px-10 py-4 bg-slate-950 text-white rounded-2xl font-black hover:bg-indigo-600 transition-all"
+              className="px-10 py-4 bg-accent-600 text-white rounded-2xl font-black hover:bg-accent-700 transition-all"
             >
               Back to portal
             </button>
@@ -163,10 +167,10 @@ const PublicServicePage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center">
+      <div className="portal-theme min-h-screen bg-white flex flex-col items-center justify-center">
         <div className="relative">
-          <div className="w-16 h-16 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
-          <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-indigo-600 w-6 h-6 animate-pulse" />
+          <div className="w-16 h-16 border-4 border-brand-100 border-t-brand-600 rounded-full animate-spin" />
+          <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-brand-600 w-6 h-6 animate-pulse" />
         </div>
         <p className="mt-6 text-slate-400 font-bold uppercase tracking-widest text-xs">
           Loading portal service...
@@ -176,7 +180,7 @@ const PublicServicePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFF] font-outfit overflow-x-hidden">
+    <div className="portal-theme min-h-screen bg-[#F8FAFF] font-outfit overflow-x-hidden">
       <PageMeta
         title={`${serviceConfig?.title || "Service"} | IDRMIS Portal`}
         description={serviceConfig?.description || "Public portal service"}
@@ -187,7 +191,7 @@ const PublicServicePage: React.FC = () => {
         <div className="container mx-auto px-6">
           <button
             onClick={() => navigate("/portal#services")}
-            className="inline-flex items-center gap-2 text-slate-600 hover:text-indigo-600 font-bold transition-colors"
+            className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 font-bold transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to services
@@ -224,15 +228,15 @@ const PublicServicePage: React.FC = () => {
               </p>
               <button
                 onClick={() => navigate("/portal#services")}
-                className="px-12 py-4 bg-slate-950 text-white rounded-2xl font-black hover:bg-indigo-600 transition-all"
+                className="px-12 py-4 bg-accent-600 text-white rounded-2xl font-black hover:bg-accent-700 transition-all"
               >
                 Return to services
               </button>
             </div>
           ) : submitted ? (
-            <div className="bg-white rounded-[56px] p-14 md:p-20 text-center shadow-[0_60px_120px_-30px_rgba(0,0,0,0.1)] border border-emerald-50 relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-indigo-500 via-teal-400 to-emerald-400" />
-              <div className="w-28 h-28 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-8 text-emerald-500">
+            <div className="bg-white rounded-[56px] p-14 md:p-20 text-center shadow-[0_60px_120px_-30px_rgba(0,0,0,0.1)] border border-accent-50 relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-brand-500 via-accent-400 to-accent-400" />
+              <div className="w-28 h-28 bg-accent-50 rounded-full flex items-center justify-center mx-auto mb-8 text-accent-500">
                 <CheckCircle2 size={64} />
               </div>
               <h2 className="text-4xl md:text-5xl font-black text-slate-950 mb-4 tracking-tight">
@@ -244,13 +248,13 @@ const PublicServicePage: React.FC = () => {
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <button
                   onClick={() => navigate("/portal#services")}
-                  className="px-12 py-4 bg-slate-950 text-white rounded-2xl font-black hover:bg-indigo-600 transition-all"
+                  className="px-12 py-4 bg-accent-600 text-white rounded-2xl font-black hover:bg-accent-700 transition-all"
                 >
                   Back to services
                 </button>
                 <button
                   onClick={() => setSubmitted(false)}
-                  className="px-12 py-4 bg-indigo-600 text-white rounded-2xl font-black hover:bg-indigo-700 transition-all"
+                  className="px-12 py-4 bg-accent-600 text-white rounded-2xl font-black hover:bg-accent-700 transition-all"
                 >
                   Submit another
                 </button>
@@ -274,3 +278,4 @@ const PublicServicePage: React.FC = () => {
 };
 
 export default PublicServicePage;
+

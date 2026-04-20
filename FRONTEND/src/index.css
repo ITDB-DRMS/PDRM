@@ -180,6 +180,22 @@ layer(base);
   --z-index-999999: 999999;
 }
 
+/* Portal theme override based on the PDRM logo (bold red accent). */
+.portal-theme {
+  --color-accent-25: #fff5f5;
+  --color-accent-50: #ffe8ea;
+  --color-accent-100: #ffd1d5;
+  --color-accent-200: #ffb0b7;
+  --color-accent-300: #ff7f88;
+  --color-accent-400: #f24b55;
+  --color-accent-500: #d61f2a;
+  --color-accent-600: #b91c25;
+  --color-accent-700: #991b22;
+  --color-accent-800: #7f1a1d;
+  --color-accent-900: #5f1417;
+  --color-accent-950: #3a0b0e;
+}
+
 /*
   The default border color has changed to `currentColor` in Tailwind CSS v4,
   so we've added these compatibility styles to make sure everything still

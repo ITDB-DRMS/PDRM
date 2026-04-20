@@ -1,6 +1,6 @@
 import express from 'express';
 import { getPortalContent, upsertPortalContent } from '../controllers/portalContentController.js';
-import { protect, admin } from '../middleware/authMiddleware.js';
+import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -8,7 +8,6 @@ const router = express.Router();
 router.get('/', getPortalContent);
 
 // Admin: manage portal website content.
-router.put('/', protect, admin, upsertPortalContent);
+router.put('/', protect, upsertPortalContent);
 
 export default router;
-

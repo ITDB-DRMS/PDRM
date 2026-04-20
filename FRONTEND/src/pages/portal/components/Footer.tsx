@@ -149,7 +149,7 @@ const Footer: React.FC<{
                 </div>
 
                 <div className="flex items-start gap-4 group">
-                  <div className="p-2 rounded-lg bg-teal-900/40 text-teal-400 group-hover:bg-teal-600 group-hover:text-white transition-all transform group-hover:rotate-6">
+                  <div className="p-2 rounded-lg bg-accent-900/40 text-accent-400 group-hover:bg-accent-600 group-hover:text-white transition-all transform group-hover:rotate-6">
                     <Phone className="w-5 h-5" />
                   </div>
                   <div>
@@ -159,7 +159,7 @@ const Footer: React.FC<{
                 </div>
 
                 <div className="flex items-start gap-4 group">
-                  <div className="p-2 rounded-lg bg-blue-900/40 text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-all transform group-hover:rotate-6">
+                  <div className="p-2 rounded-lg bg-brand-900/40 text-brand-400 group-hover:bg-brand-600 group-hover:text-white transition-all transform group-hover:rotate-6">
                     <Mail className="w-5 h-5" />
                   </div>
                   <div>
@@ -240,7 +240,7 @@ const Footer: React.FC<{
                   className="flex items-center gap-3 p-4 bg-slate-900 rounded-xl border border-slate-800/50 hover:bg-slate-800 transition-all cursor-pointer"
                 >
                   {(b.iconKey || "").toLowerCase() === "help" ? (
-                    <HelpCircle className="w-5 h-5 text-teal-500" />
+                    <HelpCircle className="w-5 h-5 text-accent-500" />
                   ) : (
                     <ShieldIcon className="w-5 h-5 text-brand-300" />
                   )}
@@ -263,10 +263,11 @@ const Footer: React.FC<{
         </div>
       </div>
 
-      <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-600/5 blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-900/10 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute top-0 right-0 w-96 h-96 bg-brand-600/5 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-brand-900/10 blur-[120px] rounded-full pointer-events-none" />
     </footer>
   );
 };
 
 export default Footer;
+

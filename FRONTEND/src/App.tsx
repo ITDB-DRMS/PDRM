@@ -21,6 +21,7 @@ import AuditLogs from "./pages/admin/AuditLogs";
 import EmailLogs from "./pages/admin/EmailLogs";
 import PortalContentPage from "./pages/admin/PortalContent";
 import AlertSubscriptions from "./pages/admin/AlertSubscriptions";
+import IncidentReports from "./pages/admin/IncidentReports";
 
 // Template Engine
 import TemplateLibrary from "./components/TemplateEngine/TemplateLibrary/TemplateLibrary";
@@ -42,6 +43,7 @@ import MappingConfig from "./pages/DRM/MappingConfig";
 import PublicFeedbackPage from "./pages/portal/PublicFeedbackPage";
 import PublicServicePage from "./pages/portal/PublicServicePage";
 import AlertSubscriptionPage from "./pages/portal/AlertSubscriptionPage";
+import IncidentReportingPage from "./pages/portal/IncidentReportingPage";
 import NotFound from "./pages/OtherPage/NotFound";
 import Videos from "./pages/UiElements/Videos";
 import Images from "./pages/UiElements/Images";
@@ -111,6 +113,7 @@ export default function App() {
                   <Route path="/admin/email-logs" element={<EmailLogs />} />
                   <Route path="/admin/site-settings" element={<PortalContentPage />} />
                   <Route path="/admin/alert-subscriptions" element={<AlertSubscriptions />} />
+                  <Route path="/admin/incident-reports" element={<IncidentReports />} />
                   {/* Backward compatible */}
                   <Route path="/admin/portal-content" element={<PortalContentPage />} />
 
@@ -160,6 +163,7 @@ export default function App() {
               <Route path="/feedback" element={<PublicFeedbackPage />} />
               <Route path="/portal/services/:serviceSlug" element={<PublicServicePage />} />
               <Route path="/alert-subscription" element={<AlertSubscriptionPage />} />
+              <Route path="/incident-reporting" element={<IncidentReportingPage />} />
 
               <Route path="/signin" element={<Login />} />
               <Route path="/signup" element={<Register />} />
